@@ -1,14 +1,23 @@
-.PHONY: check hardware apply apply-pc setup mapping
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
 	bash -n scripts/*.sh
-	python3 -I -m py_compile scripts/build-mapping.py
+	python3 -I -m py_compile scripts/build-mapping.py agent/*.py
 	python3 -I -c "import xml.dom.minidom, glob; [xml.dom.minidom.parse(f) for f in glob.glob('mixxx/**/*.xml', recursive=True)]"
 	node --check mixxx/controllers/*.js 2>/dev/null || true
 
+test: ## Loopback test of the MIDI bridge (no Mixxx needed)
+	uv run python -m agent.selftest
+
 mapping: ## Regenerate the MK2 mapping from the mapping shipped with Mixxx
 	python3 -I scripts/build-mapping.py
+
+agent-mapping: ## Regenerate the agent mapping (XML + JS table) from agent/protocol.py
+	uv run python -m agent.build_mapping
+
+demo: ## Step 1 demo: the agent moves the crossfader and prints Mixxx feedback
+	uv run python -m agent.demo_crossfader
 
 hardware: ## Check that the controller is detected and Mixxx is configured
 	./scripts/check-hardware.sh

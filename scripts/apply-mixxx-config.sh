@@ -68,4 +68,12 @@ echo "controllers/ -> MK2 mapping and script installed in ${MIXXX_DIR}/controlle
 cfg_set "Controller" "$DEVICE_KEY" "1"
 cfg_set "ControllerPreset" "$DEVICE_KEY" "$MAPPING"
 echo "mixxx.cfg -> controller enabled with $(basename "$MAPPING")"
+
+# Virtual MIDI port of the agent (created by 'make demo' / the bridge); Mixxx finds it
+# only if it exists at startup or when the Controllers preferences page is opened.
+AGENT_KEY="djing-agent"
+AGENT_MAPPING="${MIXXX_DIR}/controllers/djing-agent.midi.xml"
+cfg_set "Controller" "$AGENT_KEY" "1"
+cfg_set "ControllerPreset" "$AGENT_KEY" "$AGENT_MAPPING"
+echo "mixxx.cfg -> agent port enabled with $(basename "$AGENT_MAPPING")"
 echo "Done. Start Mixxx and check Preferences > Sound Hardware and > Controllers."

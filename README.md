@@ -108,6 +108,32 @@ n'ajoute que ces deux fonctions. `make apply` ou `make apply-pc` installe les de
 `~/.mixxx/controllers/` et les sélectionne. Après une mise à jour de Mixxx, relancer `make mapping` puis
 `make apply`.
 
+## Agent MIDI (étape 1 : le port virtuel)
+
+Objectif : piloter Mixxx depuis un programme et lire son état, pour un mix scénarisé ou en B2B.
+Mixxx n'a pas d'API : il écoute du MIDI. Le pont `agent/bridge.py` crée un port MIDI virtuel ALSA
+nommé `djing-agent` (entrée + sortie, aucun droit root) que Mixxx voit comme un contrôleur.
+
+- `agent/protocol.py` est la source unique du protocole : canaux 1 et 2 pour les decks A et B, canal 3
+  pour le master et la bibliothèque ; notes pour les boutons (play, cue, sync, hotcues, chargement…),
+  CC 7 bits ou 14 bits (MSB sur n, LSB sur n + 32) pour volume, rate, EQ, filtre, seek, crossfader.
+- `make agent-mapping` génère depuis ce fichier le mapping Mixxx `mixxx/controllers/djing-agent.midi.xml`
+  et la table `djing-agent-protocol.js` ; `djing-agent-script.js` exécute les commandes et renvoie l'état
+  (beat, play, BPM, position, durée, tonalité, VU, crossfader…) sur le même port.
+- `make apply` installe le mapping et active le contrôleur `djing-agent` dans Mixxx.
+- `make test` vérifie l'encodage et le décodage en boucle locale, sans Mixxx.
+- `make demo` lance la preuve de l'étape 1 : le crossfader passe de A à B et revient, et le retour d'état
+  s'affiche.
+
+Ordre à respecter : Mixxx ne découvre les périphériques MIDI qu'au démarrage ou à l'ouverture de
+*Préférences > Contrôleurs*. Lancer `make demo` d'abord, puis démarrer Mixxx, ou ouvrir
+*Préférences > Contrôleurs*, sélectionner `djing-agent`, choisir le mapping « djing agent (virtual MIDI) » et
+cliquer sur *Appliquer*. Le pont attend jusqu'à 60 s le message de chargement du mapping.
+
+Outillage Python : `uv` (`~/.local/bin/uv`), Python 3.12 géré par uv (`python-rtmidi` n'a pas de roue
+précompilée pour 3.13+ et les en-têtes ALSA ne sont pas installés), dépendances `mido` et `python-rtmidi`
+dans `pyproject.toml`, environnement dans `.venv/` (non versionné).
+
 ## Utilisation
 
 - Brancher la platine **avant** de lancer Mixxx. Enceintes sur MAIN (RCA), casque sur le jack de façade.

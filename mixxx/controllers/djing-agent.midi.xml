@@ -1,0 +1,877 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MixxxMIDIPreset mixxxVersion="2.4" schemaVersion="1">
+	<info>
+		<name>djing agent (virtual MIDI)</name>
+		<author>djing project</author>
+		<description>Generated from agent/protocol.py: commands from the agent, state feedback to it. Do not edit by hand.</description>
+	</info>
+	<controller id="djing-agent">
+		<scriptfiles>
+			<file filename="djing-agent-protocol.js" />
+			<file functionprefix="DjingAgent" filename="djing-agent-script.js" />
+		</scriptfiles>
+		<controls>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A play</description>
+				<status>0x90</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A cue</description>
+				<status>0x90</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A cue_play</description>
+				<status>0x90</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A cue_stop</description>
+				<status>0x90</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A sync</description>
+				<status>0x90</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A beatsync</description>
+				<status>0x90</status>
+				<midino>0x06</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A keylock</description>
+				<status>0x90</status>
+				<midino>0x07</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A pfl</description>
+				<status>0x90</status>
+				<midino>0x08</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A load</description>
+				<status>0x90</status>
+				<midino>0x09</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A eject</description>
+				<status>0x90</status>
+				<midino>0x0A</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A quantize</description>
+				<status>0x90</status>
+				<midino>0x0B</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A loop</description>
+				<status>0x90</status>
+				<midino>0x0C</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A reloop</description>
+				<status>0x90</status>
+				<midino>0x0D</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A loop_halve</description>
+				<status>0x90</status>
+				<midino>0x0E</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A loop_double</description>
+				<status>0x90</status>
+				<midino>0x0F</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_1</description>
+				<status>0x90</status>
+				<midino>0x10</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_2</description>
+				<status>0x90</status>
+				<midino>0x11</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_3</description>
+				<status>0x90</status>
+				<midino>0x12</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_4</description>
+				<status>0x90</status>
+				<midino>0x13</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_5</description>
+				<status>0x90</status>
+				<midino>0x14</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_6</description>
+				<status>0x90</status>
+				<midino>0x15</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_7</description>
+				<status>0x90</status>
+				<midino>0x16</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A hotcue_8</description>
+				<status>0x90</status>
+				<midino>0x17</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A beatjump_forward</description>
+				<status>0x90</status>
+				<midino>0x18</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A beatjump_backward</description>
+				<status>0x90</status>
+				<midino>0x19</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A slip</description>
+				<status>0x90</status>
+				<midino>0x1A</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A volume (14-bit)</description>
+				<status>0xB0</status>
+				<midino>0x00</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A volume (14-bit) LSB</description>
+				<status>0xB0</status>
+				<midino>0x20</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A rate (14-bit)</description>
+				<status>0xB0</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A rate (14-bit) LSB</description>
+				<status>0xB0</status>
+				<midino>0x21</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel1]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A eq_high (7-bit)</description>
+				<status>0xB0</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel1]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A eq_mid (7-bit)</description>
+				<status>0xB0</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel1]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A eq_low (7-bit)</description>
+				<status>0xB0</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[QuickEffectRack1_[Channel1]]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A filter (14-bit)</description>
+				<status>0xB0</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[QuickEffectRack1_[Channel1]]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A filter (14-bit) LSB</description>
+				<status>0xB0</status>
+				<midino>0x25</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A gain (7-bit)</description>
+				<status>0xB0</status>
+				<midino>0x06</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A seek (14-bit)</description>
+				<status>0xB0</status>
+				<midino>0x07</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>A seek (14-bit) LSB</description>
+				<status>0xB0</status>
+				<midino>0x27</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B play</description>
+				<status>0x91</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B cue</description>
+				<status>0x91</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B cue_play</description>
+				<status>0x91</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B cue_stop</description>
+				<status>0x91</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B sync</description>
+				<status>0x91</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B beatsync</description>
+				<status>0x91</status>
+				<midino>0x06</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B keylock</description>
+				<status>0x91</status>
+				<midino>0x07</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B pfl</description>
+				<status>0x91</status>
+				<midino>0x08</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B load</description>
+				<status>0x91</status>
+				<midino>0x09</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B eject</description>
+				<status>0x91</status>
+				<midino>0x0A</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B quantize</description>
+				<status>0x91</status>
+				<midino>0x0B</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B loop</description>
+				<status>0x91</status>
+				<midino>0x0C</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B reloop</description>
+				<status>0x91</status>
+				<midino>0x0D</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B loop_halve</description>
+				<status>0x91</status>
+				<midino>0x0E</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B loop_double</description>
+				<status>0x91</status>
+				<midino>0x0F</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_1</description>
+				<status>0x91</status>
+				<midino>0x10</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_2</description>
+				<status>0x91</status>
+				<midino>0x11</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_3</description>
+				<status>0x91</status>
+				<midino>0x12</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_4</description>
+				<status>0x91</status>
+				<midino>0x13</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_5</description>
+				<status>0x91</status>
+				<midino>0x14</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_6</description>
+				<status>0x91</status>
+				<midino>0x15</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_7</description>
+				<status>0x91</status>
+				<midino>0x16</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B hotcue_8</description>
+				<status>0x91</status>
+				<midino>0x17</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B beatjump_forward</description>
+				<status>0x91</status>
+				<midino>0x18</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B beatjump_backward</description>
+				<status>0x91</status>
+				<midino>0x19</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B slip</description>
+				<status>0x91</status>
+				<midino>0x1A</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B volume (14-bit)</description>
+				<status>0xB1</status>
+				<midino>0x00</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B volume (14-bit) LSB</description>
+				<status>0xB1</status>
+				<midino>0x20</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B rate (14-bit)</description>
+				<status>0xB1</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B rate (14-bit) LSB</description>
+				<status>0xB1</status>
+				<midino>0x21</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel2]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B eq_high (7-bit)</description>
+				<status>0xB1</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel2]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B eq_mid (7-bit)</description>
+				<status>0xB1</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[EqualizerRack1_[Channel2]_Effect1]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B eq_low (7-bit)</description>
+				<status>0xB1</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[QuickEffectRack1_[Channel2]]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B filter (14-bit)</description>
+				<status>0xB1</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[QuickEffectRack1_[Channel2]]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B filter (14-bit) LSB</description>
+				<status>0xB1</status>
+				<midino>0x25</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B gain (7-bit)</description>
+				<status>0xB1</status>
+				<midino>0x06</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B seek (14-bit)</description>
+				<status>0xB1</status>
+				<midino>0x07</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Channel2]</group>
+				<key>DjingAgent.cmd</key>
+				<description>B seek (14-bit) LSB</description>
+				<status>0xB1</status>
+				<midino>0x27</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_up</description>
+				<status>0x92</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_down</description>
+				<status>0x92</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_focus</description>
+				<status>0x92</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_go</description>
+				<status>0x92</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[AutoDJ]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master autodj</description>
+				<status>0x92</status>
+				<midino>0x10</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[AutoDJ]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master autodj_fade</description>
+				<status>0x92</status>
+				<midino>0x11</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[AutoDJ]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master autodj_skip</description>
+				<status>0x92</status>
+				<midino>0x12</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Master]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master crossfader (14-bit)</description>
+				<status>0xB2</status>
+				<midino>0x00</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Master]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master crossfader (14-bit) LSB</description>
+				<status>0xB2</status>
+				<midino>0x20</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Master]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master master_gain (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+		</controls>
+		<outputs/>
+	</controller>
+</MixxxMIDIPreset>

@@ -1,0 +1,12 @@
+[project]
+name = "djing"
+version = "0.1.0"
+description = "Virtual MIDI bridge between an agent and Mixxx (deck B), with state feedback"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mido>=1.3",
+    "python-rtmidi>=1.5",
+]
+
+[tool.uv]
+package = false
