@@ -7,7 +7,7 @@
 
 /* global DJCi300, engine, midi */
 
-const DJCi300MK2 = {};
+var DJCi300MK2 = {}; // "var" on purpose: Mixxx resolves "DJCi300MK2.x" on the global object
 
 // Tempo ranges cycled by SHIFT + Q (same set as Serato DJ Lite on this controller).
 DJCi300MK2.rateRanges = [0.08, 0.16, 0.50];
