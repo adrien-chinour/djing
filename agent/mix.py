@@ -76,7 +76,7 @@ def main() -> int:
         log("no compatible track for B"); return 1
     a_now = deck_a.bar() if deck_a.playing else 0.0
     p = plan(deck_a.track, track_b, a_now, a_bpm)
-    log(f"plan [{p.mode}]: B starts at A bar {p.a_start_bar}, A cut at {p.a_cut_bar}, B from its bar {p.b_start_bar}, overlap {p.overlap}")
+    log(f"plan [{p.mode}/{p.entry}]: B starts at A bar {p.a_start_bar}, A cut at {p.a_cut_bar}, B from its bar {p.b_start_bar}, overlap {p.overlap}")
 
     if args.a:
         start_bar = max(0, p.a_start_bar - 8) if args.skip_to else deck_a.track.structure["mix_in_bar"]

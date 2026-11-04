@@ -19,8 +19,11 @@ from agent.catalog import Track
 from agent.decks import Deck
 
 EQ_NEUTRAL, EQ_KILL = 0.5, 0.0
-FILTER_NEUTRAL, FILTER_HIGHPASS = 0.5, 0.78
-FADER_IN = 0.55
+FILTER_NEUTRAL, FILTER_HIGHPASS, FILTER_LOWPASS = 0.5, 0.82, 0.22
+FADER_TOPS, FADER_BASS, FADER_TEASER = 0.45, 0.7, 0.3
+TEASER_BARS = 4
+SPARSE_MIDS = 0.2    # max per-bar mids/highs for a segment to count as "drums only / sparse"
+KICK_ON = 0.35
 LEAD_S = 0.12
 KEYLOCK_THRESHOLD = 0.02
 MAX_OVERLAP = 16
@@ -34,6 +37,7 @@ class Plan:
     a_cut_bar: int        # A bar where A is cut and B's lows come in
     b_start_bar: int      # B bar to cue B at
     keylock: bool
+    entry: str = "none"   # how B overlaps: "tops" (high-passed, low fader), "bass" (lows in, low-passed), "teaser", "none"
 
     @property
     def overlap(self) -> int:
@@ -54,6 +58,25 @@ def _first_drop_bar(b: Track) -> int:
     return b.structure["mix_in_bar"]
 
 
+def _entry_for(b: Track, b_start: int, length: int) -> tuple[str, int, int]:
+    """Decide how B may overlap A's break on B bars [b_start, b_start + length).
+
+    Returns (entry, b_start, length). Only complementary material overlaps: B's drums under
+    A's melodic break ("bass"), or a really sparse B segment on top ("tops"). Otherwise a short
+    quiet teaser, or nothing at all.
+    """
+    if length <= 0:
+        return "none", b_start, 0
+    lows = b.structure["bar_low"][b_start:b_start + length]
+    mids = b.structure["bar_mid"][b_start:b_start + length]
+    if lows and sum(1 for v in lows if v >= KICK_ON) >= 0.75 * len(lows):
+        return "bass", b_start, length
+    if mids and max(mids) < SPARSE_MIDS:
+        return "tops", b_start, length
+    teaser = min(TEASER_BARS, length)
+    return "teaser", b_start + length - teaser, teaser
+
+
 def plan(a: Track, b: Track, a_now_bar: float, a_bpm: float) -> Plan:
     keylock = abs(b.bpm - a_bpm) / a_bpm > KEYLOCK_THRESHOLD
     drop_b = _first_drop_bar(b)
@@ -69,11 +92,13 @@ def plan(a: Track, b: Track, a_now_bar: float, a_bpm: float) -> Plan:
         # B's drop lands on the cut: B starts `length` bars before its drop
         if drop_b < length:
             length = drop_b - drop_b % 4
-        return Plan("break", cut - length, cut, drop_b - length, keylock)
+        entry, b_start, length = _entry_for(b, drop_b - length, length)
+        return Plan("break", cut - length, cut, b_start, keylock, entry)
     # cut mode on the next phrase boundary of A at least 1 bar ahead (or its mix-out point)
     target = a.structure["mix_out_bar"] if a.structure["mix_out_bar"] > a_now_bar + 1 else a.phrase_start_at_or_after(a_now_bar + 1)
-    teaser = 4 if b.structure["bar_mid"][max(0, drop_b - 4):drop_b] and max(b.structure["bar_mid"][max(0, drop_b - 4):drop_b]) < 0.5 and drop_b >= 4 else 0
-    return Plan("cut", target - teaser, target, drop_b - teaser, keylock)
+    length = min(TEASER_BARS, drop_b - drop_b % 4)
+    entry, b_start, length = _entry_for(b, drop_b - length, length)
+    return Plan("cut", target - length, target, b_start, keylock, entry)
 
 
 class Mixer:
@@ -87,11 +112,24 @@ class Mixer:
         b.note(deck.name, "sync", True)
         b.note(deck.name, "keylock", plan.keylock)
         b.note(deck.name, "quantize", True)
-        b.set(deck.name, "eq_low", EQ_KILL if plan.overlap else EQ_NEUTRAL)
         b.set(deck.name, "eq_mid", EQ_NEUTRAL)
         b.set(deck.name, "eq_high", EQ_NEUTRAL)
-        b.set(deck.name, "filter", FILTER_HIGHPASS if plan.overlap else FILTER_NEUTRAL)
-        b.set(deck.name, "volume", FADER_IN if plan.overlap else 1.0)
+        if plan.entry == "bass":          # B brings the drums under A's break
+            b.set(deck.name, "eq_low", EQ_NEUTRAL)
+            b.set(deck.name, "filter", FILTER_LOWPASS)
+            b.set(deck.name, "volume", FADER_BASS)
+        elif plan.entry == "tops":        # sparse B material on top, lows cut
+            b.set(deck.name, "eq_low", EQ_KILL)
+            b.set(deck.name, "filter", FILTER_HIGHPASS)
+            b.set(deck.name, "volume", FADER_TOPS)
+        elif plan.entry == "teaser":      # barely audible hint, then the cut
+            b.set(deck.name, "eq_low", EQ_KILL)
+            b.set(deck.name, "filter", FILTER_HIGHPASS)
+            b.set(deck.name, "volume", FADER_TEASER)
+        else:
+            b.set(deck.name, "eq_low", EQ_NEUTRAL)
+            b.set(deck.name, "filter", FILTER_NEUTRAL)
+            b.set(deck.name, "volume", 1.0)
         deck.seek_bar(plan.b_start_bar)
         time.sleep(0.2)
 
@@ -108,7 +146,7 @@ class Mixer:
     def transition(self, outgoing: Deck, incoming: Deck, p: Plan) -> None:
         b = self.bridge
         assert outgoing.track and incoming.track
-        self.log(f"transition [{p.mode}]: {outgoing.track} -> {incoming.track}")
+        self.log(f"transition [{p.mode}/{p.entry}]: {outgoing.track} -> {incoming.track}")
         self.log(f"  A bar now {outgoing.bar():.1f}; B (from its bar {p.b_start_bar}) starts at A bar {p.a_start_bar} "
                  f"in {outgoing.seconds_until_bar(p.a_start_bar):.1f}s; overlap {p.overlap} bars; A cut at {p.a_cut_bar}; "
                  f"keylock {'on' if p.keylock else 'off'}")
@@ -121,12 +159,17 @@ class Mixer:
         self.log(f"  B playing at its bar {incoming.bar():.2f} (A bar {outgoing.bar():.2f})")
 
         if p.overlap:
-            # B opens up (filter and fader) over the overlap; A's highs step back over its 2nd half
-            mid = p.a_start_bar + p.overlap / 2
-
+            # B opens up over the overlap (eased: quiet first half), A's highs step back on the 2nd half
             def opening(frac: float) -> None:
-                b.set(incoming.name, "filter", FILTER_HIGHPASS + (FILTER_NEUTRAL - FILTER_HIGHPASS) * frac)
-                b.set(incoming.name, "volume", FADER_IN + (1.0 - FADER_IN) * frac)
+                e = frac * frac
+                if p.entry == "bass":
+                    b.set(incoming.name, "filter", FILTER_LOWPASS + (FILTER_NEUTRAL - FILTER_LOWPASS) * e)
+                    b.set(incoming.name, "volume", FADER_BASS + (1.0 - FADER_BASS) * e)
+                elif p.entry == "tops":
+                    b.set(incoming.name, "filter", FILTER_HIGHPASS + (FILTER_NEUTRAL - FILTER_HIGHPASS) * e)
+                    b.set(incoming.name, "volume", FADER_TOPS + (1.0 - FADER_TOPS) * e)
+                else:  # teaser stays low and filtered, only creeps up a little
+                    b.set(incoming.name, "volume", FADER_TEASER + 0.15 * e)
                 if frac > 0.5:
                     b.set(outgoing.name, "eq_high", EQ_NEUTRAL - 0.3 * (frac - 0.5) * 2)
             self.ramp_over_bars(outgoing, p.a_start_bar, p.a_cut_bar - 0.25, opening)
