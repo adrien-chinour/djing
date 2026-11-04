@@ -72,6 +72,10 @@ class RemoteBridge:
     def resync(self) -> None:
         self._send({"cmd": "resync"})
 
+    def reload_protocol(self) -> None:
+        """Make the daemon re-read agent/protocol.py (after 'make agent-mapping')."""
+        self._send({"cmd": "reload"})
+
     def on_change(self, listener: Callable[[str, str, float], None]) -> None:
         self._listeners.append(listener)
 

@@ -34,6 +34,7 @@ def main() -> int:
 
     catalog = Catalog()
     bridge = Bridge()
+    bridge.reload_protocol()  # the daemon may predate the current protocol
     if args.wait_reload:
         log("waiting for Mixxx to reload the mapping (Preferences > Controllers > Apply, or restart)...")
         if not bridge.wait_for_reload(args.wait):

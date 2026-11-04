@@ -15,6 +15,7 @@ Protocol, JSON lines both ways:
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import signal
@@ -23,6 +24,8 @@ import sys
 import threading
 import time
 
+from agent import bridge as bridge_module
+from agent import protocol
 from agent.bridge import Bridge
 
 SOCKET_PATH = os.environ.get("DJING_SOCKET", "/tmp/djing-agent.sock")
@@ -74,12 +77,20 @@ class Daemon:
 
     def _handle(self, msg: dict) -> None:
         cmd = msg.get("cmd")
-        if cmd == "note":
-            self.bridge.note(msg["scope"], msg["name"], bool(msg["on"]))
-        elif cmd == "set":
-            self.bridge.set(msg["scope"], msg["name"], float(msg["value"]))
-        elif cmd == "resync":
-            self.bridge.resync()
+        try:
+            if cmd == "note":
+                self.bridge.note(msg["scope"], msg["name"], bool(msg["on"]))
+            elif cmd == "set":
+                self.bridge.set(msg["scope"], msg["name"], float(msg["value"]))
+            elif cmd == "resync":
+                self.bridge.resync()
+            elif cmd == "reload":
+                # protocol changed on disk (new commands): rebuild tables without losing the port
+                importlib.reload(protocol)
+                bridge_module.build_tables()
+                print(time.strftime("%H:%M:%S"), "protocol reloaded", flush=True)
+        except Exception as exc:  # a bad command must not kill the client connection
+            print(time.strftime("%H:%M:%S"), f"command error {msg}: {exc!r}", flush=True)
 
     def run(self) -> None:
         if os.path.exists(SOCKET_PATH):

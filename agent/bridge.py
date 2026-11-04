@@ -19,16 +19,28 @@ from agent import protocol as p
 
 PORT_NAME = "djing-agent"
 
-_DECK_NOTES = {c.name: c for c in p.DECK_NOTES}
-_DECK_CCS = {c.name: c for c in p.DECK_CCS}
-_MASTER_NOTES = {c.name: c for c in p.MASTER_NOTES}
-_MASTER_CCS = {c.name: c for c in p.MASTER_CCS}
+_DECK_NOTES: dict[str, p.NoteCommand] = {}
+_DECK_CCS: dict[str, p.CcCommand] = {}
+_MASTER_NOTES: dict[str, p.NoteCommand] = {}
+_MASTER_CCS: dict[str, p.CcCommand] = {}
 _FEEDBACK_BY_MSG: dict[tuple[str, int, int], p.Feedback] = {}
-for _deck, _ch in p.DECK_CHANNEL.items():
-    for _fb in p.DECK_FEEDBACK:
-        _FEEDBACK_BY_MSG[("note" if _fb.kind == "note" else "cc", _ch, _fb.num)] = _fb
-for _fb in p.MASTER_FEEDBACK:
-    _FEEDBACK_BY_MSG[("note" if _fb.kind == "note" else "cc", p.MASTER_CHANNEL, _fb.num)] = _fb
+
+
+def build_tables() -> None:
+    """(Re)build the lookup tables from agent.protocol; called at import and on reload."""
+    _DECK_NOTES.clear(); _DECK_NOTES.update({c.name: c for c in p.DECK_NOTES})
+    _DECK_CCS.clear(); _DECK_CCS.update({c.name: c for c in p.DECK_CCS})
+    _MASTER_NOTES.clear(); _MASTER_NOTES.update({c.name: c for c in p.MASTER_NOTES})
+    _MASTER_CCS.clear(); _MASTER_CCS.update({c.name: c for c in p.MASTER_CCS})
+    _FEEDBACK_BY_MSG.clear()
+    for _deck, _ch in p.DECK_CHANNEL.items():
+        for _fb in p.DECK_FEEDBACK:
+            _FEEDBACK_BY_MSG[("note" if _fb.kind == "note" else "cc", _ch, _fb.num)] = _fb
+    for _fb in p.MASTER_FEEDBACK:
+        _FEEDBACK_BY_MSG[("note" if _fb.kind == "note" else "cc", p.MASTER_CHANNEL, _fb.num)] = _fb
+
+
+build_tables()
 
 
 class Bridge:
