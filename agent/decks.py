@@ -120,6 +120,7 @@ class Deck:
             while delta:
                 step = max(-64, min(63, delta))
                 b.set("master", "lib_select_track", (step + 64) / 127)
+                b.set("master", "lib_select_track", 64 / 127)  # back to 0: Mixxx ignores repeated values
                 delta -= step
                 time.sleep(0.2)
         return False
