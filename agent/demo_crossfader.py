@@ -5,6 +5,7 @@ Start this first, then start Mixxx (or open Preferences > Controllers so Mixxx
 rescans MIDI devices and loads the "djing agent" mapping).
 """
 
+import os
 import sys
 import time
 
@@ -13,9 +14,10 @@ from agent.bridge import Bridge
 
 def main() -> int:
     bridge = Bridge()
-    print("Virtual MIDI port 'djing-agent' ready. Waiting for the Mixxx mapping (60 s)...")
-    print("  -> start Mixxx now, or open Preferences > Controllers and click Apply")
-    if not bridge.wait_for_mapping(60):
+    wait = float(os.environ.get("DEMO_WAIT", "60"))
+    print(f"Virtual MIDI port 'djing-agent' ready. Waiting for the Mixxx mapping ({wait:.0f} s)...", flush=True)
+    print("  -> start Mixxx now, or open Preferences > Controllers and click Apply", flush=True)
+    if not bridge.wait_for_mapping(wait):
         print("No 'mapping loaded' message from Mixxx. Is the djing-agent controller enabled?")
         return 1
 
