@@ -29,10 +29,15 @@ def main() -> int:
     ap.add_argument("--b", help="track to load on deck B (substring of title); default: chosen by the agent")
     ap.add_argument("--skip-to", action="store_true", help="with --a: start A 2 phrases before the transition")
     ap.add_argument("--wait", type=float, default=120, help="seconds to wait for the Mixxx mapping")
+    ap.add_argument("--wait-reload", action="store_true", help="wait for Mixxx to (re)load the mapping first")
     args = ap.parse_args()
 
     catalog = Catalog()
     bridge = Bridge()
+    if args.wait_reload:
+        log("waiting for Mixxx to reload the mapping (Preferences > Controllers > Apply, or restart)...")
+        if not bridge.wait_for_reload(args.wait):
+            log("mapping not reloaded"); return 1
     log("waiting for the Mixxx mapping...")
     if not bridge.wait_for_mapping(args.wait):
         log("no answer from Mixxx (enable djing-agent in Preferences > Controllers)")

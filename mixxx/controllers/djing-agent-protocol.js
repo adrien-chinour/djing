@@ -291,6 +291,21 @@ var DjingAgentProtocol = {
       "key": "clear_search",
       "mode": "trigger"
     },
+    "2:7": {
+      "group": "[Playlist]",
+      "key": "SelectNextTrack",
+      "mode": "trigger"
+    },
+    "2:8": {
+      "group": "[Playlist]",
+      "key": "SelectPrevTrack",
+      "mode": "trigger"
+    },
+    "2:9": {
+      "group": "[Playlist]",
+      "key": "LoadSelectedIntoFirstStopped",
+      "mode": "trigger"
+    },
     "2:16": {
       "group": "[AutoDJ]",
       "key": "enabled",
@@ -475,6 +490,22 @@ var DjingAgentProtocol = {
       "param": false,
       "min": 0,
       "max": 127
+    },
+    "2:5": {
+      "group": "[Playlist]",
+      "key": "SelectTrackKnob",
+      "bits": 7,
+      "param": false,
+      "min": -64,
+      "max": 63
+    },
+    "2:6": {
+      "group": "[Playlist]",
+      "key": "SelectPlaylist",
+      "bits": 7,
+      "param": false,
+      "min": -64,
+      "max": 63
     }
   },
   "feedback": [

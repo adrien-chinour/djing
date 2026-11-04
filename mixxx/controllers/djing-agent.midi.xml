@@ -832,6 +832,36 @@
 				</options>
 			</control>
 			<control>
+				<group>[Playlist]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_next_track</description>
+				<status>0x92</status>
+				<midino>0x07</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Playlist]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_prev_track</description>
+				<status>0x92</status>
+				<midino>0x08</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Playlist]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_load_first_stopped</description>
+				<status>0x92</status>
+				<midino>0x09</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
 				<group>[AutoDJ]</group>
 				<key>DjingAgent.cmd</key>
 				<description>master autodj</description>
@@ -917,6 +947,26 @@
 				<description>master lib_focus_widget (7-bit)</description>
 				<status>0xB2</status>
 				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Playlist]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_select_track (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Playlist]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_select_sidebar (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x06</midino>
 				<options>
 					<script-binding />
 				</options>

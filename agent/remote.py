@@ -87,5 +87,12 @@ class RemoteBridge:
             time.sleep(0.1)
         return False
 
+    def wait_for_reload(self, timeout: float) -> bool:
+        """True once Mixxx (re)loads the mapping after this call: needed when the mapping
+        files changed and Mixxx must pick them up (Preferences > Controllers > Apply)."""
+        seen = threading.Event()
+        self._listeners.append(lambda s, n, v: seen.set() if (s, n, v) == ("master", "mapping", 1.0) else None)
+        return seen.wait(timeout)
+
     def close(self) -> None:
         self.sock.close()

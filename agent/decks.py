@@ -90,22 +90,20 @@ class Deck:
         return self.catalog.identify(self.duration_s, self.file_bpm, round(self.state.get("key", 0.0)))
 
     def load(self, track: Track, attempts: int = 10, log=None) -> bool:
-        """Load `track` through library navigation, verified by what Mixxx reports afterwards."""
+        """Load `track` through the visible track table, verified by what Mixxx reports afterwards.
+
+        Uses [Playlist] selection controls, which work whatever widget has the keyboard focus
+        (the [Library] ones are ignored while the Mixxx window is not active). The table must
+        show the whole library ("Tracks") sorted by title: the sort is forced here, the view
+        is left alone and any mismatch is corrected from what actually got loaded.
+        """
         b = self.bridge
         order = self.catalog.by_title_order()
         target_idx = next(i for i, t in enumerate(order) if t.id == track.id)
-        b.set("master", "lib_focus_widget", FOCUS_SIDEBAR / 127)
-        time.sleep(0.2)
-        b.set("master", "lib_move", (-64 + 64) / 127)  # -64 rows: top of the sidebar = "Tracks"
-        time.sleep(0.4)
-        b.set("master", "lib_focus_widget", FOCUS_TRACKS / 127)
-        time.sleep(0.2)
         b.set("master", "lib_sort_column", SORT_TITLE / 127)
         b.note("master", "lib_sort_desc", False)
         time.sleep(0.4)
         for attempt in range(attempts):
-            b.set("master", "lib_focus_widget", FOCUS_TRACKS / 127)
-            time.sleep(0.1)
             before = (self.duration_s, self.file_bpm, self.loaded)
             b.press(self.name, "load")
             time.sleep(0.8)
@@ -121,7 +119,7 @@ class Deck:
                 delta = target_idx - next(i for i, t in enumerate(order) if t.id == current.id)
             while delta:
                 step = max(-64, min(63, delta))
-                b.set("master", "lib_move", (step + 64) / 127)
+                b.set("master", "lib_select_track", (step + 64) / 127)
                 delta -= step
                 time.sleep(0.2)
         return False
