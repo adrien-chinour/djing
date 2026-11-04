@@ -51,7 +51,7 @@ PipeWire, pour la latence ; PipeWire relâche la carte dès qu'elle est inactive
    make apply
    ```
 
-   `scripts/apply-mixxx-config.sh` sauvegarde `~/.mixxx/soundconfig.xml` et `~/.mixxx/mixxx.cfg` dans
+   `scripts/apply-mixxx-config.sh controller` sauvegarde `~/.mixxx/soundconfig.xml` et `~/.mixxx/mixxx.cfg` dans
    `~/.mixxx/backup-<horodatage>/`, écrit `mixxx/soundconfig.xml` (API ALSA, Master sur les canaux 1-2,
    casque sur 3-4) avec le bon numéro de carte, et active le mapping Hercules dans `mixxx.cfg`.
 
@@ -64,6 +64,21 @@ PipeWire, pour la latence ; PipeWire relâche la carte dès qu'elle est inactive
    Tout doit être `[OK]`. Lancer Mixxx ensuite et contrôler dans *Préférences > Matériel audio* (périphérique
    `DJControl Inpulse 300 Mk2: USB Audio`) et *Préférences > Contrôleurs* (platine activée, mapping
    « Hercules DJControl Inpulse 300 »).
+
+## Sortie sur le PC (sans les enceintes)
+
+Pour mixer avec le son du portable, la platine ne servant que de contrôleur, Mixxx fermé :
+
+```sh
+make apply-pc
+```
+
+Le Master part alors dans le périphérique ALSA `pipewire`, donc sur la sortie par défaut du système
+(haut-parleurs, casque Bluetooth…), en 48 kHz, en cohabitant avec les autres applications. La latence est
+plus haute qu'en direct, acceptable pour s'entraîner. Pas de sortie casque dans ce mode : la pré-écoute passe
+par le Master. Revenir aux enceintes branchées sur la platine : `make apply`.
+
+Même chose à la main, Mixxx ouvert : *Préférences > Matériel audio*, API `ALSA`, Master → `pipewire`.
 
 ## Utilisation
 

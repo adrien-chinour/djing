@@ -61,7 +61,9 @@ if [[ -f "$MAPPING" ]]; then
 else
   ko "mapping file missing: $MAPPING"
 fi
-if grep -q "$CARD_NAME" "${MIXXX_DIR}/soundconfig.xml" 2>/dev/null; then
+if grep -q 'name="pipewire"' "${MIXXX_DIR}/soundconfig.xml" 2>/dev/null; then
+  ok "soundconfig.xml sends sound to PipeWire (pc mode: laptop speakers)"
+elif grep -q "$CARD_NAME" "${MIXXX_DIR}/soundconfig.xml" 2>/dev/null; then
   cfg_card="$(sed -n 's/.*alsaHwDevice="hw:\([0-9]*\),0".*/\1/p' "${MIXXX_DIR}/soundconfig.xml" | head -1)"
   if [[ -n "$card" && "$cfg_card" != "$card" ]]; then
     warn "soundconfig.xml points to hw:${cfg_card},0 but the card is hw:${card},0: rerun apply-mixxx-config.sh"

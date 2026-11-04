@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
-# Points Mixxx at the Inpulse 300 MK2 sound card (MAIN on channels 1-2, headphones on
-# 3-4) and enables the Hercules controller mapping. Backs up the previous files first.
+# Configures Mixxx for the Inpulse 300 MK2 and enables the Hercules controller mapping.
+# Backs up the previous files first.
+#   apply-mixxx-config.sh controller   sound through the controller's card (MAIN 1-2, headphones 3-4)
+#   apply-mixxx-config.sh pc           sound through PipeWire (laptop speakers / default output)
 set -euo pipefail
+
+MODE="${1:-controller}"
+case "$MODE" in
+  controller|pc) ;;
+  *) echo "Usage: $0 [controller|pc]" >&2; exit 2 ;;
+esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIXXX_DIR="${HOME}/.mixxx"
@@ -29,8 +37,13 @@ for f in soundconfig.xml mixxx.cfg; do
 done
 echo "Backup: $backup"
 
-sed "s/@CARD@/${card}/" "${HERE}/mixxx/soundconfig.xml" > "${MIXXX_DIR}/soundconfig.xml"
-echo "soundconfig.xml -> hw:${card},0 (Master 1-2, Headphones 3-4)"
+if [[ "$MODE" == "pc" ]]; then
+  cp "${HERE}/mixxx/soundconfig-pc.xml" "${MIXXX_DIR}/soundconfig.xml"
+  echo "soundconfig.xml -> PipeWire device (Master on the system default output)"
+else
+  sed "s/@CARD@/${card}/" "${HERE}/mixxx/soundconfig.xml" > "${MIXXX_DIR}/soundconfig.xml"
+  echo "soundconfig.xml -> hw:${card},0 (Master 1-2, Headphones 3-4)"
+fi
 
 # cfg_set GROUP KEY VALUE : set KEY in [GROUP] of mixxx.cfg, creating the group if needed.
 cfg_set() {
