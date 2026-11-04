@@ -134,6 +134,31 @@ Outillage Python : `uv` (`~/.local/bin/uv`), Python 3.12 géré par uv (`python-
 précompilée pour 3.13+ et les en-têtes ALSA ne sont pas installés), dépendances `mido` et `python-rtmidi`
 dans `pyproject.toml`, environnement dans `.venv/` (non versionné).
 
+## Analyse des morceaux (étape 2)
+
+`make analyze` produit une fiche JSON par morceau dans `analysis/` (non versionné) et un `analysis/index.json`.
+Deux sources :
+
+- **La base Mixxx** (`~/.mixxx/mixxxdb.sqlite`, lecture seule) : BPM et premier beat de la grille (protobuf
+  `BeatGrid-2.0` : `Bpm` puis `Beat.frame_position` en frames au taux du fichier, vérifié contre les attaques
+  audio), tonalité (convertie en Camelot), cues intro/outro/main (en échantillons stéréo entrelacés). La grille
+  Mixxx fait foi : c'est elle qui pilote sync, quantize et les retours `beat_active`.
+- **L'audio** (librosa, mono 22,05 kHz) : par beat puis par mesure, énergie globale, énergie des basses
+  (< 150 Hz, présence du kick), médiums-aigus, attaque dans les basses.
+
+Déductions, dans `agent/analysis/structure.py` :
+
+- **Temps fort** : phase (mod 4) qui porte le plus d'attaques et d'énergie dans les basses.
+- **Phrases de 8 mesures** : phase (mod 8) qui concentre les « arrivées » (retour du kick, saut d'énergie).
+  La techno coupe souvent le kick sur la dernière mesure d'une phrase ; c'est le marqueur principal.
+- **Sections** : par présence du kick, avec absorption des coupures d'une mesure ; `intro`, `groove`, `break`,
+  `drop` (kick de retour après un break, énergie ≥ 0,6), `outro`.
+- **Points de mix** : `mix_in` = première frontière de phrase avec kick ; `mix_out` = dernière phrase complète
+  de la dernière section avec kick.
+
+Lancer l'analyse Mixxx d'abord (barre latérale > *Analyser*) : sans BPM Mixxx, l'analyseur se replie sur
+librosa et la grille ne correspondra pas à celle de Mixxx.
+
 ## Utilisation
 
 - Brancher la platine **avant** de lancer Mixxx. Enceintes sur MAIN (RCA), casque sur le jack de façade.

@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -30,3 +30,6 @@ apply-pc: ## Mixxx config, sound through PipeWire (laptop speakers), controller 
 
 setup: ## Install Mixxx and real-time limits (needs sudo)
 	sudo ./scripts/setup-ubuntu.sh
+
+analyze: ## Step 2: analyse every track of the Mixxx library into analysis/*.json
+	uv run python -m agent.analysis.analyze
