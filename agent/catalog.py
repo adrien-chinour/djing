@@ -76,8 +76,8 @@ class Catalog:
             pass
         return sorted(self.tracks, key=lambda t: locale.strxfrm(t.title.lower()))
 
-    def identify(self, duration_s: float, file_bpm: float, key_id: int, tolerance_s: float = 1.5) -> Track | None:
-        """Which track matches what Mixxx reports for a deck."""
+    def identify(self, duration_s: float, file_bpm: float, key_id: int, tolerance_s: float = 0.35) -> Track | None:
+        """Which track matches what Mixxx reports for a deck (duration to 0.1 s, file bpm, file key)."""
         best, best_score = None, 1e9
         for t in self.tracks:
             if abs(t.duration_s - duration_s) > tolerance_s:

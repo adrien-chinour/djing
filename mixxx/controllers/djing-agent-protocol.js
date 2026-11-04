@@ -624,7 +624,7 @@ var DjingAgentProtocol = {
       "ch": 0,
       "num": 4,
       "param": false,
-      "scale": 1.0
+      "scale": 10.0
     },
     {
       "group": "[Channel1]",
@@ -668,6 +668,15 @@ var DjingAgentProtocol = {
       "kind": "cc14",
       "ch": 0,
       "num": 9,
+      "param": false,
+      "scale": 1.0
+    },
+    {
+      "group": "[Channel1]",
+      "key": "file_key",
+      "kind": "cc7",
+      "ch": 0,
+      "num": 10,
       "param": false,
       "scale": 1.0
     },
@@ -786,7 +795,7 @@ var DjingAgentProtocol = {
       "ch": 1,
       "num": 4,
       "param": false,
-      "scale": 1.0
+      "scale": 10.0
     },
     {
       "group": "[Channel2]",
@@ -830,6 +839,15 @@ var DjingAgentProtocol = {
       "kind": "cc14",
       "ch": 1,
       "num": 9,
+      "param": false,
+      "scale": 1.0
+    },
+    {
+      "group": "[Channel2]",
+      "key": "file_key",
+      "kind": "cc7",
+      "ch": 1,
+      "num": 10,
       "param": false,
       "scale": 1.0
     },

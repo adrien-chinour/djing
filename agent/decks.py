@@ -87,7 +87,8 @@ class Deck:
     def identify_loaded(self) -> Track | None:
         if not self.loaded:
             return None
-        return self.catalog.identify(self.duration_s, self.file_bpm, round(self.state.get("key", 0.0)))
+        key = self.state.get("file_key", self.state.get("key", 0.0))
+        return self.catalog.identify(self.duration_s, self.file_bpm, round(key))
 
     def load(self, track: Track, attempts: int = 10, log=None) -> bool:
         """Load `track` through the visible track table, verified by what Mixxx reports afterwards.

@@ -126,12 +126,13 @@ DECK_FEEDBACK = [
     Feedback("rate", 0x01, "rate", "cc14", param=True),
     Feedback("bpm", 0x02, "bpm", "cc14", scale=10.0),
     Feedback("position", 0x03, "playposition", "cc14", scale=16383.0),
-    Feedback("duration", 0x04, "duration", "cc14", scale=1.0),
+    Feedback("duration", 0x04, "duration", "cc14", scale=10.0),   # 0.1 s resolution, up to 1638 s
     Feedback("file_bpm", 0x05, "file_bpm", "cc14", scale=10.0),
     Feedback("filter", 0x06, "super1", "cc14", group="[QuickEffectRack1_{deck}]", param=True),
     Feedback("key", 0x07, "key", "cc7", scale=1.0),
     Feedback("vu", 0x08, "VuMeter", "cc7", scale=127.0),
     Feedback("loop_size", 0x09, "beatloop_size", "cc14", scale=1.0),
+    Feedback("file_key", 0x0A, "file_key", "cc7", scale=1.0),   # key of the file, unlike "key" (pitch adjusted)
 ]
 
 MASTER_FEEDBACK = [
