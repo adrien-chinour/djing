@@ -9,7 +9,7 @@ import os
 import sys
 import time
 
-from agent.bridge import Bridge
+from agent.remote import RemoteBridge as Bridge
 
 
 def main() -> int:

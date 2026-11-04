@@ -12,7 +12,7 @@ import argparse
 import sys
 import time
 
-from agent.bridge import Bridge
+from agent.remote import RemoteBridge as Bridge
 from agent.catalog import Catalog
 from agent.decks import Deck
 

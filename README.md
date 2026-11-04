@@ -125,10 +125,12 @@ nommé `djing-agent` (entrée + sortie, aucun droit root) que Mixxx voit comme u
 - `make demo` lance la preuve de l'étape 1 : le crossfader passe de A à B et revient, et le retour d'état
   s'affiche.
 
-Ordre à respecter : Mixxx ne découvre les périphériques MIDI qu'au démarrage ou à l'ouverture de
-*Préférences > Contrôleurs*. Lancer `make demo` d'abord, puis démarrer Mixxx, ou ouvrir
-*Préférences > Contrôleurs*, sélectionner `djing-agent`, choisir le mapping « djing agent (virtual MIDI) » et
-cliquer sur *Appliquer*. Le pont attend jusqu'à 60 s le message de chargement du mapping.
+Le port appartient à un démon (`make daemon`, journal dans `/tmp/djing-daemon.log`) : Mixxx s'attache à un
+périphérique MIDI au démarrage ou à l'ouverture de *Préférences > Contrôleurs* et garde une connexion morte si
+le port disparaît. Le démon tourne donc en permanence et les outils (`mix`, `audition`, `demo`) lui parlent par
+le socket Unix `/tmp/djing-agent.sock` (`agent/remote.py`, même interface que `agent/bridge.py`). Ordre :
+`make daemon`, puis démarrer Mixxx (ou *Préférences > Contrôleurs > Appliquer* une fois). `make daemon-stop`
+pour l'arrêter ; il faudra alors refaire ce rescan.
 
 Outillage Python : `uv` (`~/.local/bin/uv`), Python 3.12 géré par uv (`python-rtmidi` n'a pas de roue
 précompilée pour 3.13+ et les en-têtes ALSA ne sont pas installés), dépendances `mido` et `python-rtmidi`

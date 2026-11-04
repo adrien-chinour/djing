@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix daemon daemon-stop
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -36,3 +36,9 @@ analyze: ## Step 2: analyse every track of the Mixxx library into analysis/*.jso
 
 mix: ## Step 3: one agent-driven transition (see agent/mix.py for options, e.g. A="super bouncy" B="dreams")
 	uv run python -m agent.mix $(if $(A),--a "$(A)") $(if $(B),--b "$(B)") $(if $(BARS),--bars $(BARS)) $(ARGS)
+
+daemon: ## Start the MIDI daemon in the background (owns the djing-agent port; start it before Mixxx)
+	@pgrep -f "agent.daemon" >/dev/null && echo "daemon already running" || (setsid nohup uv run python -m agent.daemon > /tmp/djing-daemon.log 2>&1 & sleep 1; cat /tmp/djing-daemon.log)
+
+daemon-stop: ## Stop the MIDI daemon
+	pkill -f "agent.daemon" || true
