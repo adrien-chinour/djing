@@ -33,6 +33,9 @@ class Structure:
     phrase_offset_bars: int        # bar index (0..7) where 8-bar phrases start
     bar_energy: list[float]
     bar_low: list[float]
+    bar_mid: list[float]           # mids/highs energy per bar: low = drums only = DJ friendly
+    intro_bars: int                # leading bars that are sparse (overlap-friendly), multiple of 4
+    outro_bars: int                # trailing bars that are sparse, multiple of 4
     sections: list[Section]
     mix_in_s: float                # where to start the track when mixing it in (phrase start, kick on)
     mix_in_bar: int
@@ -122,6 +125,17 @@ def analyse(f: BeatFeatures) -> Structure:
     else:
         mix_out_bar = max(0, bars - 2 * PHRASE_BARS)
 
+    # 5. DJ-friendly intro / outro: bars whose mids/highs stay under half the track's median
+    sparse = bar_mid < 0.5 * (np.median(bar_mid) or 1.0)
+    intro_bars = 0
+    while intro_bars < bars and sparse[intro_bars]:
+        intro_bars += 1
+    outro_bars = 0
+    while outro_bars < bars and sparse[bars - 1 - outro_bars]:
+        outro_bars += 1
+    intro_bars -= intro_bars % 4
+    outro_bars -= outro_bars % 4
+
     return Structure(
         downbeat_offset=downbeat,
         first_downbeat_s=float(f.beat_times[downbeat]),
@@ -130,6 +144,9 @@ def analyse(f: BeatFeatures) -> Structure:
         phrase_offset_bars=phrase_offset,
         bar_energy=[round(float(v), 3) for v in bar_energy],
         bar_low=[round(float(v), 3) for v in bar_low],
+        bar_mid=[round(float(v), 3) for v in bar_mid],
+        intro_bars=int(intro_bars),
+        outro_bars=int(outro_bars),
         sections=sections,
         mix_in_s=float(bar_times[mix_in_bar]) if bars else 0.0,
         mix_in_bar=int(mix_in_bar),

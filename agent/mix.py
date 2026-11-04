@@ -15,7 +15,7 @@ import time
 from agent.bridge import Bridge
 from agent.catalog import Catalog
 from agent.decks import Deck
-from agent.mixer import Mixer
+from agent.mixer import Mixer, plan
 from agent.select import choose_next
 
 
@@ -27,7 +27,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--a", help="track to load and play on deck A (substring of title)")
     ap.add_argument("--b", help="track to load on deck B (substring of title); default: chosen by the agent")
-    ap.add_argument("--bars", type=int, default=16)
     ap.add_argument("--skip-to", action="store_true", help="with --a: start A 2 phrases before the transition")
     ap.add_argument("--wait", type=float, default=120, help="seconds to wait for the Mixxx mapping")
     args = ap.parse_args()
@@ -57,11 +56,7 @@ def main() -> int:
         bridge.note("A", "quantize", True)
         bridge.set("A", "volume", 1.0)
         bridge.set("A", "eq_low", 0.5)
-        start_bar = max(0, track_a.structure["mix_out_bar"] - args.bars - 16) if args.skip_to else track_a.structure["mix_in_bar"]
-        deck_a.seek_bar(start_bar)
-        time.sleep(0.3)
-        bridge.note("A", "play", True)
-        log(f"A playing from bar {start_bar}")
+        bridge.set("A", "eq_high", 0.5)
     else:
         deck_a.track = deck_a.identify_loaded()
         if not deck_a.track or not deck_a.playing:
@@ -69,15 +64,27 @@ def main() -> int:
         log(f"A is playing: {deck_a.track} at bar {deck_a.bar():.1f}")
 
     # deck B
-    track_b = catalog.find(args.b) if args.b else choose_next(catalog, deck_a.track, deck_a.bpm or deck_a.track.bpm, set())
+    a_bpm = deck_a.bpm or deck_a.track.bpm
+    track_b = catalog.find(args.b) if args.b else choose_next(catalog, deck_a.track, a_bpm, set())
     if not track_b:
         log("no compatible track for B"); return 1
+    a_now = deck_a.bar() if deck_a.playing else 0.0
+    p = plan(deck_a.track, track_b, a_now, a_bpm)
+    log(f"plan [{p.mode}]: B starts at A bar {p.a_start_bar}, A cut at {p.a_cut_bar}, B from its bar {p.b_start_bar}, overlap {p.overlap}")
+
+    if args.a:
+        start_bar = max(0, p.a_start_bar - 8) if args.skip_to else deck_a.track.structure["mix_in_bar"]
+        deck_a.seek_bar(start_bar)
+        time.sleep(0.3)
+        bridge.note("A", "play", True)
+        log(f"A playing from bar {start_bar}")
+
     log(f"loading B: {track_b}")
     bridge.note("B", "play", False)
     if not deck_b.load(track_b):
         log("could not load B"); return 1
-    mixer.prepare_incoming(deck_b)
-    mixer.transition(deck_a, deck_b, bars=args.bars)
+    mixer.prepare_incoming(deck_b, p)
+    mixer.transition(deck_a, deck_b, p)
     bridge.close()
     return 0
 
