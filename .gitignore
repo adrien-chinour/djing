@@ -4,3 +4,4 @@
 __pycache__/
 *.pyc
 analysis/*.json
+analysis/transitions.jsonl

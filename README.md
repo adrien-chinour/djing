@@ -161,23 +161,40 @@ Déductions, dans `agent/analysis/structure.py` :
 Lancer l'analyse Mixxx d'abord (barre latérale > *Analyser*) : sans BPM Mixxx, l'analyseur se replie sur
 librosa et la grille ne correspondra pas à celle de Mixxx.
 
-## Transition pilotée (étape 3)
+## Transitions improvisées sur des patterns (étape 3)
 
-`make mix A="super bouncy" B="dreams" ARGS=--skip-to` charge les deux morceaux par navigation dans la
-bibliothèque (tri par titre, puis vérification du morceau chargé par durée, BPM et tonalité renvoyés par
-Mixxx, et correction du décalage), lance A deux phrases avant son point de sortie et exécute la transition.
-Sans `A`, l'agent prend ce qui joue sur le deck A ; sans `B`, il choisit (`agent/select.py` : BPM à ±8 %,
-compatibilité Camelot, titres sous 110 BPM écartés car demi-tempo probable).
+L'agent n'a pas de transition pré-écrite par paire : il a un **vocabulaire de patterns** (`agent/patterns.py`)
+et improvise au moment du mix. Pour l'état de A (mesure courante, sections à venir), il énumère les couples
+(morceau B, pattern) qui remplissent leurs préconditions, les note (fitness du pattern, compatibilité Camelot,
+écart de tempo, notes passées de l'auditeur) et joue le meilleur. `agent/mixer.py` exécute le plan : B calé
+et démarré sur une mesure de A (quantize), façonné pendant le chevauchement selon son mode d'entrée, puis
+coupure de A sur le premier temps et ouverture complète de B. Jamais deux morceaux pleins ensemble.
 
-La transition (`agent/mixer.py`) est un échange de basses sur N mesures (16 par défaut), calé sur les phrases
-du morceau sortant : B démarre (sync, keylock, quantize, basses coupées) sur la frontière de phrase
-`mix_out − N` de A ; à mi-parcours les basses passent de A à B en une mesure ; puis le volume de A descend
-jusqu'à la fin de la phrase, A s'arrête et ses réglages sont remis au neutre. Le crossfader n'est pas touché
-(recentré au départ s'il est trop d'un côté) : en B2B, il reste à l'humain.
+| Pattern | Préconditions | Geste |
+|---|---|---|
+| `break_drop` | break ou outro tardif de A ; B a un drop | B apparaît pendant le break (basses de B si sa fenêtre a du kick, aigus si elle est clairsemée, sinon amorce de 4 mesures à 30 %), A coupé là où son drop reviendrait, drop de B dessus |
+| `slam` | A dans une section avec kick qui finit sur une phrase ; B a un drop | aucun chevauchement : A coupé sur le un, drop de B au même instant |
+| `bass_first` | break ou outro de A ≥ 8 mesures ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
+
+Sélection de B : tempo à ±3 % (±5 % si tonalité identique ou voisine), compatibilité Camelot ≥ 1, titres sous
+110 BPM écartés ; keylock seulement au-delà de 2 % d'écart.
+
+Boucle de validation : chaque transition jouée est consignée dans `analysis/transitions.jsonl` (paire, pattern,
+plan, mesures réelles). `make rate N=4 C="amorce inutile"` note la dernière ; la moyenne par pattern et par
+mode d'entrée pondère ensuite les choix (±0,2). Commandes :
+
+```sh
+make mix A="the man" ARGS=--skip-to            # A imposé, B et pattern choisis, A lancé 8 mesures avant
+make mix A="the man" PATTERN=slam ARGS=--skip-to
+make mix                                       # A = ce qui joue sur le deck A
+uv run python -m agent.audition "tu tu" --section drop   # écouter ce que l'analyse prétend
+```
 
 Le temps musical vient de `agent/decks.py` : position renvoyée par Mixxx, extrapolée entre deux messages
-avec la vitesse de lecture, convertie en mesures grâce à la grille de l'analyse. `wait_for_bar` dort jusqu'à
-un peu avant la mesure cible ; play est envoyé 120 ms avant pour que le quantize de Mixxx tombe sur le temps.
+avec la vitesse de lecture, convertie en mesures grâce à la grille de l'analyse ; play est envoyé 120 ms avant
+la mesure cible pour que le quantize de Mixxx tombe sur le temps. Le chargement d'un morceau passe par la
+table visible (contrôles `[Playlist]`, insensibles au focus clavier), tri par titre, et vérification par la
+durée, le BPM et la tonalité renvoyés, avec correction du décalage.
 
 ## Utilisation
 
