@@ -6,6 +6,7 @@ set -euo pipefail
 USB_ID="06f8:b12f"
 CARD_NAME="Inpulse 300 Mk2"
 MAPPING="/usr/share/mixxx/controllers/Hercules_DJControl_Inpulse_300.midi.xml"
+MK2_MAPPING="${HOME}/.mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml"
 MIXXX_DIR="${HOME}/.mixxx"
 status=0
 
@@ -72,6 +73,11 @@ elif grep -q "$CARD_NAME" "${MIXXX_DIR}/soundconfig.xml" 2>/dev/null; then
   fi
 else
   ko "soundconfig.xml does not use the controller: run scripts/apply-mixxx-config.sh"
+fi
+if [[ -f "$MK2_MAPPING" ]]; then
+  ok "MK2 mapping installed (SHIFT + SLIP = vinyl, SHIFT + Q = tempo range)"
+else
+  warn "MK2 mapping not installed: run scripts/apply-mixxx-config.sh"
 fi
 if grep -q "^DJControl_Inpulse_300_Mk2_MIDI_ 1" "${MIXXX_DIR}/mixxx.cfg" 2>/dev/null; then
   ok "controller enabled in mixxx.cfg"

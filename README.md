@@ -61,7 +61,8 @@ Ce script enchaîne les étapes 1 et 2 ci-dessous. Le détail :
 
    `scripts/apply-mixxx-config.sh controller` sauvegarde `~/.mixxx/soundconfig.xml` et `~/.mixxx/mixxx.cfg` dans
    `~/.mixxx/backup-<horodatage>/`, écrit `mixxx/soundconfig.xml` (API ALSA, Master sur les canaux 1-2,
-   casque sur 3-4) avec le bon numéro de carte, et active le mapping Hercules dans `mixxx.cfg`.
+   casque sur 3-4) avec le bon numéro de carte, installe le mapping MK2 (voir plus bas) et l'active dans
+   `mixxx.cfg`.
 
 4. Vérifier :
 
@@ -71,7 +72,7 @@ Ce script enchaîne les étapes 1 et 2 ci-dessous. Le détail :
 
    Tout doit être `[OK]`. Lancer Mixxx ensuite et contrôler dans *Préférences > Matériel audio* (périphérique
    `DJControl Inpulse 300 Mk2: USB Audio`) et *Préférences > Contrôleurs* (platine activée, mapping
-   « Hercules DJControl Inpulse 300 »).
+   « Hercules DJControl Inpulse 300 MK2 (djing) »).
 
 ## Sortie sur le PC (sans les enceintes)
 
@@ -87,6 +88,25 @@ plus haute qu'en direct, acceptable pour s'entraîner. Pas de sortie casque dans
 par le Master. Revenir aux enceintes branchées sur la platine : `make apply`.
 
 Même chose à la main, Mixxx ouvert : *Préférences > Matériel audio*, API `ALSA`, Master → `pipewire`.
+
+## Mapping MK2
+
+Le mapping livré avec Mixxx vise l'Inpulse 300 d'origine, qui a un bouton VINYL dédié. Sur le MK2 ce
+bouton n'existe pas : Vinyl est **SHIFT + SLIP** et la plage de tempo **SHIFT + Q**. Avec le mapping
+d'origine, SHIFT + SLIP ne fait rien et SHIFT + Q recale la grille rythmique.
+
+`mixxx/controllers/` contient un mapping dérivé, « Hercules DJControl Inpulse 300 MK2 (djing) », généré par
+`scripts/build-mapping.py` à partir du fichier officiel (`make mapping`) :
+
+| Combinaison | Mapping officiel | Mapping MK2 |
+|---|---|---|
+| SHIFT + SLIP | rien | Vinyl (scratch) on/off, LED sur SLIP quand SHIFT est tenu |
+| SHIFT + Q | recalage de la grille | plage de tempo : 8 % → 16 % → 50 % → 8 % |
+
+Tout le reste vient du script officiel, chargé tel quel ; le fichier `Hercules-DJControl-Inpulse-300-MK2-script.js`
+n'ajoute que ces deux fonctions. `make apply` ou `make apply-pc` installe les deux fichiers dans
+`~/.mixxx/controllers/` et les sélectionne. Après une mise à jour de Mixxx, relancer `make mapping` puis
+`make apply`.
 
 ## Utilisation
 

@@ -15,7 +15,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIXXX_DIR="${HOME}/.mixxx"
 CARD_NAME="Inpulse 300 Mk2"
 DEVICE_KEY="DJControl_Inpulse_300_Mk2_MIDI_"   # Mixxx replaces spaces by "_" (incl. trailing one)
-MAPPING="/usr/share/mixxx/controllers/Hercules_DJControl_Inpulse_300.midi.xml"
+MAPPING_NAME="Hercules_DJControl_Inpulse_300_MK2.midi.xml"
+MAPPING="${MIXXX_DIR}/controllers/${MAPPING_NAME}"   # project mapping, installed below
 CFG="${MIXXX_DIR}/mixxx.cfg"
 
 if pgrep -x mixxx >/dev/null; then
@@ -27,7 +28,7 @@ if [[ -z "$card" ]]; then
   echo "Controller not detected as an ALSA card: plug it in and retry." >&2
   exit 1
 fi
-[[ -f "$MAPPING" ]] || { echo "Mapping not found: $MAPPING" >&2; exit 1; }
+[[ -f "${HERE}/mixxx/controllers/${MAPPING_NAME}" ]] || { echo "Mapping missing in project: run scripts/build-mapping.py" >&2; exit 1; }
 
 mkdir -p "$MIXXX_DIR"
 backup="${MIXXX_DIR}/backup-$(date +%Y%m%d-%H%M%S)"
@@ -60,6 +61,10 @@ cfg_set() {
     }' "$CFG" > "${CFG}.tmp"
   mv "${CFG}.tmp" "$CFG"
 }
+mkdir -p "${MIXXX_DIR}/controllers"
+cp "${HERE}"/mixxx/controllers/* "${MIXXX_DIR}/controllers/"
+echo "controllers/ -> MK2 mapping and script installed in ${MIXXX_DIR}/controllers"
+
 cfg_set "Controller" "$DEVICE_KEY" "1"
 cfg_set "ControllerPreset" "$DEVICE_KEY" "$MAPPING"
 echo "mixxx.cfg -> controller enabled with $(basename "$MAPPING")"
