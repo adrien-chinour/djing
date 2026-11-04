@@ -37,7 +37,7 @@ def main() -> int:
     if not bridge.wait_for_mapping(args.wait):
         log("no answer from Mixxx (enable djing-agent in Preferences > Controllers)")
         return 1
-    time.sleep(0.5)
+    time.sleep(3.0)  # let Mixxx finish starting up (library view, controllers)
     deck_a, deck_b = Deck(bridge, "A", catalog), Deck(bridge, "B", catalog)
     mixer = Mixer(bridge, log)
 
@@ -51,7 +51,7 @@ def main() -> int:
         track_a = catalog.find(args.a)
         log(f"loading A: {track_a}")
         bridge.note("A", "play", False)
-        if not deck_a.load(track_a):
+        if not deck_a.load(track_a, log=log):
             log("could not load A"); return 1
         bridge.note("A", "quantize", True)
         bridge.set("A", "volume", 1.0)
@@ -81,7 +81,7 @@ def main() -> int:
 
     log(f"loading B: {track_b}")
     bridge.note("B", "play", False)
-    if not deck_b.load(track_b):
+    if not deck_b.load(track_b, log=log):
         log("could not load B"); return 1
     mixer.prepare_incoming(deck_b, p)
     mixer.transition(deck_a, deck_b, p)

@@ -89,37 +89,41 @@ class Deck:
             return None
         return self.catalog.identify(self.duration_s, self.file_bpm, round(self.state.get("key", 0.0)))
 
-    def load(self, track: Track, attempts: int = 6) -> bool:
+    def load(self, track: Track, attempts: int = 10, log=None) -> bool:
         """Load `track` through library navigation, verified by what Mixxx reports afterwards."""
         b = self.bridge
         order = self.catalog.by_title_order()
         target_idx = next(i for i, t in enumerate(order) if t.id == track.id)
         b.set("master", "lib_focus_widget", FOCUS_SIDEBAR / 127)
+        time.sleep(0.2)
         b.set("master", "lib_move", (-64 + 64) / 127)  # -64 rows: top of the sidebar = "Tracks"
-        time.sleep(0.3)
+        time.sleep(0.4)
         b.set("master", "lib_focus_widget", FOCUS_TRACKS / 127)
+        time.sleep(0.2)
         b.set("master", "lib_sort_column", SORT_TITLE / 127)
         b.note("master", "lib_sort_desc", False)
-        time.sleep(0.3)
+        time.sleep(0.4)
         for attempt in range(attempts):
-            before = (self.duration_s, self.file_bpm)
+            b.set("master", "lib_focus_widget", FOCUS_TRACKS / 127)
+            time.sleep(0.1)
+            before = (self.duration_s, self.file_bpm, self.loaded)
             b.press(self.name, "load")
-            time.sleep(0.6)
+            time.sleep(0.8)
             current = self.identify_loaded()
+            if log:
+                log(f"  load attempt {attempt + 1}: deck {self.name} has {current} (loaded={self.loaded}, {self.duration_s:.0f}s, {self.file_bpm:.1f} bpm)")
             if current and current.id == track.id:
                 self.track = track
                 return True
-            if current is None and (self.duration_s, self.file_bpm) == before and attempt == 0:
-                delta = 1  # nothing was selected: select the first row and look again
-            elif current is None:
-                delta = 1
+            if current is None or (self.duration_s, self.file_bpm, self.loaded) == before:
+                delta = 1  # nothing selected or unknown track: step down one row and look again
             else:
                 delta = target_idx - next(i for i, t in enumerate(order) if t.id == current.id)
             while delta:
                 step = max(-64, min(63, delta))
                 b.set("master", "lib_move", (step + 64) / 127)
                 delta -= step
-                time.sleep(0.15)
+                time.sleep(0.2)
         return False
 
     def seek_bar(self, bar: float) -> None:
