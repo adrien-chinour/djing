@@ -1,4 +1,4 @@
-# dj-ubuntu
+# djing
 
 Configuration reproductible pour mixer avec la Hercules DJControl Inpulse 300 MK2 sous Ubuntu avec Mixxx.
 Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire avant d'agir.

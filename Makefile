@@ -1,4 +1,4 @@
-.PHONY: check hardware apply apply-pc
+.PHONY: check hardware apply apply-pc setup
 
 check: ## Lint the shell scripts
 	shellcheck scripts/*.sh
@@ -12,3 +12,6 @@ apply: ## Mixxx config, sound through the controller's card (speakers on MAIN RC
 
 apply-pc: ## Mixxx config, sound through PipeWire (laptop speakers), controller for MIDI only
 	./scripts/apply-mixxx-config.sh pc
+
+setup: ## Install Mixxx and real-time limits (needs sudo)
+	sudo ./scripts/setup-ubuntu.sh

@@ -1,4 +1,4 @@
-# dj-ubuntu
+# djing
 
 Mixer avec la platine **Hercules DJControl Inpulse 300 MK2** directement sur ce portable Ubuntu, avec
 **Mixxx**, au lieu de passer par le Mac Mini et DJUCED. Ce dépôt contient la configuration et les scripts
@@ -28,6 +28,14 @@ voit comme une sortie « Surround analogique 4.0 ». Mixxx l'utilise **en ALSA d
 PipeWire, pour la latence ; PipeWire relâche la carte dès qu'elle est inactive, les deux cohabitent.
 
 ## Installation
+
+En une fois, puis se déconnecter et se reconnecter :
+
+```sh
+sudo scripts/setup-ubuntu.sh
+```
+
+Ce script enchaîne les étapes 1 et 2 ci-dessous. Le détail :
 
 1. Installer Mixxx (dépôts Ubuntu, version 2.5.6 sur 26.04) :
 
