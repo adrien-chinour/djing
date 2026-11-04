@@ -159,6 +159,24 @@ Déductions, dans `agent/analysis/structure.py` :
 Lancer l'analyse Mixxx d'abord (barre latérale > *Analyser*) : sans BPM Mixxx, l'analyseur se replie sur
 librosa et la grille ne correspondra pas à celle de Mixxx.
 
+## Transition pilotée (étape 3)
+
+`make mix A="super bouncy" B="dreams" ARGS=--skip-to` charge les deux morceaux par navigation dans la
+bibliothèque (tri par titre, puis vérification du morceau chargé par durée, BPM et tonalité renvoyés par
+Mixxx, et correction du décalage), lance A deux phrases avant son point de sortie et exécute la transition.
+Sans `A`, l'agent prend ce qui joue sur le deck A ; sans `B`, il choisit (`agent/select.py` : BPM à ±8 %,
+compatibilité Camelot, titres sous 110 BPM écartés car demi-tempo probable).
+
+La transition (`agent/mixer.py`) est un échange de basses sur N mesures (16 par défaut), calé sur les phrases
+du morceau sortant : B démarre (sync, keylock, quantize, basses coupées) sur la frontière de phrase
+`mix_out − N` de A ; à mi-parcours les basses passent de A à B en une mesure ; puis le volume de A descend
+jusqu'à la fin de la phrase, A s'arrête et ses réglages sont remis au neutre. Le crossfader n'est pas touché
+(recentré au départ s'il est trop d'un côté) : en B2B, il reste à l'humain.
+
+Le temps musical vient de `agent/decks.py` : position renvoyée par Mixxx, extrapolée entre deux messages
+avec la vitesse de lecture, convertie en mesures grâce à la grille de l'analyse. `wait_for_bar` dort jusqu'à
+un peu avant la mesure cible ; play est envoyé 120 ms avant pour que le quantize de Mixxx tombe sur le temps.
+
 ## Utilisation
 
 - Brancher la platine **avant** de lancer Mixxx. Enceintes sur MAIN (RCA), casque sur le jack de façade.

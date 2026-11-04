@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -33,3 +33,6 @@ setup: ## Install Mixxx and real-time limits (needs sudo)
 
 analyze: ## Step 2: analyse every track of the Mixxx library into analysis/*.json
 	uv run python -m agent.analysis.analyze
+
+mix: ## Step 3: one agent-driven transition (see agent/mix.py for options, e.g. A="super bouncy" B="dreams")
+	uv run python -m agent.mix $(if $(A),--a "$(A)") $(if $(B),--b "$(B)") $(if $(BARS),--bars $(BARS)) $(ARGS)

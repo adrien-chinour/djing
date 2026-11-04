@@ -17,6 +17,7 @@ from dataclasses import dataclass
 DECK_CHANNEL = {"A": 0, "B": 1}
 MASTER_CHANNEL = 2
 HELLO_NOTE = 0x7F  # sent by the mapping on channel 3 when it (un)loads
+RESYNC_NOTE = 0x7E  # sent by the agent on channel 3: the mapping re-sends the whole state
 LSB_OFFSET = 32
 
 
@@ -90,6 +91,8 @@ MASTER_NOTES = [
     NoteCommand("lib_down", 0x02, "MoveDown", "trigger", group="[Library]"),
     NoteCommand("lib_focus", 0x03, "MoveFocusForward", "trigger", group="[Library]"),
     NoteCommand("lib_go", 0x04, "GoToItem", "trigger", group="[Library]"),
+    NoteCommand("lib_sort_desc", 0x05, "sort_order", "set", group="[Library]"),  # 0 ascending, 1 descending
+    NoteCommand("lib_clear_search", 0x06, "clear_search", "trigger", group="[Library]"),
     NoteCommand("autodj", 0x10, "enabled", "set", group="[AutoDJ]"),
     NoteCommand("autodj_fade", 0x11, "fade_now", "trigger", group="[AutoDJ]"),
     NoteCommand("autodj_skip", 0x12, "skip_next", "trigger", group="[AutoDJ]"),
@@ -98,6 +101,10 @@ MASTER_NOTES = [
 MASTER_CCS = [
     CcCommand("crossfader", 0x00, "crossfader", 14, group="[Master]"),
     CcCommand("master_gain", 0x01, "gain", 7, group="[Master]"),
+    # raw integer controls: 7-bit value v -> min + v/127 * (max - min)
+    CcCommand("lib_move", 0x02, "MoveVertical", 7, param=False, group="[Library]", min=-64, max=63),
+    CcCommand("lib_sort_column", 0x03, "sort_column", 7, param=False, group="[Library]", min=0, max=127),
+    CcCommand("lib_focus_widget", 0x04, "focused_widget", 7, param=False, group="[Library]", min=0, max=127),
 ]
 
 DECK_FEEDBACK = [

@@ -812,6 +812,26 @@
 				</options>
 			</control>
 			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_sort_desc</description>
+				<status>0x92</status>
+				<midino>0x05</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_clear_search</description>
+				<status>0x92</status>
+				<midino>0x06</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
 				<group>[AutoDJ]</group>
 				<key>DjingAgent.cmd</key>
 				<description>master autodj</description>
@@ -867,6 +887,46 @@
 				<description>master master_gain (7-bit)</description>
 				<status>0xB2</status>
 				<midino>0x01</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_move (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x02</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_sort_column (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x03</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Library]</group>
+				<key>DjingAgent.cmd</key>
+				<description>master lib_focus_widget (7-bit)</description>
+				<status>0xB2</status>
+				<midino>0x04</midino>
+				<options>
+					<script-binding />
+				</options>
+			</control>
+			<control>
+				<group>[Master]</group>
+				<key>DjingAgent.cmd</key>
+				<description>agent asks for a full state resend</description>
+				<status>0x92</status>
+				<midino>0x7E</midino>
 				<options>
 					<script-binding />
 				</options>

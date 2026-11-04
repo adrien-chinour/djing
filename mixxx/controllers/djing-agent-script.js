@@ -53,6 +53,11 @@ DjingAgent.cmd = function(channel, control, value, status, _group) {
     var P = DjingAgentProtocol;
     var kind = status & 0xF0;
     var ch = status & 0x0F;
+    if (kind === 0x90 && ch === P.masterChannel && control === P.resyncNote && value > 0) {
+        DjingAgent.connections.forEach(function(c) { c.trigger(); });
+        midi.sendShortMsg(0x90 | P.masterChannel, P.helloNote, 0x7F);
+        return;
+    }
     if (kind === 0x90 || kind === 0x80) {
         var note = P.notes[ch + ":" + control];
         if (!note) { return; }

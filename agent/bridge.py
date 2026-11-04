@@ -98,11 +98,20 @@ class Bridge:
         """listener(scope, name, value) is called from the MIDI thread on every update."""
         self._listeners.append(listener)
 
+    def resync(self) -> None:
+        """Ask the mapping to resend the whole state (and a hello)."""
+        self._send([0x90 | p.MASTER_CHANNEL, p.RESYNC_NOTE, 0x7F])
+
     def wait_for_mapping(self, timeout: float) -> bool:
+        """True once the mapping answered; asks for a resync every 2 s in case Mixxx was already up."""
         deadline = time.monotonic() + timeout
+        next_ping = 0.0
         while time.monotonic() < deadline:
             if self.mapping_loaded:
                 return True
+            if time.monotonic() >= next_ping:
+                self.resync()
+                next_ping = time.monotonic() + 2.0
             time.sleep(0.1)
         return False
 

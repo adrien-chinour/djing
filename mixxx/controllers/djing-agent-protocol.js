@@ -281,6 +281,16 @@ var DjingAgentProtocol = {
       "key": "GoToItem",
       "mode": "trigger"
     },
+    "2:5": {
+      "group": "[Library]",
+      "key": "sort_order",
+      "mode": "set"
+    },
+    "2:6": {
+      "group": "[Library]",
+      "key": "clear_search",
+      "mode": "trigger"
+    },
     "2:16": {
       "group": "[AutoDJ]",
       "key": "enabled",
@@ -441,6 +451,30 @@ var DjingAgentProtocol = {
       "param": true,
       "min": 0.0,
       "max": 1.0
+    },
+    "2:2": {
+      "group": "[Library]",
+      "key": "MoveVertical",
+      "bits": 7,
+      "param": false,
+      "min": -64,
+      "max": 63
+    },
+    "2:3": {
+      "group": "[Library]",
+      "key": "sort_column",
+      "bits": 7,
+      "param": false,
+      "min": 0,
+      "max": 127
+    },
+    "2:4": {
+      "group": "[Library]",
+      "key": "focused_widget",
+      "bits": 7,
+      "param": false,
+      "min": 0,
+      "max": 127
     }
   },
   "feedback": [
@@ -789,5 +823,6 @@ var DjingAgentProtocol = {
   ],
   "masterChannel": 2,
   "helloNote": 127,
+  "resyncNote": 126,
   "lsbOffset": 32
 };

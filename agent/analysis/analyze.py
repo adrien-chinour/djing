@@ -45,6 +45,7 @@ def analyse_track(t: mixxxdb.MixxxTrack) -> dict:
         "duration_s": round(duration, 3),
         "bpm": round(bpm, 3),
         "key": t.key,
+        "key_id": t.key_id,
         "camelot": camelot.camelot(t.key_id),
         "first_beat_s": t.first_beat_s,
         "mixxx_cues": {k: [round(v[0], 3), round(v[1], 3) if v[1] is not None else None] for k, v in t.cues.items()},
@@ -78,7 +79,7 @@ def main() -> int:
             print(f"[{n}/{len(tracks)}] {t.artist} - {t.title} | {data['bpm']:.0f} bpm {data['camelot']} | "
                   f"{s['bars']} bars, {len(s['sections'])} sections, in @bar {s['mix_in_bar']} out @bar {s['mix_out_bar']} "
                   f"({time.time() - t0:.1f}s)", flush=True)
-        index.append({k: data[k] for k in ("id", "title", "artist", "bpm", "camelot", "duration_s", "path")}
+        index.append({k: data[k] for k in ("id", "title", "artist", "bpm", "camelot", "key_id", "duration_s", "path")}
                      | {"mix_in_s": data["structure"]["mix_in_s"], "mix_out_s": data["structure"]["mix_out_s"]})
     (OUT_DIR / "index.json").write_text(json.dumps(index, indent=1, ensure_ascii=False))
     print(f"index: {len(index)} tracks -> {OUT_DIR / 'index.json'}")
