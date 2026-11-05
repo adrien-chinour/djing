@@ -34,7 +34,8 @@ const HOP      = 1024;    // new analysis every ≈21 ms → low latency despite
 let PORT       = 8765;
 const ROOT     = __dirname;                 // the pages live next to this file
 const DEFAULT_VISUAL = 'corridor';
-const RESERVED = new Set(['index', 'active', 'debug', 'control', 'webgl-check']);   // pages that are not visuals
+const RESERVED = new Set(['index', 'active', 'control']);   // pages that can never go into the TV iframe
+const TOOLS    = new Set(['debug', 'webgl-check']);           // not visuals, but can be shown on the TV (debug mode)
 
 let TARGET  = 'alsa_output.pci-0000_00_1f.3.analog-stereo';
 // Auto-gain : a band's reference level follows its recent peak, but can never
@@ -67,19 +68,23 @@ function listVisuals() {
   return fs.readdirSync(ROOT)
     .filter(f => f.endsWith('.html') && !f.startsWith('.'))
     .map(f => f.slice(0, -5))
-    .filter(n => !RESERVED.has(n))
+    .filter(n => !RESERVED.has(n) && !TOOLS.has(n))
     .sort();
+}
+
+function listTools() {
+  return [...TOOLS].filter(n => fs.existsSync(path.join(ROOT, `${n}.html`))).sort();
 }
 
 function activeVisual() {
   let active;
   try { active = fs.readFileSync(path.join(ROOT, 'active.html')); } catch (e) { return null; }
-  return listVisuals().find(n => fs.readFileSync(path.join(ROOT, `${n}.html`)).equals(active)) || null;
+  return listVisuals().concat(listTools()).find(n => fs.readFileSync(path.join(ROOT, `${n}.html`)).equals(active)) || null;
 }
 
 // Returns an error message, or null on success. Atomic: index.html polls active.html every 2 s.
 function activate(name) {
-  if (!/^[a-z0-9-]+$/.test(name) || RESERVED.has(name)) return `'${name}' is not a visual`;
+  if (!/^[a-z0-9-]+$/.test(name) || RESERVED.has(name)) return `'${name}' cannot be shown on the TV`;
   const src = path.join(ROOT, `${name}.html`);
   if (!fs.existsSync(src)) return `unknown visual '${name}' (available: ${listVisuals().join(', ')})`;
   const tmp = path.join(ROOT, '.active.tmp');
@@ -105,7 +110,7 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
   if (url.pathname === '/visuals' && req.method === 'GET') {
-    return send(res, 200, JSON.stringify({ visuals: listVisuals(), active: activeVisual() }), 'application/json');
+    return send(res, 200, JSON.stringify({ visuals: listVisuals(), tools: listTools(), active: activeVisual() }), 'application/json');
   }
   const m = url.pathname.match(/^\/active\/([^/]+)$/);
   if (m && req.method === 'POST') {

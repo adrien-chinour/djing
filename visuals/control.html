@@ -17,33 +17,42 @@
   button.active { border-color: #7af; color: #fff; background: #1d2440; }
   button:active { background: #2a2a3a; }
   .hint { margin-top: 24px; font-size: 13px; color: #666; }
+  h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin: 28px 0 6px; }
+  .tool { padding: 12px; font-size: 14px; color: #999; }
 </style>
 </head>
 <body>
 <h1>VISUELS</h1>
 <div id="status">connexion…</div>
 <div id="list"></div>
-<p class="hint">La TV bascule dans les 2 s. <a href="debug.html" style="color:#7af">Calibrage</a>.</p>
+<h2>OUTILS</h2>
+<div id="tools"></div>
+<p class="hint">La TV bascule dans les 2 s. Les outils s'affichent sur la TV à la place du visuel (mode debug) ; <a href="debug.html" style="color:#7af">calibrage ici</a>.</p>
 <script src="audio-client.js?v=3"></script>
 <script>
 !function () {
-  var list = document.getElementById('list'), status = document.getElementById('status');
+  var list = document.getElementById('list'), tools = document.getElementById('tools'), status = document.getElementById('status');
   var known = '';
 
+  function button(name, active, cls) {
+    var b = document.createElement('button');
+    b.textContent = name;
+    b.className = (cls || '') + (name === active ? ' active' : '');
+    b.onclick = function () {
+      fetch('active/' + encodeURIComponent(name), { method: 'POST' }).then(refresh);
+    };
+    return b;
+  }
+
   function render(data) {
-    var key = data.visuals.join(',') + '|' + data.active;
+    var toolNames = data.tools || [];
+    var key = data.visuals.join(',') + '|' + toolNames.join(',') + '|' + data.active;
     if (key === known) return;
     known = key;
     list.innerHTML = '';
-    data.visuals.forEach(function (name) {
-      var b = document.createElement('button');
-      b.textContent = name;
-      if (name === data.active) b.className = 'active';
-      b.onclick = function () {
-        fetch('active/' + encodeURIComponent(name), { method: 'POST' }).then(refresh);
-      };
-      list.appendChild(b);
-    });
+    tools.innerHTML = '';
+    data.visuals.forEach(function (name) { list.appendChild(button(name, data.active, '')); });
+    toolNames.forEach(function (name) { tools.appendChild(button(name, data.active, 'tool')); });
   }
 
   function refresh() {
