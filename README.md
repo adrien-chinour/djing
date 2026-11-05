@@ -131,6 +131,12 @@ le socket Unix `/tmp/djing-agent.sock` (`agent/remote.py`, même interface que `
 `make daemon`, puis démarrer Mixxx (ou *Préférences > Contrôleurs > Appliquer* une fois). `make daemon-stop`
 pour l'arrêter ; il faudra alors refaire ce rescan.
 
+Le démon recharge `agent/protocol.py` depuis **le répertoire où il a été lancé** à chaque commande `reload` des
+clients. Changer de branche dans ce checkout sous ses pieds, ou le lancer depuis un autre checkout que celui des
+outils, désynchronise silencieusement le décodage du retour MIDI (durées fausses d'un facteur 10, identification
+des morceaux impossible, « could not load A »). Lancer le démon depuis le worktree de travail et le redémarrer,
+puis Mixxx, à chaque changement de branche de ce checkout.
+
 Outillage Python : `uv` (`~/.local/bin/uv`), Python 3.12 géré par uv (`python-rtmidi` n'a pas de roue
 précompilée pour 3.13+ et les en-têtes ALSA ne sont pas installés), dépendances `mido` et `python-rtmidi`
 dans `pyproject.toml`, environnement dans `.venv/` (non versionné).
