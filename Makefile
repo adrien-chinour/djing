@@ -7,7 +7,8 @@ check: ## Lint scripts and validate the mapping files
 	python3 -I -c "import xml.dom.minidom, glob; [xml.dom.minidom.parse(f) for f in glob.glob('mixxx/**/*.xml', recursive=True)]"
 	node --check mixxx/controllers/*.js 2>/dev/null || true
 
-test: ## Loopback test of the MIDI bridge (no Mixxx needed)
+test: ## Offline checks (catalog, patterns) + loopback test of the MIDI bridge, no Mixxx needed
+	uv run python -m agent.check_offline
 	uv run python -m agent.selftest
 
 mapping: ## Regenerate the MK2 mapping from the mapping shipped with Mixxx

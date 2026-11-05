@@ -77,12 +77,17 @@ class Catalog:
         return sorted(self.tracks, key=lambda t: locale.strxfrm(t.title.lower()))
 
     def identify(self, duration_s: float, file_bpm: float, key_id: int, tolerance_s: float = 0.35) -> Track | None:
-        """Which track matches what Mixxx reports for a deck (duration to 0.1 s, file bpm, file key)."""
-        best, best_score = None, 1e9
+        """Which track matches what Mixxx reports for a deck (duration to 0.1 s, file bpm, file key).
+        Returns None when nothing matches or when several tracks remain indistinguishable."""
+        scored = []
         for t in self.tracks:
             if abs(t.duration_s - duration_s) > tolerance_s:
                 continue
             score = abs(t.duration_s - duration_s) + (0 if abs(t.bpm - file_bpm) < 0.6 else 5) + (0 if (t.key_id or 0) == key_id else 2)
-            if score < best_score:
-                best, best_score = t, score
-        return best
+            scored.append((score, t))
+        if not scored:
+            return None
+        scored.sort(key=lambda x: x[0])
+        if len(scored) > 1 and scored[1][0] - scored[0][0] < 0.15:
+            return None  # ambiguous: do not guess
+        return scored[0][1]

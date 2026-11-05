@@ -104,18 +104,22 @@ class Deck:
         b.set("master", "lib_sort_column", SORT_TITLE / 127)
         b.note("master", "lib_sort_desc", False)
         time.sleep(0.4)
+        seen: list[str | None] = []
         for attempt in range(attempts):
             before = (self.duration_s, self.file_bpm, self.loaded)
             b.press(self.name, "load")
             time.sleep(0.8)
             current = self.identify_loaded()
             if log:
-                log(f"  load attempt {attempt + 1}: deck {self.name} has {current} (loaded={self.loaded}, {self.duration_s:.0f}s, {self.file_bpm:.1f} bpm)")
+                log(f"  load attempt {attempt + 1}: deck {self.name} has {current} (loaded={self.loaded}, {self.duration_s:.1f}s, {self.file_bpm:.1f} bpm)")
             if current and current.id == track.id:
                 self.track = track
                 return True
+            seen.append(current.id if current else None)
             if current is None or (self.duration_s, self.file_bpm, self.loaded) == before:
-                delta = 1  # nothing selected or unknown track: step down one row and look again
+                delta = 1  # nothing selected, unknown or ambiguous track: step down one row and look again
+            elif len(seen) >= 2 and seen[-1] == seen[-2]:
+                delta = 3  # stuck on the same wrong track: our view of the order is off, jump further
             else:
                 delta = target_idx - next(i for i, t in enumerate(order) if t.id == current.id)
             while delta:

@@ -84,8 +84,10 @@ def break_drop(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
         entry, score = "bass", 0.85
     elif length and mids and max(mids) < SPARSE_MIDS:
         entry, score = "tops", 0.8
-    else:
+    elif length >= 1:
         entry, length, score = "teaser", min(TEASER_BARS, length), 0.75
+    else:
+        entry, length, score = "none", 0, 0.7  # B's drop is at its very start: nothing to overlap
     return Plan("break_drop", cut - length, cut, drop_b - length, entry, _keylock(a_bpm, b), score, notes)
 
 
