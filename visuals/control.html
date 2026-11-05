@@ -19,15 +19,26 @@
   .hint { margin-top: 24px; font-size: 13px; color: #666; }
   h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin: 28px 0 6px; }
   .tool { padding: 12px; font-size: 14px; color: #999; }
+  .meter { display: grid; grid-template-columns: 44px 1fr 92px; align-items: center; gap: 8px; margin: 6px 0;
+           font: 13px ui-monospace, monospace; color: #999; }
+  .bar { position: relative; height: 16px; background: #1a1a24; border-radius: 3px; overflow: hidden; }
+  .raw, .smooth { position: absolute; left: 0; top: 0; bottom: 0; }
+  .raw { background: #3a3a55; } .smooth { background: #7af; opacity: .85; }
+  #onset { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #222; vertical-align: middle; }
+  #floor { font-size: 12px; color: #666; margin-top: 6px; }
 </style>
 </head>
 <body>
 <h1>VISUELS</h1>
 <div id="status">connexion…</div>
 <div id="list"></div>
+<h2>CALIBRAGE</h2>
+<div id="meters"></div>
+<div class="meter"><div>onset</div><div><span id="onset"></span> <span id="onsetCount"></span></div><div></div></div>
+<div id="floor"></div>
 <h2>OUTILS</h2>
 <div id="tools"></div>
-<p class="hint">La TV bascule dans les 2 s. Les outils s'affichent sur la TV à la place du visuel (mode debug) ; <a href="debug.html" style="color:#7af">calibrage ici</a>.</p>
+<p class="hint">La TV bascule dans les 2 s. Un outil s'affiche sur la TV à la place du visuel. Barre sombre : valeur brute ; barre bleue : valeur lissée vue par les visuels. <a href="debug.html" style="color:#7af">Page de calibrage complète</a> (ordinateur).</p>
 <script src="audio-client.js?v=3"></script>
 <script>
 !function () {
@@ -62,15 +73,41 @@
       .catch(function () { known = ''; list.innerHTML = ''; });
   }
 
+  // ── Calibration meters (same data as debug.html, phone-sized) ───────────
+  var BANDS = ['level', 'low', 'mid', 'high'], meters = {}, onsetCount = 0, lastTick = Date.now();
+  var metersEl = document.getElementById('meters'), onsetEl = document.getElementById('onset');
+  var onsetCountEl = document.getElementById('onsetCount'), floorEl = document.getElementById('floor');
+  BANDS.forEach(function (name) {
+    var row = document.createElement('div');
+    row.className = 'meter';
+    row.innerHTML = '<div>' + name + '</div><div class="bar"><div class="raw"></div><div class="smooth"></div></div><div class="num"></div>';
+    metersEl.appendChild(row);
+    meters[name] = { raw: row.querySelector('.raw'), smooth: row.querySelector('.smooth'), num: row.querySelector('.num') };
+  });
+
   function tick() {
-    var s = AudioFeed.update(1 / 30);
+    var now = Date.now(), dt = Math.min(0.1, (now - lastTick) / 1000);
+    lastTick = now;
+    var s = AudioFeed.update(dt), raw = s.raw, dbg = raw && raw.dbg;
     status.textContent = s.live ? 'son en direct · niveau ' + Math.round(s.level * 100) + ' %' : 'pas de son du serveur : simulation 160 BPM';
     status.className = s.live ? 'live' : '';
+    BANDS.forEach(function (name) {
+      var m = meters[name];
+      m.raw.style.width = (raw ? raw[name] * 100 : 0) + '%';
+      m.smooth.style.width = (s[name] * 100) + '%';
+      var full = name === 'level' ? 'full' : name;
+      m.num.textContent = dbg ? dbg.db[full].toFixed(0) + ' dB / ref ' + dbg.ref[full].toFixed(0) : s[name].toFixed(2);
+    });
+    if (s.hit > 0) { onsetCount++; onsetEl.style.background = '#fff'; }
+    else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,255,255,' + s.punch + ')' : '#222';
+    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · flux ' + dbg.flux.toFixed(2) + ' / seuil ' + dbg.thr.toFixed(2) : '');
+    floorEl.textContent = dbg ? 'plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ')' : '';
+    requestAnimationFrame(tick);
   }
 
   refresh();
   setInterval(refresh, 2000);
-  setInterval(tick, 500);
+  requestAnimationFrame(tick);
 }();
 </script>
 </body>

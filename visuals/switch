@@ -4,8 +4,8 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-RESERVED='index|active|control'   # never shown on the TV (same lists as audio-server.js)
-TOOLS='debug|webgl-check'         # not visuals, but can be shown on the TV (debug mode)
+RESERVED='index|active|control|debug'   # never shown on the TV (same lists as audio-server.js)
+TOOLS='webgl-check'                     # not visuals, but can be shown on the TV
 
 usage() {
   echo "Usage: ./switch <visuel>"
@@ -21,7 +21,7 @@ usage() {
     fi
   done
   echo ""
-  echo "Outils (mode debug) : ${TOOLS//|/ }"
+  echo "Outils : ${TOOLS//|/ }"
 }
 
 if [ $# -eq 0 ]; then usage; exit 0; fi
