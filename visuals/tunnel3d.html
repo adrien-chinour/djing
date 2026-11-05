@@ -85,7 +85,7 @@ void main() {
 (function () {
   GLVisual.start({
     canvas: document.getElementById('c'),
-    scale: 1,
+    scale: 0.5,      // raymarching: the TV (Mali-G52) gives 31 im/s full-res on a cheap shader, 60 at half
     period: 64,
     fragment: document.getElementById('fs').textContent.replace('uniform vec2 uRes;', 'uniform vec2 uRes;\n' + GLVisual.THERMO)
   });
