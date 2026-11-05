@@ -13,7 +13,6 @@
 //   onset  0-1  strength of a low-band attack on this hop, 0 otherwise
 //   tone   0-1  spectral balance : 1 = bass-heavy (warm), 0 = treble-heavy (cold)
 //   dbg    raw dB values, auto-gain references, flux and threshold (for debug.html)
-//   bass / mid / treble / beat : legacy aliases (solar.html)
 
 'use strict';
 
@@ -226,8 +225,6 @@ function analyse() {
       ref: { full: r1(ref.full), low: r1(ref.low), mid: r1(ref.mid), high: r1(ref.high) },
       flux: r3(flux), thr: r3(thr), range: RANGE_DB, minRef: MIN_REF_DB,
     },
-    // legacy
-    bass: r3(low), treble: r3(high), beat: onset > 0 ? 1 : 0,
   });
 
   if (fluxCount % 12 === 0 || onset > 0) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # switch — active un visuel (écrit dans active.html, servi par l'iframe de index.html)
-# Usage : ./switch tunnel | rain | <nom>
+# Usage : ./switch corridor | sunburst | <nom>
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
