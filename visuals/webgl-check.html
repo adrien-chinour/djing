@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WEBGL CHECK</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; color: #eee;
+               font: 28px/1.35 ui-monospace, monospace; }
+  canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+  #out { position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 40px 60px;
+         background: rgba(0,0,0,.55); white-space: pre-wrap; }
+  .ok { color: #3f6; } .ko { color: #f55; } .dim { color: #999; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="out">WEBGL CHECK : préparation…</div>
+<script>
+// Probe run on the TV: WebGL availability, capabilities and frame rate at full and half
+// resolution. Results are shown on screen and posted to /report (the agent cannot see the TV).
+(function () {
+  var out = document.getElementById('out');
+  var canvas = document.getElementById('c');
+  var report = {
+    page: 'webgl-check', ua: navigator.userAgent,
+    screen: innerWidth + 'x' + innerHeight, dpr: window.devicePixelRatio || 1
+  };
+  var lines = [];
+
+  function show() { out.innerHTML = lines.join('\n'); }
+  function line(cls, text) { lines.push(cls ? '<span class="' + cls + '">' + text + '</span>' : text); show(); }
+
+  function post() {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', 'report');
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function () { line('dim', 'rapport envoyé au serveur (' + xhr.status + ')'); };
+      xhr.onerror = function () { line('ko', 'rapport non envoyé'); };
+      xhr.send(JSON.stringify(report));
+    } catch (e) { line('ko', 'rapport non envoyé : ' + e.message); }
+  }
+
+  var gl = null, i, names = ['webgl', 'experimental-webgl'];
+  for (i = 0; i < names.length && !gl; i++) {
+    try { gl = canvas.getContext(names[i], { alpha: false, antialias: false }); } catch (e) { gl = null; }
+    if (gl) report.context = names[i];
+  }
+  line(null, 'WEBGL CHECK  ' + report.screen + '  dpr ' + report.dpr);
+  line('dim', report.ua);
+
+  if (!gl) {
+    report.webgl = false;
+    line('ko', 'WebGL : INDISPONIBLE');
+    post();
+    return;
+  }
+  report.webgl = true;
+
+  var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+  report.version  = gl.getParameter(gl.VERSION);
+  report.glsl     = gl.getParameter(gl.SHADING_LANGUAGE_VERSION);
+  report.renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  report.vendor   = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+  report.maxTexture  = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+  report.maxVaryings = gl.getParameter(gl.MAX_VARYING_VECTORS);
+  report.maxFragUniforms = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS);
+  var hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+  report.fragHighp = !!(hp && hp.precision > 0);
+  var exts = ['OES_standard_derivatives', 'OES_element_index_uint', 'OES_texture_float', 'ANGLE_instanced_arrays'];
+  report.ext = {};
+  for (i = 0; i < exts.length; i++) report.ext[exts[i]] = !!gl.getExtension(exts[i]);
+
+  line('ok', 'WebGL : OK (' + report.context + ')');
+  line(null, report.version + '  |  ' + report.glsl);
+  line(null, report.vendor + ' / ' + report.renderer);
+  line(null, 'max texture ' + report.maxTexture + '  varyings ' + report.maxVaryings +
+             '  frag uniforms ' + report.maxFragUniforms + '  highp fragment : ' + (report.fragHighp ? 'oui' : 'NON'));
+  var extLine = [];
+  for (var k in report.ext) if (report.ext.hasOwnProperty(k)) extLine.push(k + (report.ext[k] ? ' ✓' : ' ✗'));
+  line('dim', extLine.join('   '));
+
+  // ── Benchmark: a fullscreen shader of modest cost, close to what the visuals will do ──
+  var VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+  var FS = 'precision mediump float; uniform float t; uniform vec2 r;' +
+    'void main(){ vec2 uv = (gl_FragCoord.xy - 0.5 * r) / r.y; float a = 0.0;' +
+    ' for (int i = 0; i < 12; i++) { float f = float(i); a += sin(uv.x * (6.0 + f) + t * (1.0 + 0.1 * f)) * cos(uv.y * (5.0 + f) - t); }' +
+    ' a = 0.5 + 0.5 * sin(a); gl_FragColor = vec4(a * 0.2, a * 0.1, a * 0.4, 1.0); }';
+
+  function compile(type, src) {
+    var sh = gl.createShader(type);
+    gl.shaderSource(sh, src); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  var prog;
+  try {
+    prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  } catch (e) {
+    report.shaderError = String(e.message);
+    line('ko', 'shader de test refusé : ' + e.message);
+    post();
+    return;
+  }
+  gl.useProgram(prog);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  var loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  var uT = gl.getUniformLocation(prog, 't'), uR = gl.getUniformLocation(prog, 'r');
+
+  var passes = [{ name: 'full', scale: 1 }, { name: 'half', scale: 0.5 }];
+  var pass = 0, frames = 0, startAt = 0, t0 = Date.now();
+  report.fps = {};
+
+  function setScale(s) {
+    canvas.width  = Math.max(1, Math.round(innerWidth  * s));
+    canvas.height = Math.max(1, Math.round(innerHeight * s));
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  setScale(passes[0].scale);
+  line(null, 'mesure de cadence : pleine résolution…');
+
+  function frame() {
+    var now = Date.now();
+    if (!startAt) startAt = now;
+    gl.uniform1f(uT, (now - t0) / 1000);
+    gl.uniform2f(uR, canvas.width, canvas.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    frames++;
+    if (now - startAt >= 3000) {
+      var fps = Math.round(frames * 1000 / (now - startAt));
+      report.fps[passes[pass].name] = fps;
+      report.fps[passes[pass].name + 'Size'] = canvas.width + 'x' + canvas.height;
+      line(fps >= 25 ? 'ok' : 'ko', passes[pass].name + ' : ' + fps + ' im/s à ' + canvas.width + 'x' + canvas.height);
+      pass++;
+      if (pass >= passes.length) {
+        var verdict = report.fps.full >= 25 ? 'VERDICT : WebGL utilisable en pleine résolution'
+          : report.fps.half >= 25 ? 'VERDICT : WebGL utilisable à moitié de résolution (scale 0.5)'
+          : 'VERDICT : trop lent, rester en Canvas 2D';
+        report.verdict = verdict;
+        line(report.fps.half >= 25 ? 'ok' : 'ko', verdict);
+        post();
+        return;
+      }
+      setScale(passes[pass].scale);
+      frames = 0; startAt = 0;
+      line(null, 'mesure de cadence : demi-résolution…');
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}());
+</script>
+</body>
+</html>

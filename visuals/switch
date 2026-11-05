@@ -4,6 +4,7 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
+RESERVED='index|active|debug|control|webgl-check'   # pages that are not visuals (same list as audio-server.js)
 
 usage() {
   echo "Usage: ./switch <visuel>"
@@ -11,7 +12,7 @@ usage() {
   echo "Visuels disponibles :"
   for f in "$DIR"/*.html; do
     name="$(basename "$f" .html)"
-    [[ "$name" == "index" || "$name" == "active" || "$name" == "debug" ]] && continue
+    [[ "$name" =~ ^($RESERVED)$ ]] && continue
     if diff -q "$f" "$DIR/active.html" > /dev/null 2>&1; then
       echo "  $name  ← actif"
     else
@@ -22,11 +23,10 @@ usage() {
 
 if [ $# -eq 0 ]; then usage; exit 0; fi
 
-case "$1" in
-  index|active|debug)
-    echo "Erreur : '$1' n'est pas un visuel."
-    exit 1 ;;
-esac
+if [[ "$1" =~ ^($RESERVED)$ ]]; then
+  echo "Erreur : '$1' n'est pas un visuel."
+  exit 1
+fi
 
 TARGET="$DIR/$1.html"
 

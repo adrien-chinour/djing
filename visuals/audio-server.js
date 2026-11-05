@@ -34,7 +34,7 @@ const HOP      = 1024;    // new analysis every ≈21 ms → low latency despite
 let PORT       = 8765;
 const ROOT     = __dirname;                 // the pages live next to this file
 const DEFAULT_VISUAL = 'corridor';
-const RESERVED = new Set(['index', 'active', 'debug', 'control']);   // pages that are not visuals
+const RESERVED = new Set(['index', 'active', 'debug', 'control', 'webgl-check']);   // pages that are not visuals
 
 let TARGET  = 'alsa_output.pci-0000_00_1f.3.analog-stereo';
 // Auto-gain : a band's reference level follows its recent peak, but can never
@@ -111,6 +111,21 @@ const server = http.createServer((req, res) => {
   if (m && req.method === 'POST') {
     const err = activate(decodeURIComponent(m[1]));
     return err ? send(res, 400, err) : send(res, 200, JSON.stringify({ active: m[1] }), 'application/json');
+  }
+  if (url.pathname === '/report' && req.method === 'POST') {
+    // Capability report posted by webgl-check.html from the TV (the agent cannot see the screen).
+    const chunks = []; let size = 0;
+    req.on('data', c => { size += c.length; if (size <= 4096) chunks.push(c); });
+    req.on('end', () => {
+      if (size > 4096) return send(res, 413, 'report too large');
+      let report;
+      try { report = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { return send(res, 400, 'invalid JSON'); }
+      const line = JSON.stringify(Object.assign({ at: new Date().toISOString(), from: req.socket.remoteAddress }, report));
+      fs.appendFileSync(path.join(ROOT, 'reports.jsonl'), line + '\n');
+      console.log('\n[report] ' + line);
+      send(res, 200, 'ok');
+    });
+    return;
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
 
