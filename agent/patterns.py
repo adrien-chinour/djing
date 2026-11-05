@@ -106,8 +106,10 @@ def break_drop(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
 # --- pattern 2: slam ---------------------------------------------------------------------
 
 def slam(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
-    """Hard cut on the one: A's kick section ends on a phrase boundary, B's drop starts
-    right there. No overlap at all. Best when A would have gone into a break anyway."""
+    """Hard cut on the one where A's kick section ends, B's drop starts right there. No
+    overlap at all. Best when A would have gone into a break anyway. The cut is the section
+    end itself, not the nearest phrase boundary: sections and the phrase grid disagree on
+    most tracks, and cutting two bars into A's break was rated 1 (2026-11-05)."""
     drop_b = _first_drop_bar(b)
     if drop_b is None:
         return None
@@ -116,11 +118,10 @@ def slam(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if not kicks:
         return None
     sec = kicks[0]
-    cut = min(_snap(a, sec["end_bar"]), a.structure["bars"])
-    if cut <= a_now + 2:
-        cut = min(a.phrase_start_at_or_after(a_now + 2), a.structure["bars"])
+    cut = min(sec["end_bar"], a.structure["bars"])
     following = next((s for s in a.structure["sections"] if s["start_bar"] >= sec["end_bar"]), None)
     score = 0.7 + (0.1 if following and following["kind"] in ("break", "outro") else 0.0)
+    score += 0.05 if a.phrase_start_at_or_after(cut) == cut else 0.0  # on a phrase: cleaner
     b_drop_energy = next((s["energy"] for s in b.structure["sections"] if s["start_bar"] == drop_b), 0.0)
     score += 0.05 if b_drop_energy >= 0.85 else 0.0
     notes = [f"A kick section {sec['start_bar']}-{sec['end_bar']}", f"B drop at {drop_b}"]
