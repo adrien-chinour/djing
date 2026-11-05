@@ -1,8 +1,7 @@
 # djing
 
-Mixer avec la platine **Hercules DJControl Inpulse 300 MK2** directement sur ce portable Ubuntu, avec
-**Mixxx**, au lieu de passer par le Mac Mini et DJUCED. Ce dépôt contient la configuration et les scripts
-qui rendent l'installation reproductible.
+Mixer avec la platine **Hercules DJControl Inpulse 300 MK2** sur un PC Ubuntu, avec **Mixxx**. Ce dépôt
+contient la configuration et les scripts qui rendent l'installation reproductible.
 
 ## Pourquoi Mixxx
 
@@ -76,7 +75,7 @@ Ce script enchaîne les étapes 1 et 2 ci-dessous. Le détail :
 
 ## Sortie sur le PC (sans les enceintes)
 
-Pour mixer avec le son du portable, la platine ne servant que de contrôleur, Mixxx fermé :
+Pour mixer avec la carte son du PC, la platine ne servant que de contrôleur, Mixxx fermé :
 
 ```sh
 make apply-pc
@@ -255,9 +254,9 @@ applications qui jouent du son sur la platine.
 
 ## Bibliothèque musicale
 
-Les morceaux sont sur le Mac Mini. Mixxx ne lit pas la base DJUCED : copier les fichiers audio dans
-`~/Musique` (ou un disque), puis *Préférences > Bibliothèque > Ajouter* et laisser l'analyse (BPM, grille,
-tonalité) tourner une fois. Les cues DJUCED ne sont pas récupérables.
+Mixxx ne lit pas la base DJUCED : copier les fichiers audio dans un dossier local (ou un disque), puis
+*Préférences > Bibliothèque > Ajouter* et laisser l'analyse (BPM, grille, tonalité) tourner une fois. Les cues
+DJUCED ne sont pas récupérables.
 
 ## Dépannage
 
