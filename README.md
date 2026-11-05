@@ -228,8 +228,9 @@ change ; `audio-client.js`, partagé, lisse les bandes, calcule `punch` (≥ 0,7
 et `hit` (une frame par kick) et se replie sur une simulation à 160 BPM sans serveur ; le navigateur de la TV le met en
 cache, incrémenter `?v=` dans les pages à chaque modification.
 
-Visuels en Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
-(12 rayons tournants, étoile par kick). Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
+Visuels en Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick), `sunburst`
+(12 rayons tournants, étoile par kick) et `pickaxe` (une pioche frappe un rocher à chaque kick, les fissures
+s'accumulent, le rocher éclate après 6 à 10 coups et un nouveau pousse à sa place ; étincelles sur les aigus). Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
 retirés et restent dans l'historique.
 
 Visuels en WebGL 1 (GLSL ES 1.0, sans bibliothèque) : `tunnel3d` (tunnel infini raymarché, rayon sur les basses,

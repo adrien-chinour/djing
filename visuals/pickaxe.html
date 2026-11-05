@@ -1,0 +1,441 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PICKAXE</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="audio-client.js?v=3"></script>
+<script>
+(function () {
+
+  // A pickaxe strikes a boulder on every kick. Cracks pile up, the boulder
+  // shatters after a few hits and a new one grows in its place, for ever.
+  //   strike / flash / shards  <- hit, punch     boulder breath <- low
+  //   stone brightness         <- mid            sparks         <- high
+  //   colour                   <- tone
+
+  var TAU = Math.PI * 2;
+  var c   = document.getElementById('c');
+  var ctx = c.getContext('2d', { alpha: false });
+  var W, H, CX, CY, MIN, R, K;     // R = boulder radius, K = speed factor (px/s per 1080p)
+
+  function resize() {
+    W = c.width  = innerWidth;
+    H = c.height = innerHeight;
+    MIN = Math.min(W, H);
+    CX = W * 0.46; CY = H * 0.58;
+    R  = MIN * 0.26;
+    K  = MIN / 1080;
+    layout();
+  }
+
+  // ── Thermal palette (shared with corridor / sunburst) ────────────────────
+  var THERMO = [
+    [20,  40,  220],
+    [60,  10,  200],
+    [160, 10,  255],
+    [255, 30,  80],
+    [255, 110, 10],
+    [255, 200, 20],
+    [255, 245, 180]
+  ];
+
+  function thermoRgb(t) {
+    t = Math.max(0, Math.min(1, t));
+    var steps = THERMO.length - 1, pos = t * steps;
+    var lo = Math.min(Math.floor(pos), steps - 1), f = pos - lo;
+    var a = THERMO[lo], b = THERMO[lo + 1];
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * f),
+      Math.round(a[1] + (b[1] - a[1]) * f),
+      Math.round(a[2] + (b[2] - a[2]) * f)
+    ];
+  }
+  function scale(col, k) {
+    return [Math.min(255, Math.round(col[0] * k)), Math.min(255, Math.round(col[1] * k)), Math.min(255, Math.round(col[2] * k))];
+  }
+  function towardWhite(col, k) {
+    return [
+      Math.round(col[0] + (255 - col[0]) * k),
+      Math.round(col[1] + (255 - col[1]) * k),
+      Math.round(col[2] + (255 - col[2]) * k)
+    ];
+  }
+  function mixCol(a, b, k) {
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * k),
+      Math.round(a[1] + (b[1] - a[1]) * k),
+      Math.round(a[2] + (b[2] - a[2]) * k)
+    ];
+  }
+  function rgba(col, a) {
+    return 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + Math.max(0, Math.min(1, a)).toFixed(3) + ')';
+  }
+  function rgb(col) { return 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')'; }
+
+  function path(pts) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+  }
+
+  // ── Pickaxe geometry ─────────────────────────────────────────────────────
+  // The hand (pivot) is to the right; the pick swings down onto the impact
+  // point P on the top-right face of the boulder. Local frame: x along the
+  // handle, the striking spike points to -y (leading edge of the swing).
+  var pivot = { x: 0, y: 0 }, P = { x: 0, y: 0 };
+  var L, SPIKE, thImpact, thRaised, th = 0, holdT = 0;
+  var IMPACT_LX = 0.2, IMPACT_LY = -0.72;    // P in boulder units
+
+  function layout() {
+    P.x = CX + R * IMPACT_LX; P.y = CY + R * IMPACT_LY;
+    pivot.x = CX + R * 1.8;  pivot.y = CY - R * 0.6;
+    SPIKE = R * 0.5;
+    var dx = P.x - pivot.x, dy = P.y - pivot.y, d = Math.sqrt(dx * dx + dy * dy);
+    L = Math.sqrt(Math.max(1, d * d - SPIKE * SPIKE));
+    var ang = Math.atan2(dy, dx);
+    if (ang < 0) ang += TAU;
+    thImpact = ang + Math.atan2(SPIKE, L);
+    thRaised = thImpact + 0.75;
+    if (!th) th = thRaised;
+  }
+
+  function drawPick(a, tint, dt) {
+    if (holdT > 0) holdT -= dt;
+    else th += (thRaised - th) * (1 - Math.exp(-dt / 0.22));
+
+    var wood  = mixCol([150, 95, 50], tint, 0.2);
+    var metal = scale(mixCol([205, 210, 220], tint, 0.22), 0.75 + a.mid * 0.25 + a.punch * 0.35);
+
+    ctx.save();
+    ctx.translate(pivot.x, pivot.y);
+    ctx.rotate(th);
+
+    ctx.lineCap = 'round';
+    ctx.lineWidth = R * 0.075;
+    ctx.strokeStyle = rgb(scale(wood, 0.55));
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(L - R * 0.04, 0); ctx.stroke();
+    ctx.lineWidth = R * 0.045;
+    ctx.strokeStyle = rgb(wood);
+    ctx.beginPath(); ctx.moveTo(R * 0.02, -R * 0.008); ctx.lineTo(L - R * 0.06, -R * 0.008); ctx.stroke();
+    // grip bands near the hand
+    ctx.lineWidth = R * 0.08;
+    ctx.strokeStyle = rgba([0, 0, 0], 0.35);
+    for (var g = 0; g < 4; g++) {
+      ctx.beginPath(); ctx.moveTo(R * (0.10 + g * 0.09), 0); ctx.lineTo(R * (0.13 + g * 0.09), 0); ctx.stroke();
+    }
+
+    var hx = L - R * 0.05;
+    ctx.fillStyle = rgb(metal);
+    ctx.strokeStyle = rgba([0, 0, 0], 0.55);
+    ctx.lineWidth = R * 0.016;
+    ctx.lineJoin = 'round';
+    // Curved head: the striking spike (tip exactly on P) and a shorter back spike,
+    // the handle going through the eye between them.
+    ctx.beginPath();
+    ctx.moveTo(hx - R * 0.10, -R * 0.05);
+    ctx.quadraticCurveTo(hx - R * 0.02, -R * 0.32, L, -SPIKE);
+    ctx.quadraticCurveTo(hx + R * 0.17, -R * 0.28, hx + R * 0.14, 0);
+    ctx.quadraticCurveTo(hx + R * 0.17,  R * 0.26, hx + R * 0.02, R * 0.42);
+    ctx.quadraticCurveTo(hx - R * 0.05,  R * 0.25, hx - R * 0.10, R * 0.05);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // bright edge on the striking spike
+    ctx.strokeStyle = rgba(towardWhite(metal, 0.6), 0.5 + a.punch * 0.5);
+    ctx.lineWidth = R * 0.02;
+    ctx.beginPath(); ctx.moveTo(hx + R * 0.14, 0); ctx.quadraticCurveTo(hx + R * 0.17, -R * 0.28, L, -SPIKE); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Boulder ──────────────────────────────────────────────────────────────
+  var block = null;
+
+  function newBlock() {
+    var n = 10, verts = [], facets = [], i, j;
+    for (i = 0; i < n; i++) {
+      var an = i / n * TAU + (Math.random() - 0.5) * 0.3;
+      var rr = 0.84 + Math.random() * 0.28;
+      verts.push([Math.cos(an) * rr, Math.sin(an) * rr]);
+    }
+    for (i = 0; i < 24; i++) {
+      var fx = (Math.random() - 0.5) * 1.6, fy = (Math.random() - 0.5) * 1.6, fs = 0.16 + Math.random() * 0.24;
+      var k = 3 + Math.floor(Math.random() * 3), pts = [];
+      for (j = 0; j < k; j++) {
+        var fa = j / k * TAU + Math.random() * 0.7;
+        pts.push([fx + Math.cos(fa) * fs, fy + Math.sin(fa) * fs]);
+      }
+      facets.push({ pts: pts, k: 0.8 + Math.random() * 0.4 });
+    }
+    return { verts: verts, facets: facets, cracks: [], hits: 0, need: 6 + Math.floor(Math.random() * 5), scale: 0, flash: 0 };
+  }
+
+  function walk(x, y, dir, n, step) {
+    var pts = [[x, y]];
+    for (var i = 0; i < n; i++) {
+      dir += (Math.random() - 0.5) * 0.9;
+      var s = step * (0.7 + Math.random() * 0.6);
+      x += Math.cos(dir) * s; y += Math.sin(dir) * s;
+      pts.push([x, y]);
+    }
+    return pts;
+  }
+
+  function addCrack(b, x, y) {
+    var base = Math.random() * TAU;
+    var main = walk(x, y, base, 4 + Math.floor(Math.random() * 4), 0.16);
+    var lines = [main];
+    for (var i = 1; i < main.length - 1; i++) {
+      if (Math.random() < 0.35) {
+        var side = Math.random() < 0.5 ? 1 : -1;
+        lines.push(walk(main[i][0], main[i][1], base + side * (0.7 + Math.random() * 0.6), 2 + Math.floor(Math.random() * 3), 0.11));
+      }
+    }
+    b.cracks.push({ lines: lines, glow: 1 });
+  }
+
+  function stoneColor(tint, a, b) {
+    var base = mixCol([105, 100, 115], tint, 0.35);
+    return scale(base, 0.55 + a.mid * 0.45 + b.flash * 0.6);
+  }
+
+  function drawBlock(b, a, tint, dt) {
+    b.scale += (1 - b.scale) * (1 - Math.exp(-dt / 0.1));
+    b.flash *= Math.exp(-dt / 0.18);
+    var s = R * b.scale * (1 + a.low * 0.04);
+    if (s < 1) return;
+    var base = stoneColor(tint, a, b);
+
+    // shadow on the ground
+    ctx.fillStyle = rgba([0, 0, 0], 0.45);
+    ctx.beginPath(); ctx.ellipse(CX, CY + s * 0.95, s * 1.1, s * 0.22, 0, 0, TAU); ctx.fill();
+
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.scale(s, s);
+    path(b.verts);
+    ctx.fillStyle = rgb(base);
+    ctx.fill();
+    ctx.clip();
+    for (var i = 0; i < b.facets.length; i++) {
+      var f = b.facets[i];
+      ctx.fillStyle = rgb(scale(base, f.k));
+      path(f.pts); ctx.fill();
+    }
+    // volume: light from the impact side, dark toward the bottom-left
+    var g = ctx.createLinearGradient(0.7, -0.9, -0.8, 0.9);
+    g.addColorStop(0, 'rgba(255,255,255,0.12)');
+    g.addColorStop(0.5, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-1.4, -1.4, 2.8, 2.8);
+
+    // cracks: dark line, bright core that fades after the hit
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    var glowCol = towardWhite(tint, 0.7);
+    for (i = 0; i < b.cracks.length; i++) {
+      var cr = b.cracks[i];
+      cr.glow *= Math.exp(-dt / 0.25);
+      for (var l = 0; l < cr.lines.length; l++) {
+        var pts = cr.lines[l];
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        for (var p = 1; p < pts.length; p++) ctx.lineTo(pts[p][0], pts[p][1]);
+        ctx.strokeStyle = rgba([0, 0, 0], 0.85);
+        ctx.lineWidth = l === 0 ? 0.035 : 0.022;
+        ctx.stroke();
+        if (cr.glow > 0.02) {
+          ctx.strokeStyle = rgba(glowCol, cr.glow);
+          ctx.lineWidth = (l === 0 ? 0.02 : 0.012) + 0.05 * cr.glow;
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+
+    // outline, in screen pixels
+    ctx.save();
+    ctx.translate(CX, CY); ctx.scale(s, s); path(b.verts);
+    ctx.restore();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = rgba([0, 0, 0], 0.6);
+    ctx.stroke();
+  }
+
+  // ── Shards (the boulder breaking apart) ──────────────────────────────────
+  var shards = [];
+  var SHARD_LIFE = 1.4;
+
+  function pushShard(tri, s, col) {
+    var cx = (tri[0][0] + tri[1][0] + tri[2][0]) / 3, cy = (tri[0][1] + tri[1][1] + tri[2][1]) / 3;
+    var pts = [];
+    for (var i = 0; i < 3; i++) pts.push([(tri[i][0] - cx) * s, (tri[i][1] - cy) * s]);
+    var d = Math.sqrt(cx * cx + cy * cy) || 1, sp = (260 + Math.random() * 460) * K;
+    shards.push({
+      pts: pts, x: CX + cx * s, y: CY + cy * s,
+      vx: cx / d * sp + (Math.random() - 0.5) * 160 * K,
+      vy: cy / d * sp - 320 * K,
+      rot: 0, vr: (Math.random() - 0.5) * 12, t: 0, col: scale(col, 0.8 + Math.random() * 0.4)
+    });
+    if (shards.length > 80) shards.shift();
+  }
+
+  function shatter(b, a, tint) {
+    var s = R * b.scale, n = b.verts.length, col = stoneColor(tint, a, b);
+    for (var i = 0; i < n; i++) {
+      var v0 = b.verts[i], v1 = b.verts[(i + 1) % n];
+      var m = [(v0[0] + v1[0]) / 2, (v0[1] + v1[1]) / 2];
+      var c0 = [v0[0] * 0.45, v0[1] * 0.45], c1 = [v1[0] * 0.45, v1[1] * 0.45];
+      pushShard([c0, v0, m], s, col);
+      pushShard([c1, m, v1], s, col);
+      pushShard([[0, 0], c0, c1], s, col);
+    }
+  }
+
+  function drawShards(dt) {
+    var grav = 1500 * K;
+    for (var i = shards.length - 1; i >= 0; i--) {
+      var sh = shards[i];
+      sh.t += dt;
+      var p = sh.t / SHARD_LIFE;
+      if (p >= 1) { shards.splice(i, 1); continue; }
+      sh.vy += grav * dt;
+      sh.x += sh.vx * dt; sh.y += sh.vy * dt; sh.rot += sh.vr * dt;
+      ctx.save();
+      ctx.globalAlpha = p < 0.6 ? 1 : 1 - (p - 0.6) / 0.4;
+      ctx.translate(sh.x, sh.y); ctx.rotate(sh.rot);
+      path(sh.pts);
+      ctx.fillStyle = rgb(sh.col); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = rgba([0, 0, 0], 0.5); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Sparks and dust ──────────────────────────────────────────────────────
+  var parts = [];
+
+  function emit(n, kind, a) {
+    for (var i = 0; i < n; i++) {
+      var an, sp;
+      if (kind === 0) {            // spark: fast, away from the pick (up-left), short
+        an = Math.PI * (0.95 + Math.random() * 0.7);
+        sp = (350 + Math.random() * 650) * K * (0.7 + a.high * 0.6);
+        parts.push({ x: P.x, y: P.y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, t: 0, life: 0.3 + Math.random() * 0.3, kind: 0 });
+      } else {                     // dust: slow puff, grows and fades
+        an = Math.random() * TAU;
+        sp = (40 + Math.random() * 120) * K;
+        parts.push({ x: P.x, y: P.y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp - 60 * K, t: 0, life: 0.6 + Math.random() * 0.5, kind: 1, r: R * (0.08 + Math.random() * 0.1) });
+      }
+    }
+    while (parts.length > 220) parts.shift();
+  }
+
+  function drawParts(a, tint, dt) {
+    var sparkCol = towardWhite(tint, 0.8), dustCol = mixCol([120, 115, 125], tint, 0.3);
+    var grav = 1100 * K;
+    ctx.lineCap = 'round';
+    for (var i = parts.length - 1; i >= 0; i--) {
+      var q = parts[i];
+      q.t += dt;
+      var p = q.t / q.life;
+      if (p >= 1) { parts.splice(i, 1); continue; }
+      if (q.kind === 0) {
+        q.vy += grav * dt;
+        q.x += q.vx * dt; q.y += q.vy * dt;
+        ctx.strokeStyle = rgba(sparkCol, 1 - p);
+        ctx.lineWidth = 2 + 3 * K * (1 - p);
+        ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - q.vx * 0.025, q.y - q.vy * 0.025); ctx.stroke();
+      } else {
+        q.vx *= Math.exp(-dt / 0.4); q.vy *= Math.exp(-dt / 0.4);
+        q.x += q.vx * dt; q.y += q.vy * dt;
+        ctx.fillStyle = rgba(dustCol, 0.35 * (1 - p));
+        ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (0.4 + p), 0, TAU); ctx.fill();
+      }
+    }
+  }
+
+  // ── Strike ───────────────────────────────────────────────────────────────
+  var strikeFlash = 0;
+
+  function strike(a, tint) {
+    th = thImpact; holdT = 0.06;
+    strikeFlash = 1;
+    block.hits++; block.flash = 1;
+    addCrack(block, IMPACT_LX + (Math.random() - 0.5) * 0.2, IMPACT_LY + (Math.random() - 0.5) * 0.2);
+    emit(Math.round(8 + 14 * a.high), 0, a);
+    emit(5, 1, a);
+    if (block.hits >= block.need) {
+      shatter(block, a, tint);
+      emit(10, 1, a);
+      block = newBlock();
+    }
+  }
+
+  function drawFlash(tint, dt) {
+    strikeFlash *= Math.exp(-dt / 0.14);
+    if (strikeFlash < 0.02) return;
+    var r = R * (0.5 + (1 - strikeFlash) * 1.6);
+    var g = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, r);
+    g.addColorStop(0, rgba(towardWhite(tint, 0.85), strikeFlash * 0.9));
+    g.addColorStop(1, rgba(tint, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(P.x - r, P.y - r, r * 2, r * 2);
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  var last = 0;
+
+  function render(now) {
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    var a    = AudioFeed.update(dt);
+    var tint = thermoRgb(a.tone);
+    if (!block) block = newBlock();
+
+    // Cave: never black, lifts with the bass and on each strike (Ambilight)
+    var bg = scale(tint, 0.10 + a.low * 0.06 + a.punch * 0.12);
+    ctx.fillStyle = rgb(bg);
+    ctx.fillRect(0, 0, W, H);
+    var light = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R * 2.6);
+    light.addColorStop(0, rgba(towardWhite(tint, 0.25), 0.28 + a.punch * 0.45));
+    light.addColorStop(1, rgba(tint, 0));
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, W, H);
+    // ground
+    ctx.fillStyle = rgb(scale(tint, 0.07 + a.punch * 0.06));
+    ctx.fillRect(0, CY + R * 1.05, W, H);
+
+    if (a.hit > 0) strike(a, tint);
+
+    // camera shake on the strike
+    var sk = a.punch * a.punch * R * 0.05;
+    ctx.save();
+    ctx.translate((Math.random() - 0.5) * sk, (Math.random() - 0.5) * sk);
+    drawBlock(block, a, tint, dt);
+    drawPick(a, tint, dt);
+    drawShards(dt);
+    drawParts(a, tint, dt);
+    drawFlash(tint, dt);
+    ctx.restore();
+
+    requestAnimationFrame(render);
+  }
+
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+  requestAnimationFrame(render);
+
+}());
+</script>
+</body>
+</html>
