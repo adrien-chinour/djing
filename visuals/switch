@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# switch — active un visuel (écrit dans active.html, servi par l'iframe de index.html)
+# Usage : ./switch tunnel | rain | <nom>
+set -euo pipefail
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+
+usage() {
+  echo "Usage: ./switch <visuel>"
+  echo ""
+  echo "Visuels disponibles :"
+  for f in "$DIR"/*.html; do
+    name="$(basename "$f" .html)"
+    [[ "$name" == "index" || "$name" == "active" || "$name" == "debug" ]] && continue
+    if diff -q "$f" "$DIR/active.html" > /dev/null 2>&1; then
+      echo "  $name  ← actif"
+    else
+      echo "  $name"
+    fi
+  done
+  exit 1
+}
+
+[ $# -eq 0 ] && usage
+
+TARGET="$DIR/$1.html"
+
+if [ ! -f "$TARGET" ]; then
+  echo "Erreur : visuel '$1' introuvable (fichier $TARGET absent)."
+  echo ""
+  usage
+fi
+
+cp "$TARGET" "$DIR/active.html"
+echo "✓ active → $1"

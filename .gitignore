@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 analysis/*.json
 analysis/transitions.jsonl
+visuals/node_modules/
+visuals/active.html

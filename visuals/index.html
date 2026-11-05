@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AMBILIGHT</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  iframe { display: block; width: 100%; height: 100%; border: none; }
+</style>
+</head>
+<body>
+<iframe id="v" src="active.html"></iframe>
+<script>
+!function () {
+  var iframe = document.getElementById('v');
+  var last   = '';
+
+  function check() {
+    fetch('active.html?_=' + Date.now())
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        if (last && t !== last) {
+          // Remplace le src sans recharger la page parente → aucune barre
+          iframe.src = 'active.html?_=' + Date.now();
+        }
+        last = t;
+      })
+      .catch(function () {});
+  }
+
+  // Initialise last au contenu actuel
+  fetch('active.html')
+    .then(function (r) { return r.text(); })
+    .then(function (t) { last = t; });
+
+  setInterval(check, 2000);
+}();
+</script>
+</body>
+</html>

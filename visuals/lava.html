@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LAVA</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function () {
+  var BPS = 160 / 60;
+  var c   = document.getElementById('c');
+  var ctx = c.getContext('2d', { alpha: false });
+  var W, H;
+
+  function resize() { W = c.width = innerWidth; H = c.height = innerHeight; }
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+
+  // Blobs : chaque blob est un métaball défini par position + rayon
+  var BLOBS = 9;
+  var blobs = [];
+  for (var i = 0; i < BLOBS; i++) {
+    blobs.push({
+      x:  Math.random(),       // position normalisée 0-1
+      y:  Math.random(),
+      vx: (Math.random() - 0.5) * 0.0006,
+      vy: (Math.random() - 0.5) * 0.0004,
+      r:  0.12 + Math.random() * 0.14,  // rayon normalisé
+      hue: Math.random() * 360
+    });
+  }
+
+  // On dessine via un canvas basse résolution upscalé — évite de faire du
+  // metaball en plein 1080p (trop lourd). 160×90 suffit pour l'effet blob.
+  var LW = 160, LH = 90;
+  var lo   = document.createElement('canvas');
+  lo.width = LW; lo.height = LH;
+  var lctx = lo.getContext('2d');
+  var img  = lctx.createImageData(LW, LH);
+  var pix  = img.data;
+
+  // Palette : hue cycle lent, blobs gardent leur teinte relative
+  var palHue = 0;
+
+  function drawLava(beat) {
+    var i, j, x, y, bx, by, br, sum, hsum, col, base;
+
+    // Mise à jour positions des blobs (mouvement lent + légère ondulation)
+    for (i = 0; i < BLOBS; i++) {
+      var b = blobs[i];
+      b.x += b.vx + Math.sin(beat * 0.18 + i * 1.3) * 0.00015;
+      b.y += b.vy + Math.cos(beat * 0.14 + i * 1.1) * 0.00012;
+      // Rebond doux sur les bords
+      if (b.x < 0.05) b.vx += 0.00008;
+      if (b.x > 0.95) b.vx -= 0.00008;
+      if (b.y < 0.05) b.vy += 0.00006;
+      if (b.y > 0.95) b.vy -= 0.00006;
+    }
+
+    // Pixel par pixel sur la grille basse résolution
+    for (y = 0; y < LH; y++) {
+      var ny = y / LH;
+      for (x = 0; x < LW; x++) {
+        var nx = x / LW;
+        sum  = 0;
+        hsum = 0;
+
+        for (i = 0; i < BLOBS; i++) {
+          var b = blobs[i];
+          var dx = nx - b.x;
+          var dy = (ny - b.y) * (LW / LH);
+          var d2 = dx * dx + dy * dy;
+          var v  = (b.r * b.r) / (d2 + 0.0001);
+          sum  += v;
+          hsum += v * b.hue;
+        }
+
+        base = (y * LW + x) * 4;
+
+        if (sum < 0.8) {
+          // Fond : noir profond avec très légère teinte
+          pix[base]   = 2;
+          pix[base+1] = 2;
+          pix[base+2] = 5;
+        } else {
+          // Intérieur blob : couleur selon hue moyenne pondérée
+          var hue = ((hsum / sum) + palHue) % 360;
+          // Luminosité plus forte au cœur (sum >> 1)
+          var l   = Math.min(0.75, 0.35 + (sum - 0.8) * 0.25);
+          var rgb = hslToRgb(hue / 360, 0.9, l);
+          pix[base]   = rgb[0];
+          pix[base+1] = rgb[1];
+          pix[base+2] = rgb[2];
+        }
+        pix[base+3] = 255;
+      }
+    }
+
+    lctx.putImageData(img, 0, 0);
+    ctx.drawImage(lo, 0, 0, W, H);
+  }
+
+  function h2r(p, q, t) {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1/6) return p + (q - p) * 6 * t;
+    if (t < 1/2) return q;
+    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+    return p;
+  }
+  function hslToRgb(h, s, l) {
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    return [
+      Math.round(h2r(p, q, h + 1/3) * 255),
+      Math.round(h2r(p, q, h)       * 255),
+      Math.round(h2r(p, q, h - 1/3) * 255)
+    ];
+  }
+
+  var beat = 0, last = 0;
+  function render(now) {
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    beat   += dt * BPS;
+    palHue  = (palHue + dt * 4) % 360;  // cycle hue global très lent
+    drawLava(beat);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}());
+</script>
+</body>
+</html>

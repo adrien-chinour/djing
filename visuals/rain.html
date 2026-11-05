@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>AMBILIGHT — RAIN</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%;
+           image-rendering: pixelated; image-rendering: crisp-edges; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function () {
+
+  var BPS  = 160 / 60;
+  var COLS = 80;
+  var ROWS = 50;
+
+  var canvas = document.getElementById('c');
+  var ctx    = canvas.getContext('2d', { alpha: false });
+  canvas.width  = COLS;
+  canvas.height = ROWS;
+
+  // ── Palettes (identiques à index.html) ────────────────────────────────────
+  var PALETTES = [
+    ['#000000', '#0a001a', '#ff00cc', '#00ffe1', '#ffffff'],
+    ['#000000', '#001a00', '#00ff41', '#ccff00', '#ffffff'],
+    ['#000000', '#1a0000', '#ff2200', '#ff9900', '#ffffff'],
+    ['#000000', '#00001a', '#3300ff', '#cc00ff', '#ffffff'],
+    ['#000000', '#1a0010', '#ff0066', '#ffcc00', '#ffffff'],
+  ];
+
+  function hex(s) {
+    var v = parseInt(s.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  function lerp3(a, b, t) {
+    return [
+      Math.round(a[0] + (b[0] - a[0]) * t),
+      Math.round(a[1] + (b[1] - a[1]) * t),
+      Math.round(a[2] + (b[2] - a[2]) * t)
+    ];
+  }
+  var palRGB = PALETTES.map(function (p) { return p.map(hex); });
+
+  function palColor(p, d) {
+    var steps = p.length - 1;
+    var pos   = d * steps;
+    var lo    = Math.min(Math.floor(pos), steps - 1);
+    return lerp3(p[lo], p[lo + 1], pos - lo);
+  }
+
+  var palIdx   = 0;
+  var palNext  = 1;
+  var palBlend = 0;
+
+  function currentPal(d) {
+    return lerp3(palColor(palRGB[palIdx], d), palColor(palRGB[palNext], d), palBlend);
+  }
+
+  // ── Framebuffer ───────────────────────────────────────────────────────────
+  // On stocke la luminosité de chaque pixel (0–255) dans un buffer.
+  // Chaque frame : on assombrit tout le buffer (traîne), puis on écrit
+  // les têtes de gouttes au maximum. La couleur vient de la palette selon
+  // la luminosité → une goutte naît dans la couleur "proche" et s'efface
+  // en passant par les tons "loin".
+  var brightness = new Float32Array(COLS * ROWS);  // 0.0 → 1.0
+  var imgData    = ctx.createImageData(COLS, ROWS);
+  var pix        = imgData.data;
+
+  // ── Gouttes ───────────────────────────────────────────────────────────────
+  // Chaque colonne a une goutte indépendante.
+  // drop[x] = position y de la tête (flottant), speed, et cooldown avant reset.
+
+  // Plusieurs gouttes par colonne — 2 slots par colonne
+  var SLOTS = 2;
+  var drops = [];
+  for (var x = 0; x < COLS; x++) {
+    for (var s = 0; s < SLOTS; s++) {
+      drops.push({
+        x:      x,
+        y:      Math.random() * ROWS,
+        speed:  0.8 + Math.random() * 1.4,    // rapide : 0.8–2.2 rows/beat
+        active: Math.random() > 0.5,
+        pause:  Math.random() * 4
+      });
+    }
+  }
+
+  // ── Render pixel ──────────────────────────────────────────────────────────
+  function drawRain(beat, dt) {
+    var i, x, y, d, col, base;
+
+    // 1. Fade
+    var fadePerSec = 4.5;   // traîne courte et nette (~0.22 s)
+    var fadeMult   = Math.max(0, 1 - fadePerSec * dt);
+    for (i = 0; i < brightness.length; i++) {
+      brightness[i] *= fadeMult;
+    }
+
+    // 2. Avancer les gouttes et allumer leur tête
+    for (var di = 0; di < drops.length; di++) {
+      var drop = drops[di];
+      x = drop.x;
+
+      if (!drop.active) {
+        drop.pause -= dt * BPS;
+        if (drop.pause <= 0) {
+          drop.active = true;
+          drop.y      = -1;
+          drop.speed  = 0.8 + Math.random() * 1.4;
+        }
+        continue;
+      }
+
+      drop.y += drop.speed * dt * BPS;
+
+      if (drop.y >= ROWS) {
+        drop.active = false;
+        drop.pause  = 0.2 + Math.random() * 2.5;   // pause courte
+        continue;
+      }
+
+      var yHead = Math.floor(drop.y);
+      if (yHead >= 0 && yHead < ROWS) {
+        brightness[yHead * COLS + x] = 1.0;
+        if (yHead > 0) brightness[(yHead - 1) * COLS + x] = Math.min(1, brightness[(yHead - 1) * COLS + x] + 0.6);
+      }
+    }
+
+    // 3. Pulse beat
+    var beatFlash = Math.max(0, Math.sin(beat * Math.PI * 2));
+    beatFlash = beatFlash * beatFlash * 0.4;
+
+    // 4. Mapper brightness → couleur palette → imageData
+    // On pousse le mapping vers le haut : même à brightness=0.5 on est déjà
+    // dans les couleurs vives (pas dans le noir). Courbe : d = sqrt(brightness).
+    for (y = 0; y < ROWS; y++) {
+      for (x = 0; x < COLS; x++) {
+        i   = y * COLS + x;
+        // sqrt pousse les valeurs moyennes vers les couleurs saturées
+        d   = Math.min(1, Math.sqrt(brightness[i]) + (brightness[i] > 0.85 ? beatFlash : 0));
+        base = i * 4;
+
+        if (d < 0.01) {
+          pix[base] = pix[base+1] = pix[base+2] = 0;
+        } else {
+          col = currentPal(d);
+          pix[base]   = col[0];
+          pix[base+1] = col[1];
+          pix[base+2] = col[2];
+        }
+        pix[base+3] = 255;
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // ── Render loop ───────────────────────────────────────────────────────────
+  var beat         = 0;
+  var last         = 0;
+  var PALETTE_BEATS = 16;
+  var nextPalBeat  = PALETTE_BEATS;
+
+  function render(now) {
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    beat += dt * BPS;
+
+    // Changement de palette
+    if (beat >= nextPalBeat) {
+      nextPalBeat = beat + PALETTE_BEATS;
+      palBlend    = 0;
+      palIdx      = palNext;
+      palNext     = (palNext + 1) % PALETTES.length;
+    }
+    palBlend = Math.min(1, (beat - (nextPalBeat - PALETTE_BEATS)) / 2);
+
+    drawRain(beat, dt);
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+
+}());
+</script>
+</body>
+</html>

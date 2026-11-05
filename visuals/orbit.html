@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ORBIT</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function () {
+  var BPS = 160 / 60;
+  var TAU = Math.PI * 2;
+  var c   = document.getElementById('c');
+  var ctx = c.getContext('2d', { alpha: false });
+  var W, H;
+
+  function resize() { W = c.width = innerWidth; H = c.height = innerHeight; }
+  window.addEventListener('resize', resize, { passive: true });
+  resize();
+
+  // Centres de gravité invisibles (3-4), qui se déplacent lentement
+  var CENTERS = 3;
+  var centers = [];
+  for (var i = 0; i < CENTERS; i++) {
+    centers.push({
+      x: 0.2 + Math.random() * 0.6,
+      y: 0.2 + Math.random() * 0.6,
+      vx: (Math.random() - 0.5) * 0.0003,
+      vy: (Math.random() - 0.5) * 0.0002,
+      phase: Math.random() * TAU
+    });
+  }
+
+  // Particules qui orbitent
+  var N = 180;
+  var particles = [];
+  for (var i = 0; i < N; i++) {
+    var ci = Math.floor(Math.random() * CENTERS);
+    particles.push({
+      center: ci,
+      angle:  Math.random() * TAU,
+      radius: 0.04 + Math.random() * 0.28,   // rayon d'orbite normalisé
+      speed:  (0.008 + Math.random() * 0.018) * (Math.random() > 0.5 ? 1 : -1),
+      hue:    Math.random() * 360,
+      size:   1.5 + Math.random() * 3,
+      alpha:  0.4 + Math.random() * 0.5,
+      trail:  []                              // traîne
+    });
+  }
+
+  var TRAIL = 18;  // longueur de traîne
+  var hueShift = 0;
+
+  function drawOrbit(beat) {
+    // Fond avec légère persistance → effet traîne naturelle
+    ctx.fillStyle = 'rgba(2,2,10,0.18)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Mise à jour des centres
+    for (var i = 0; i < CENTERS; i++) {
+      var cen = centers[i];
+      cen.x += cen.vx + Math.sin(beat * 0.06 + cen.phase)       * 0.00012;
+      cen.y += cen.vy + Math.cos(beat * 0.05 + cen.phase * 1.4)  * 0.00010;
+      if (cen.x < 0.1) cen.vx += 0.00006;
+      if (cen.x > 0.9) cen.vx -= 0.00006;
+      if (cen.y < 0.1) cen.vy += 0.00005;
+      if (cen.y > 0.9) cen.vy -= 0.00005;
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+
+    for (var i = 0; i < N; i++) {
+      var p   = particles[i];
+      var cen = centers[p.center];
+
+      // Avance l'orbite — légère variation de vitesse sur le beat
+      var beatMod = 1 + Math.sin(beat * TAU) * 0.08;
+      p.angle += p.speed * beatMod;
+
+      // Position courante
+      var aspect = W / H;
+      var px = (cen.x + Math.cos(p.angle) * p.radius) * W;
+      var py = (cen.y + Math.sin(p.angle) * p.radius / aspect * (W/H)) * H;
+
+      // Traîne
+      p.trail.push([px, py]);
+      if (p.trail.length > TRAIL) p.trail.shift();
+
+      // Dessine la traîne
+      for (var t = 1; t < p.trail.length; t++) {
+        var tf   = t / p.trail.length;
+        var hue  = (p.hue + hueShift) % 360;
+        var a    = p.alpha * tf * tf * 0.6;
+        var size = p.size * tf * 0.7;
+        ctx.beginPath();
+        ctx.arc(p.trail[t][0], p.trail[t][1], size, 0, TAU);
+        ctx.fillStyle = 'hsla(' + hue + ',90%,65%,' + a.toFixed(2) + ')';
+        ctx.fill();
+      }
+
+      // Tête
+      var hue = (p.hue + hueShift) % 360;
+      ctx.beginPath();
+      ctx.arc(px, py, p.size, 0, TAU);
+      ctx.fillStyle = 'hsla(' + hue + ',95%,80%,' + p.alpha.toFixed(2) + ')';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  var beat = 0, last = 0;
+  function render(now) {
+    if (!last) last = now;
+    var dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    beat     += dt * BPS;
+    hueShift  = (hueShift + dt * 5) % 360;
+    drawOrbit(beat);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}());
+</script>
+</body>
+</html>
