@@ -1,8 +1,7 @@
 # djing
 
-Mixer avec la platine **Hercules DJControl Inpulse 300 MK2** directement sur ce portable Ubuntu, avec
-**Mixxx**, au lieu de passer par le Mac Mini et DJUCED. Ce dépôt contient la configuration et les scripts
-qui rendent l'installation reproductible.
+Mixer avec la platine **Hercules DJControl Inpulse 300 MK2** sur un PC Ubuntu, avec **Mixxx**. Ce dépôt
+contient la configuration et les scripts qui rendent l'installation reproductible.
 
 ## Pourquoi Mixxx
 
@@ -76,7 +75,7 @@ Ce script enchaîne les étapes 1 et 2 ci-dessous. Le détail :
 
 ## Sortie sur le PC (sans les enceintes)
 
-Pour mixer avec le son du portable, la platine ne servant que de contrôleur, Mixxx fermé :
+Pour mixer avec la carte son du PC, la platine ne servant que de contrôleur, Mixxx fermé :
 
 ```sh
 make apply-pc
@@ -255,9 +254,9 @@ applications qui jouent du son sur la platine.
 
 ## Bibliothèque musicale
 
-Les morceaux sont sur le Mac Mini. Mixxx ne lit pas la base DJUCED : copier les fichiers audio dans
-`~/Musique` (ou un disque), puis *Préférences > Bibliothèque > Ajouter* et laisser l'analyse (BPM, grille,
-tonalité) tourner une fois. Les cues DJUCED ne sont pas récupérables.
+Mixxx ne lit pas la base DJUCED : copier les fichiers audio dans un dossier local (ou un disque), puis
+*Préférences > Bibliothèque > Ajouter* et laisser l'analyse (BPM, grille, tonalité) tourner une fois. Les cues
+DJUCED ne sont pas récupérables.
 
 ## Dépannage
 
@@ -268,10 +267,15 @@ tonalité) tourner une fois. Les cues DJUCED ne sont pas récupérables.
 - Pas de son mais Mixxx joue : la carte est peut-être tenue par PipeWire (`wpctl status`), couper ce qui
   joue dessus ; à défaut, `pw-cli` ou une règle WirePlumber qui désactive la carte.
 - Retour arrière complet : restaurer les fichiers du dernier `~/.mixxx/backup-*/`, supprimer
-  `/etc/security/limits.d/99-audio-realtime.conf`, `sudo gpasswd -d adrien audio`.
+  `/etc/security/limits.d/99-audio-realtime.conf`, `sudo gpasswd -d "$USER" audio`.
 
 ## Références
 
 - [Mixxx : Hercules DJControl Inpulse 300](https://manual.mixxx.org/2.5/en/hardware/controllers/hercules_djcontrol_inpulse_300)
 - [DJing on Ubuntu with Hercules](https://discourse.ubuntu.com/t/djing-on-ubuntu-with-hercules-a-celebration-of-open-source-software/47194)
 - [Mixxx wiki : Adjusting Audio Latency](https://github.com/mixxxdj/mixxx/wiki/Adjusting-Audio-Latency)
+
+## Licence
+
+GPL-2.0-or-later (fichier `LICENSE`). Le mapping `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`
+dérive du mapping officiel livré avec Mixxx, lui-même sous GPL-2.0-or-later.

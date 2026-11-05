@@ -3,6 +3,7 @@ name = "djing"
 version = "0.1.0"
 description = "Virtual MIDI bridge between an agent and Mixxx (deck B), with state feedback"
 requires-python = ">=3.12,<3.13"
+license = "GPL-2.0-or-later"
 dependencies = [
     "librosa>=1.0.0",
     "mido>=1.3",
