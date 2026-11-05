@@ -177,7 +177,7 @@ coupure de A sur le premier temps et ouverture complète de B. Jamais deux morce
 
 | Pattern | Préconditions | Geste |
 |---|---|---|
-| `break_drop` | break ou outro tardif de A d'au moins 8 mesures ; B a un vrai drop (section `drop` amenée par un break, à 8 mesures au moins du début) | B monte vers son drop sous le break pendant 8 à 16 mesures (basses de B si sa montée a du kick, aigus si elle est clairsemée, sinon amorce à 30 %), A coupé là où son drop reviendrait, drop de B dessus. Un groove d'ouverture n'est pas un drop : B à froid est un `slam` |
+| `break_drop` | break ou outro tardif de A d'au moins 8 mesures ; B a un vrai drop (section `drop` amenée par un break, à 8 mesures au moins du début) | B monte vers son drop sous le break pendant 8 à 16 mesures (batterie de B en passe-bas jusqu'à la coupure si sa montée a du kick, aigus si elle est clairsemée, sinon amorce à 30 %), A coupé là où son drop reviendrait, drop de B dessus. Un groove d'ouverture n'est pas un drop : B à froid est un `slam` |
 | `slam` | A dans une section avec kick qui finit sur une phrase ; B a un drop | aucun chevauchement : A coupé sur le un, drop de B au même instant |
 | `bass_first` | break ou outro de A ≥ 8 mesures **non suivi d'un drop** (sinon l'oreille attend un drop et `break_drop` prend le relais) ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
 

@@ -78,7 +78,11 @@ class Mixer:
 
             def opening(frac: float) -> None:
                 e = frac * frac  # eased: quiet first half
-                if p.entry in ("bass", "tops"):
+                if p.entry == "bass":
+                    # drums only until the one: opening the low-pass early lets B's vocals and
+                    # leads bleed under A's break, which the listener found odd (2026-11-05)
+                    b.set(incoming.name, "volume", settings["volume"] + (1.0 - settings["volume"]) * e)
+                elif p.entry == "tops":
                     b.set(incoming.name, "filter", settings["filter"] + (FILTER_NEUTRAL - settings["filter"]) * e)
                     b.set(incoming.name, "volume", settings["volume"] + (1.0 - settings["volume"]) * e)
                 else:
