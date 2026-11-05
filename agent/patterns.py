@@ -124,6 +124,11 @@ def bass_first(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if not breaks:
         return None
     br = breaks[0]
+    # A break that leads back into a drop promises one: cutting to B's running groove there
+    # is an anticlimax (listener feedback 2026-11-05). That case belongs to break_drop.
+    following = next((s for s in a.structure["sections"] if s["start_bar"] >= br["end_bar"]), None)
+    if following and following["kind"] == "drop":
+        return None
     cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
     length = min(MAX_OVERLAP, cut - br["start_bar"])
     length -= length % PHRASE

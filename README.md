@@ -173,7 +173,7 @@ coupure de A sur le premier temps et ouverture complète de B. Jamais deux morce
 |---|---|---|
 | `break_drop` | break ou outro tardif de A ; B a un drop | B apparaît pendant le break (basses de B si sa fenêtre a du kick, aigus si elle est clairsemée, sinon amorce de 4 mesures à 30 %), A coupé là où son drop reviendrait, drop de B dessus |
 | `slam` | A dans une section avec kick qui finit sur une phrase ; B a un drop | aucun chevauchement : A coupé sur le un, drop de B au même instant |
-| `bass_first` | break ou outro de A ≥ 8 mesures ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
+| `bass_first` | break ou outro de A ≥ 8 mesures **non suivi d'un drop** (sinon l'oreille attend un drop et `break_drop` prend le relais) ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
 
 Sélection de B : tempo à ±3 % (±5 % si tonalité identique ou voisine), compatibilité Camelot ≥ 1, titres sous
 110 BPM écartés ; keylock seulement au-delà de 2 % d'écart.
