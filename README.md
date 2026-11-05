@@ -268,7 +268,7 @@ tonalité) tourner une fois. Les cues DJUCED ne sont pas récupérables.
 - Pas de son mais Mixxx joue : la carte est peut-être tenue par PipeWire (`wpctl status`), couper ce qui
   joue dessus ; à défaut, `pw-cli` ou une règle WirePlumber qui désactive la carte.
 - Retour arrière complet : restaurer les fichiers du dernier `~/.mixxx/backup-*/`, supprimer
-  `/etc/security/limits.d/99-audio-realtime.conf`, `sudo gpasswd -d adrien audio`.
+  `/etc/security/limits.d/99-audio-realtime.conf`, `sudo gpasswd -d "$USER" audio`.
 
 ## Références
 

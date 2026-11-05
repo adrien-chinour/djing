@@ -1,7 +1,7 @@
 {
   "name": "djing-visuals",
   "version": "1.0.0",
-  "description": "",
+  "description": "Ambilight visuals for djing: PipeWire sound analysis server and TV pages",
   "main": "audio-server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
