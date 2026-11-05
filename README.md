@@ -235,7 +235,8 @@ et `hit` (une frame par kick) et se replie sur une simulation à 160 BPM sans se
 cache, incrémenter `?v=` dans les pages à chaque modification.
 
 Visuels en Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
-(12 rayons tournants, étoile par kick). Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
+(12 rayons tournants, étoile par kick). Un visuel privé reste dans `visuals/` et se liste comme les autres, mais son
+fichier est inscrit dans `.gitignore` (section « Visuels privés ») et n'est jamais publié. Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
 retirés et restent dans l'historique.
 
 Visuels en WebGL 1 (GLSL ES 1.0, sans bibliothèque) : `tunnel3d` (tunnel infini raymarché, rayon sur les basses,
