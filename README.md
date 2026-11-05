@@ -274,3 +274,8 @@ DJUCED ne sont pas récupérables.
 - [Mixxx : Hercules DJControl Inpulse 300](https://manual.mixxx.org/2.5/en/hardware/controllers/hercules_djcontrol_inpulse_300)
 - [DJing on Ubuntu with Hercules](https://discourse.ubuntu.com/t/djing-on-ubuntu-with-hercules-a-celebration-of-open-source-software/47194)
 - [Mixxx wiki : Adjusting Audio Latency](https://github.com/mixxxdj/mixxx/wiki/Adjusting-Audio-Latency)
+
+## Licence
+
+GPL-2.0-or-later (fichier `LICENSE`). Le mapping `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`
+dérive du mapping officiel livré avec Mixxx, lui-même sous GPL-2.0-or-later.
