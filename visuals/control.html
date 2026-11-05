@@ -100,7 +100,7 @@
     });
     if (s.hit > 0) { onsetCount++; onsetEl.style.background = '#fff'; }
     else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,255,255,' + s.punch + ')' : '#222';
-    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · flux ' + dbg.flux.toFixed(2) + ' / seuil ' + dbg.thr.toFixed(2) : '');
+    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr.toFixed(0) + ' dB' : '');
     floorEl.textContent = dbg ? 'plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ')' : '';
     requestAnimationFrame(tick);
   }

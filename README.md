@@ -209,13 +209,15 @@ fait tout sur le port 8765 :
 
 - il capture le monitor PipeWire de la sortie (`pw-record --target <sink>` avec `stream.capture.sink=true`, sinon
   le micro est relié aussi), FFT 4096 / pas 1024, et envoie en WebSocket `level`, `low`, `mid`, `high`, `onset`,
-  `tone` et `dbg` (valeurs brutes pour `debug.html`), ≈47 messages par seconde ;
+  `tone` et `dbg` (valeurs brutes pour `debug.html`), ≈47 messages par seconde ; `onset` est un kick : la bande
+  40-120 Hz monte de plus de 8 dB en 3 pas (64 ms), réfractaire 150 ms ;
 - il sert les pages du dossier : `/` pour la TV, `/control.html` pour le téléphone (un bouton par visuel, la TV
   bascule dans les 2 s), `/debug.html` pour le calibrage ; `GET /visuals` liste les visuels et l'actif,
   `POST /active/<visuel>` en active un ; `active.html` est créé avec `corridor` s'il manque.
 
 Options : `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>` (défauts −35
-et 20, calibrés sur un mix réel le 2026-11-05), `--port <n>` (8765).
+et 20, calibrés sur un mix réel le 2026-11-05), `--rise <dB>` (8, seuil de kick : sur un mix à 156 BPM le résultat ne
+bouge pas entre 6 et 12), `--port <n>` (8765).
 
 ```sh
 make visuals                          # à la main, dans un terminal ; Ctrl-C pour arrêter

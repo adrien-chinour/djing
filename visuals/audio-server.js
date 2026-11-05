@@ -7,16 +7,16 @@
 //     phone opens /control.html) and switches the active visual (POST /active/<name>).
 // Everything on PORT; active.html is created from DEFAULT_VISUAL when missing.
 //
-// Usage : node audio-server.js [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>] [--port <n>]
+// Usage : node audio-server.js [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>] [--rise <dB>] [--port <n>]
 //
 // Message (≈47 per second, raw values — smoothing is the visual's job):
 //   level  0-1  perceived loudness (full band, dB scale, bounded auto-gain)
 //   low    0-1  40-120 Hz   (kick / sub)
 //   mid    0-1  250-2000 Hz (voices, synths)
 //   high   0-1  4-12 kHz    (hats, cymbals)
-//   onset  0-1  strength of a low-band attack on this hop, 0 otherwise
+//   onset  0-1  strength of a kick (rise of the low band) on this hop, 0 otherwise
 //   tone   0-1  spectral balance : 1 = bass-heavy (warm), 0 = treble-heavy (cold)
-//   dbg    raw dB values, auto-gain references, flux and threshold (for debug.html)
+//   dbg    raw dB values, auto-gain references, low-band rise and threshold (for debug.html)
 
 'use strict';
 
@@ -47,17 +47,24 @@ let TARGET  = 'alsa_output.pci-0000_00_1f.3.analog-stereo';
 let MIN_REF_DB = -35;
 let RANGE_DB   = 20;
 const REF_RELEASE_DB_PER_S = 1.5;   // how fast the reference comes down after a loud part
+// Kick detection : the low band must rise by RISE_DB within RISE_HOPS hops.
+// Measured on a real mix at 156 BPM (2026-11-05): 32 kicks for 31 beats, 27 of them exactly a beat
+// apart, unchanged from 6 to 12 dB. The previous spectral-flux detector with an adaptive
+// mean + 1.5 sd threshold found 23: a loud start raised the threshold for 1.4 s and regular
+// kicks left too thin a margin.
+let RISE_DB = 8;
 
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i], v = process.argv[i + 1];
   if (a === '--target'  && v) { TARGET = v; i++; }
   else if (a === '--min-ref' && v) { MIN_REF_DB = Number(v); i++; }
   else if (a === '--range'   && v) { RANGE_DB = Number(v); i++; }
+  else if (a === '--rise'    && v) { RISE_DB = Number(v); i++; }
   else if (a === '--port'    && v) { PORT = Number(v); i++; }
   else { console.error(`unknown option or missing value: ${a}`); process.exit(2); }
 }
-if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0 || !Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
-  console.error('--min-ref must be a number, --range a number > 0, --port an integer in 1-65535');
+if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0 || !(RISE_DB > 0) || !Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error('--min-ref must be a number, --range and --rise numbers > 0, --port an integer in 1-65535');
   process.exit(2);
 }
 
@@ -208,7 +215,6 @@ const BANDS = {
   mid:  bins(250,  2000),
   high: bins(4000, 12000),
 };
-const FLUX_BINS = bins(35, 200);   // onset detection looks at kick territory only
 
 function bandDb(power, [lo, hi]) {
   let sum = 0;
@@ -225,43 +231,32 @@ function toLevel(name, db) {
   return Math.min(1, Math.max(0, (db - floor) / RANGE_DB));
 }
 
-// ── Onset detection : log-magnitude spectral flux, adaptive threshold ─────
-const FLUX_HISTORY = 64;            // ≈1.4 s of context
-const fluxHist = new Float32Array(FLUX_HISTORY);
-let fluxCount = 0;
-const prevLogMag = new Float32Array(FFTSIZE / 2).fill(-120);
-const REFRACTORY_S = 0.12;
+// ── Kick detection : rise of the low band over the last few hops ──────────
+// The 40-120 Hz level drops between kicks and jumps back on each one; the jump
+// is what we detect, so a regular pattern never becomes "normal" and a loud
+// shock does not raise any threshold. No look-ahead: fires on the first hop
+// where the rise exceeds RISE_DB.
+const RISE_HOPS = 3;                // ≈64 ms of look-back
+const lowHist = new Float32Array(RISE_HOPS).fill(-120);
+let lowCount = 0;
+const REFRACTORY_S = 0.15;
 let lastOnsetT = -1;
 let t = 0;
 
-function detectOnset(logMag, lowDb) {
-  const [lo, hi] = FLUX_BINS;
-  let flux = 0;
-  for (let k = lo; k <= hi; k++) {
-    const d = logMag[k] - prevLogMag[k];
-    if (d > 0) flux += d;
-  }
-  flux /= (hi - lo + 1);
-
-  const n = Math.min(fluxCount, FLUX_HISTORY);
-  let mean = 0, sd = 0;
-  for (let i = 0; i < n; i++) mean += fluxHist[i];
-  mean = n ? mean / n : 0;
-  for (let i = 0; i < n; i++) sd += (fluxHist[i] - mean) ** 2;
-  sd = n ? Math.sqrt(sd / n) : 0;
-  const thr = mean + 1.5 * sd + 0.5;   // +0.5 dB so a flat signal never triggers
-
-  fluxHist[fluxCount++ % FLUX_HISTORY] = flux;
+function detectOnset(lowDb) {
+  let prevMin = Infinity;
+  for (let i = 0; i < RISE_HOPS; i++) prevMin = Math.min(prevMin, lowHist[i]);
+  lowHist[lowCount++ % RISE_HOPS] = lowDb;
+  const rise = lowDb - prevMin;
 
   let onset = 0;
-  // Gate on absolute level (silence floor), not on the auto-gained level:
-  // a kick starts from near 0 after the release, the gate must not depend on RANGE_DB.
+  // Gate on absolute level (silence floor), not on the auto-gained level.
   const audible = lowDb > MIN_REF_DB - RANGE_DB;
-  if (n >= 16 && flux > thr && audible && (t - lastOnsetT) > REFRACTORY_S) {
-    onset = Math.min(1, 0.4 + (flux - thr) / (3 * sd + 1));
+  if (lowCount > RISE_HOPS && rise > RISE_DB && audible && (t - lastOnsetT) > REFRACTORY_S) {
+    onset = Math.min(1, 0.4 + (rise - RISE_DB) / 16);
     lastOnsetT = t;
   }
-  return { onset, flux, thr };
+  return { onset, rise };
 }
 
 // ── Capture ────────────────────────────────────────────────────────────────
@@ -311,8 +306,7 @@ function analyse() {
   const mid   = toLevel('mid',  db.mid);
   const high  = toLevel('high', db.high);
 
-  const { onset, flux, thr } = detectOnset(logMag, db.low);
-  prevLogMag.set(logMag);
+  const { onset, rise } = detectOnset(db.low);
 
   // Balance between bands, each already auto-gained → a track that is
   // naturally bass-heavy does not stay red forever. Neutral 0.5 when silent.
@@ -329,11 +323,11 @@ function analyse() {
     dbg: {
       db:  { full: r1(db.full), low: r1(db.low), mid: r1(db.mid), high: r1(db.high) },
       ref: { full: r1(ref.full), low: r1(ref.low), mid: r1(ref.mid), high: r1(ref.high) },
-      flux: r3(flux), thr: r3(thr), range: RANGE_DB, minRef: MIN_REF_DB,
+      rise: r1(rise), thr: RISE_DB, range: RANGE_DB, minRef: MIN_REF_DB,
     },
   });
 
-  if (fluxCount % 12 === 0 || onset > 0) {
+  if (lowCount % 12 === 0 || onset > 0) {
     process.stdout.write(
       `\rlevel=${level.toFixed(2)} low=${low.toFixed(2)} mid=${mid.toFixed(2)} high=${high.toFixed(2)} ` +
       `tone=${tone.toFixed(2)} onset=${onset ? onset.toFixed(2) : '  - '} ` +
@@ -358,5 +352,5 @@ proc.stdout.on('data', chunk => {
 
 server.listen(PORT, () => {
   console.log(`visuals on http://0.0.0.0:${PORT}/  (TV: /  phone: /control.html  calibration: /debug.html)`);
-  console.log(`active visual: ${activeVisual() || 'none'} | capture: monitor of ${TARGET} | silence below ${MIN_REF_DB - RANGE_DB} dBFS (min-ref ${MIN_REF_DB}, range ${RANGE_DB})`);
+  console.log(`active visual: ${activeVisual() || 'none'} | capture: monitor of ${TARGET} | silence below ${MIN_REF_DB - RANGE_DB} dBFS (min-ref ${MIN_REF_DB}, range ${RANGE_DB}, kick rise ${RISE_DB} dB)`);
 });
