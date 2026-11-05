@@ -131,6 +131,12 @@ le socket Unix `/tmp/djing-agent.sock` (`agent/remote.py`, même interface que `
 `make daemon`, puis démarrer Mixxx (ou *Préférences > Contrôleurs > Appliquer* une fois). `make daemon-stop`
 pour l'arrêter ; il faudra alors refaire ce rescan.
 
+Le démon recharge `agent/protocol.py` depuis **le répertoire où il a été lancé** à chaque commande `reload` des
+clients. Changer de branche dans ce checkout sous ses pieds, ou le lancer depuis un autre checkout que celui des
+outils, désynchronise silencieusement le décodage du retour MIDI (durées fausses d'un facteur 10, identification
+des morceaux impossible, « could not load A »). Lancer le démon depuis le worktree de travail et le redémarrer,
+puis Mixxx, à chaque changement de branche de ce checkout.
+
 Outillage Python : `uv` (`~/.local/bin/uv`), Python 3.12 géré par uv (`python-rtmidi` n'a pas de roue
 précompilée pour 3.13+ et les en-têtes ALSA ne sont pas installés), dépendances `mido` et `python-rtmidi`
 dans `pyproject.toml`, environnement dans `.venv/` (non versionné).
@@ -149,7 +155,7 @@ Deux sources :
 
 Déductions, dans `agent/analysis/structure.py` :
 
-- **Temps fort** : phase (mod 4) qui porte le plus d'attaques et d'énergie dans les basses.
+- **Temps fort** : phase (mod 4) sur laquelle tombent les arrivées et départs de kick et les sauts d'énergie (les drops et les breaks commencent sur le un). Compter les attaques ne suffit pas : en four-on-the-floor, chaque temps se ressemble.
 - **Phrases de 8 mesures** : phase (mod 8) qui concentre les « arrivées » (retour du kick, saut d'énergie).
   La techno coupe souvent le kick sur la dernière mesure d'une phrase ; c'est le marqueur principal.
 - **Sections** : par présence du kick, avec absorption des coupures d'une mesure ; `intro`, `groove`, `break`,
@@ -171,9 +177,9 @@ coupure de A sur le premier temps et ouverture complète de B. Jamais deux morce
 
 | Pattern | Préconditions | Geste |
 |---|---|---|
-| `break_drop` | break ou outro tardif de A ; B a un drop | B apparaît pendant le break (basses de B si sa fenêtre a du kick, aigus si elle est clairsemée, sinon amorce de 4 mesures à 30 %), A coupé là où son drop reviendrait, drop de B dessus |
-| `slam` | A dans une section avec kick qui finit sur une phrase ; B a un drop | aucun chevauchement : A coupé sur le un, drop de B au même instant |
-| `bass_first` | break ou outro de A ≥ 8 mesures ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
+| `break_drop` | break ou outro tardif de A d'au moins 8 mesures ; B a un vrai drop (section `drop` amenée par un break, à 8 mesures au moins du début) | B monte vers son drop sous le break pendant 8 à 16 mesures (batterie de B en passe-bas jusqu'à la coupure si sa montée a du kick, aigus si elle est clairsemée, sinon amorce à 30 %), A coupé là où son drop reviendrait, drop de B dessus. Un groove d'ouverture n'est pas un drop : B à froid est un `slam` |
+| `slam` | A dans un break ou un outro tardif (phase basse) ; B a un drop | aucun chevauchement : A coupé sur le un à la fin de son break, là où son drop reviendrait (ou sur une phrase de l'outro), drop de B au même instant. Jamais d'une phase haute de A : deux phases hautes qui s'enchaînent ont été notées 1 |
+| `bass_first` | break ou outro de A ≥ 8 mesures **non suivi d'un drop** (sinon l'oreille attend un drop et `break_drop` prend le relais) ; B a un groove à kick régulier | la batterie de B en passe-bas à 70 % sous le break de A pendant 8 à 16 mesures, ouverture progressive, coupure de A |
 
 Sélection de B : tempo à ±3 % (±5 % si tonalité identique ou voisine), compatibilité Camelot ≥ 1, titres sous
 110 BPM écartés ; keylock seulement au-delà de 2 % d'écart.

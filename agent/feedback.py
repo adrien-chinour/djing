@@ -24,7 +24,7 @@ def load() -> list[dict]:
     return [json.loads(l) for l in LOG.read_text().splitlines() if l.strip()]
 
 
-def rate_last(score: int, comment: str) -> dict | None:
+def rate_last(score: float, comment: str) -> dict | None:
     entries = load()
     if not entries:
         return None
@@ -36,7 +36,7 @@ def rate_last(score: int, comment: str) -> dict | None:
 
 def pattern_bias() -> dict[str, float]:
     """Mean rating per (pattern/entry) mapped to a score bonus in [-0.2, +0.2]; unrated = 0."""
-    sums: dict[str, list[int]] = {}
+    sums: dict[str, list[float]] = {}
     for e in load():
         if "rating" in e:
             sums.setdefault(f"{e['pattern']}/{e['entry']}", []).append(e["rating"])

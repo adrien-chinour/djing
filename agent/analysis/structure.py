@@ -57,8 +57,15 @@ def _phase_scores(values: np.ndarray, period: int) -> np.ndarray:
 
 def analyse(f: BeatFeatures) -> Structure:
     n_beats = len(f.beat_times)
-    # 1. downbeat: the beat phase (mod 4) carrying the strongest low onsets and energy
-    downbeat = int(np.argmax(_phase_scores(f.onset_low + 0.5 * f.rms, BEATS_PER_BAR)))
+    # 1. downbeat: with a four-on-the-floor kick every beat looks alike, so the phase is
+    #    read from the arrivals and departures instead: drops and breaks start on the one.
+    #    Per beat, how much the low band and the energy depart from the previous bar's mean;
+    #    squared so that the big structural events dominate the small fluctuations.
+    jump = np.zeros(n_beats)
+    for i in range(BEATS_PER_BAR, n_beats):
+        prev = slice(i - BEATS_PER_BAR, i)
+        jump[i] = abs(f.low[i] - f.low[prev].mean()) + abs(f.rms[i] - f.rms[prev].mean())
+    downbeat = int(np.argmax(_phase_scores(jump ** 2, BEATS_PER_BAR)))
     bar_starts = np.arange(downbeat, n_beats - BEATS_PER_BAR + 1, BEATS_PER_BAR)
     bars = len(bar_starts)
     bar_energy = np.array([f.rms[b:b + BEATS_PER_BAR].mean() for b in bar_starts])

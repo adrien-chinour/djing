@@ -13,9 +13,9 @@ from agent.catalog import Track
 
 KICK_ON = 0.35
 SPARSE_MIDS = 0.2
-TEASER_BARS = 4
 MAX_OVERLAP = 16
 MIN_BREAK = 4
+MIN_RUN_UP = 8        # bars B plays under A's break before its drop (listener: 4 is too short)
 KEYLOCK_THRESHOLD = 0.02
 PHRASE = 8
 
@@ -41,8 +41,20 @@ def _keylock(a_bpm: float, b: Track) -> bool:
 
 
 def _first_drop_bar(t: Track) -> int | None:
+    """First energetic kick section, whatever its kind: an opening groove counts."""
     for s in t.structure["sections"]:
         if s["kick"] and s["energy"] >= 0.6:
+            return s["start_bar"]
+    return None
+
+
+def _real_drop_bar(t: Track) -> int | None:
+    """First 'drop' section that a break leads into, at least MIN_RUN_UP bars in: a drop the
+    ear expects. An opening groove is not one (listener feedback 2026-11-05: B starting cold
+    under a break was rated 0)."""
+    secs = t.structure["sections"]
+    for prev, s in zip(secs, secs[1:]):
+        if s["kind"] == "drop" and prev["kind"] == "break" and s["start_bar"] >= MIN_RUN_UP:
             return s["start_bar"]
     return None
 
@@ -66,52 +78,65 @@ def _late_sections(a: Track, kinds: tuple[str, ...], after_bar: float, min_len: 
 # --- pattern 1: break -> drop ----------------------------------------------------------
 
 def break_drop(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
-    """B's drop lands where A's drop would return after a late break. B shows up during the
-    break only if its material is complementary (drums -> 'bass', sparse -> 'tops'), else as
-    a 4-bar quiet teaser."""
-    drop_b = _first_drop_bar(b)
-    breaks = _late_sections(a, ("break", "outro"), a_now + 2, MIN_BREAK)
+    """B's drop lands where A's drop would return after a late break. B runs up to its drop
+    under the break for 8-16 bars: its drums low-passed ('bass') when its run-up has a kick,
+    its tops when the run-up is sparse, else a quiet high-passed teaser. Needs a real drop
+    in B and a break in A long enough for the run-up; shorter cases belong to slam."""
+    drop_b = _real_drop_bar(b)
+    breaks = _late_sections(a, ("break", "outro"), a_now + 2, MIN_RUN_UP)
     if drop_b is None or not breaks:
         return None
     br = breaks[0]
     cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
-    length = min(MAX_OVERLAP, cut - br["start_bar"])
+    length = min(MAX_OVERLAP, cut - br["start_bar"], drop_b)
     length -= length % 4
-    length = min(length, drop_b - drop_b % 4)
+    if length < MIN_RUN_UP:
+        return None
     lows, mids = _window(b, drop_b - length, length)
     notes = [f"A break {br['start_bar']}-{br['end_bar']}", f"B drop at {drop_b}"]
-    if length and lows and sum(1 for v in lows if v >= KICK_ON) >= 0.75 * len(lows):
+    if sum(1 for v in lows if v >= KICK_ON) >= 0.75 * len(lows):
         entry, score = "bass", 0.85
-    elif length and mids and max(mids) < SPARSE_MIDS:
+    elif max(mids) < SPARSE_MIDS:
         entry, score = "tops", 0.8
-    elif length >= 1:
-        entry, length, score = "teaser", min(TEASER_BARS, length), 0.75
     else:
-        entry, length, score = "none", 0, 0.7  # B's drop is at its very start: nothing to overlap
+        entry, score = "teaser", 0.7
     return Plan("break_drop", cut - length, cut, drop_b - length, entry, _keylock(a_bpm, b), score, notes)
 
 
 # --- pattern 2: slam ---------------------------------------------------------------------
 
 def slam(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
-    """Hard cut on the one: A's kick section ends on a phrase boundary, B's drop starts
-    right there. No overlap at all. Best when A would have gone into a break anyway."""
-    drop_b = _first_drop_bar(b)
+    """Low to high, no overlap: A is in a break or outro, cut on the one where that low
+    section ends (where A's own drop would return), and B's drop starts right there.
+    Listener, 2026-11-05: chaining two high sections of different tracks was rated 1, so a
+    slam only leaves A from a low section. B's drop is its real drop when it has one, else
+    its first energetic section."""
+    drop_b = _real_drop_bar(b)
+    if drop_b is None:
+        drop_b = _first_drop_bar(b)
     if drop_b is None:
         return None
-    kicks = [s for s in a.structure["sections"] if s["kick"] and s["end_bar"] > a_now + 2
-             and s["start_bar"] >= a.structure["bars"] / 3]
-    if not kicks:
+    lows = [s for s in a.structure["sections"] if s["kind"] in ("break", "outro") and not s["kick"]
+            and s["end_bar"] > a_now + 2 and s["start_bar"] >= a.structure["bars"] / 3]
+    if not lows:
         return None
-    sec = kicks[0]
-    cut = min(_snap(a, sec["end_bar"]), a.structure["bars"])
+    sec = lows[0]
+    if sec["kind"] == "outro":
+        # nothing comes back after an outro: leave on the first phrase boundary 4+ bars in
+        cut = a.phrase_start_at_or_after(max(sec["start_bar"] + 4, a_now + 2))
+        if cut >= sec["end_bar"]:
+            cut = sec["end_bar"]
+    else:
+        cut = sec["end_bar"]
+    cut = min(cut, a.structure["bars"])
     if cut <= a_now + 2:
-        cut = min(a.phrase_start_at_or_after(a_now + 2), a.structure["bars"])
+        return None
     following = next((s for s in a.structure["sections"] if s["start_bar"] >= sec["end_bar"]), None)
-    score = 0.7 + (0.1 if following and following["kind"] in ("break", "outro") else 0.0)
+    score = 0.7 + (0.1 if following and following["kind"] == "drop" else 0.0)  # the ear expects a drop there
+    score += 0.05 if a.phrase_start_at_or_after(cut) == cut else 0.0
     b_drop_energy = next((s["energy"] for s in b.structure["sections"] if s["start_bar"] == drop_b), 0.0)
     score += 0.05 if b_drop_energy >= 0.85 else 0.0
-    notes = [f"A kick section {sec['start_bar']}-{sec['end_bar']}", f"B drop at {drop_b}"]
+    notes = [f"A {sec['kind']} {sec['start_bar']}-{sec['end_bar']}", f"B drop at {drop_b}"]
     return Plan("slam", cut, cut, drop_b, "none", _keylock(a_bpm, b), score, notes)
 
 
@@ -124,6 +149,11 @@ def bass_first(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if not breaks:
         return None
     br = breaks[0]
+    # A break that leads back into a drop promises one: cutting to B's running groove there
+    # is an anticlimax (listener feedback 2026-11-05). That case belongs to break_drop.
+    following = next((s for s in a.structure["sections"] if s["start_bar"] >= br["end_bar"]), None)
+    if following and following["kind"] == "drop":
+        return None
     cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
     length = min(MAX_OVERLAP, cut - br["start_bar"])
     length -= length % PHRASE
