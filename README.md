@@ -149,7 +149,7 @@ Deux sources :
 
 Déductions, dans `agent/analysis/structure.py` :
 
-- **Temps fort** : phase (mod 4) qui porte le plus d'attaques et d'énergie dans les basses.
+- **Temps fort** : phase (mod 4) sur laquelle tombent les arrivées et départs de kick et les sauts d'énergie (les drops et les breaks commencent sur le un). Compter les attaques ne suffit pas : en four-on-the-floor, chaque temps se ressemble.
 - **Phrases de 8 mesures** : phase (mod 8) qui concentre les « arrivées » (retour du kick, saut d'énergie).
   La techno coupe souvent le kick sur la dernière mesure d'une phrase ; c'est le marqueur principal.
 - **Sections** : par présence du kick, avec absorption des coupures d'une mesure ; `intro`, `groove`, `break`,
