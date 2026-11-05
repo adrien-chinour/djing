@@ -74,7 +74,7 @@ def break_drop(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if drop_b is None or not breaks:
         return None
     br = breaks[0]
-    cut = _snap(a, br["end_bar"])
+    cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
     length = min(MAX_OVERLAP, cut - br["start_bar"])
     length -= length % 4
     length = min(length, drop_b - drop_b % 4)
@@ -104,9 +104,9 @@ def slam(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if not kicks:
         return None
     sec = kicks[0]
-    cut = _snap(a, sec["end_bar"])
+    cut = min(_snap(a, sec["end_bar"]), a.structure["bars"])
     if cut <= a_now + 2:
-        cut = a.phrase_start_at_or_after(a_now + 2)
+        cut = min(a.phrase_start_at_or_after(a_now + 2), a.structure["bars"])
     following = next((s for s in a.structure["sections"] if s["start_bar"] >= sec["end_bar"]), None)
     score = 0.7 + (0.1 if following and following["kind"] in ("break", "outro") else 0.0)
     b_drop_energy = next((s["energy"] for s in b.structure["sections"] if s["start_bar"] == drop_b), 0.0)
@@ -124,7 +124,7 @@ def bass_first(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
     if not breaks:
         return None
     br = breaks[0]
-    cut = _snap(a, br["end_bar"])
+    cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
     length = min(MAX_OVERLAP, cut - br["start_bar"])
     length -= length % PHRASE
     if length < PHRASE:
