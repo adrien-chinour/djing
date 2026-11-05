@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop audio-server visual
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -6,6 +6,9 @@ check: ## Lint scripts and validate the mapping files
 	python3 -I -m py_compile scripts/build-mapping.py agent/*.py
 	python3 -I -c "import xml.dom.minidom, glob; [xml.dom.minidom.parse(f) for f in glob.glob('mixxx/**/*.xml', recursive=True)]"
 	node --check mixxx/controllers/*.js 2>/dev/null || true
+	shellcheck visuals/switch
+	bash -n visuals/switch
+	node --check visuals/*.js
 
 test: ## Offline checks (catalog, patterns) + loopback test of the MIDI bridge, no Mixxx needed
 	uv run python -m agent.check_offline
@@ -46,3 +49,9 @@ daemon: ## Start the MIDI daemon in the background (owns the djing-agent port; s
 
 daemon-stop: ## Stop the MIDI daemon
 	pkill -f "agent.daemon" || true
+
+audio-server: ## Visuals: analyse the sound output and broadcast it to the TV (ARGS="--range 25")
+	node visuals/audio-server.js $(ARGS)
+
+visual: ## Visuals: switch the TV to a visual (make visual V=sunburst)
+	./visuals/switch $(V)

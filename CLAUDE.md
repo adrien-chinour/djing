@@ -7,6 +7,8 @@ Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire 
 
 - Scripts Bash (`scripts/`), lintés par shellcheck. Configuration Mixxx dans `mixxx/`, fichier système dans
   `system/`. Pas de dépendance autre que Mixxx (paquet Ubuntu) et les outils ALSA.
+- Visuels Ambilight dans `visuals/` : HTML + Canvas 2D en ES5 (navigateur de TV), serveur d'analyse audio en
+  Node 24 (`ws`, `npm install` dans `visuals/`), capture PipeWire par `pw-record`.
 - Prose en français, code et commentaires en anglais, Conventional Commits en français (cadre du workspace).
 
 ## Règles
