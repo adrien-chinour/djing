@@ -21,6 +21,7 @@
   //   strike / flash / shards  <- hit, punch     boulder breath <- low
   //   stone brightness         <- mid            sparks         <- high
   //   colour                   <- tone
+  // A random word (WORDS) is shouted across the screen each time the boulder breaks.
 
   var TAU = Math.PI * 2;
   var c   = document.getElementById('c');
@@ -362,6 +363,41 @@
     }
   }
 
+  // ── Word shouted when the boulder breaks ─────────────────────────────────
+  var WORDS = ['Paulo', 'Paul', 'Jacquit', 'Pioche'];
+  var WORD_LIFE = 1.2;
+  var word = null;
+
+  function shout() {
+    var w = WORDS[Math.floor(Math.random() * WORDS.length)];
+    if (word && w === word.text && WORDS.length > 1) w = WORDS[(WORDS.indexOf(w) + 1) % WORDS.length];
+    word = { text: w, t: 0, rot: (Math.random() - 0.5) * 0.16 };
+  }
+
+  function drawWord(tint, dt) {
+    if (!word) return;
+    word.t += dt;
+    var p = word.t / WORD_LIFE;
+    if (p >= 1) { word = null; return; }
+    var pop = p < 0.12 ? 1.6 - 0.6 * (p / 0.12) : 1;             // slams in, then settles
+    var alpha = p < 0.7 ? 1 : 1 - (p - 0.7) / 0.3;
+    ctx.save();
+    ctx.translate(W / 2, H * 0.42);
+    ctx.rotate(word.rot);
+    ctx.scale(pop, pop);
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold ' + Math.round(MIN * 0.22) + 'px Impact, "Arial Black", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = MIN * 0.02;
+    ctx.strokeStyle = rgba([0, 0, 0], 0.85);
+    ctx.strokeText(word.text, 0, 0);
+    ctx.fillStyle = rgb(towardWhite(tint, 0.85));
+    ctx.fillText(word.text, 0, 0);
+    ctx.restore();
+  }
+
   // ── Strike ───────────────────────────────────────────────────────────────
   var strikeFlash = 0;
 
@@ -376,6 +412,7 @@
       shatter(block, a, tint);
       emit(10, 1, a);
       block = newBlock();
+      shout();
     }
   }
 
@@ -427,6 +464,7 @@
     drawParts(a, tint, dt);
     drawFlash(tint, dt);
     ctx.restore();
+    drawWord(tint, dt);
 
     requestAnimationFrame(render);
   }
