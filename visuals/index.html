@@ -22,7 +22,7 @@
       .then(function (r) { return r.text(); })
       .then(function (t) {
         if (last && t !== last) {
-          // Remplace le src sans recharger la page parente → aucune barre
+          // Swap the src without reloading the parent page: no flash, no browser bar
           iframe.src = 'active.html?_=' + Date.now();
         }
         last = t;
@@ -30,7 +30,7 @@
       .catch(function () {});
   }
 
-  // Initialise last au contenu actuel
+  // Initialise last with the current content
   fetch('active.html')
     .then(function (r) { return r.text(); })
     .then(function (t) { last = t; });

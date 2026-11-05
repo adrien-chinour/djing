@@ -39,15 +39,25 @@ const REF_RELEASE_DB_PER_S = 1.5;   // how fast the reference comes down after a
 for (let i = 2; i < process.argv.length; i++) {
   const a = process.argv[i], v = process.argv[i + 1];
   if (a === '--target'  && v) { TARGET = v; i++; }
-  if (a === '--min-ref' && v) { MIN_REF_DB = Number(v); i++; }
-  if (a === '--range'   && v) { RANGE_DB = Number(v); i++; }
+  else if (a === '--min-ref' && v) { MIN_REF_DB = Number(v); i++; }
+  else if (a === '--range'   && v) { RANGE_DB = Number(v); i++; }
+  else { console.error(`unknown option or missing value: ${a}`); process.exit(2); }
+}
+if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0) {
+  console.error('--min-ref must be a number and --range a number > 0');
+  process.exit(2);
 }
 
 const HOP_S  = HOP / RATE;
 const BIN_HZ = RATE / FFTSIZE;
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
-const wss = new WebSocketServer({ port: PORT });
+// The server never reads anything meaningful: cap incoming frames (default is 100 MiB).
+const wss = new WebSocketServer({ port: PORT, maxPayload: 1024 });
+// Without these listeners a single malformed frame from any device on the LAN
+// (or a port already in use) throws and kills the process.
+wss.on('error', e => { console.error('websocket server:', e.message); process.exit(1); });
+wss.on('connection', ws => ws.on('error', e => console.error('[ws client]', e.message)));
 function broadcast(obj) {
   if (wss.clients.size === 0) return;
   const msg = JSON.stringify(obj);
@@ -165,9 +175,11 @@ function detectOnset(logMag, lowDb) {
 // not the microphone.
 const proc = spawn('pw-record', [
   '--rate', String(RATE), '--channels', String(CHANNELS), '--format', 's16', '--raw',
-  '-P', `{ stream.capture.sink=true node.target="${TARGET}" }`,
+  '--target', TARGET,
+  '-P', '{ stream.capture.sink=true }',
   '-',
 ]);
+proc.on('error', e => { console.error('pw-record:', e.message); process.exit(1); });
 proc.stderr.on('data', d => process.stderr.write('[pw-record] ' + d));
 proc.on('exit', code => { console.error('\npw-record exited with code', code); process.exit(1); });
 

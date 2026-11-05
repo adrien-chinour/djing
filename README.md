@@ -204,7 +204,8 @@ mix Mixxx. La TV ouvre `index.html` dans son navigateur depuis un serveur HTTP s
 
 - `audio-server.js` (Node 24, dépendance `ws`, `npm install` dans `visuals/`) capture le monitor PipeWire de la
   sortie (`pw-record` avec `stream.capture.sink=true`, sinon le micro est relié aussi), FFT 4096 / pas 1024,
-  et envoie en WebSocket (port 8765) `level`, `low`, `mid`, `high`, `onset`, `tone`, ≈47 messages par seconde.
+  et envoie en WebSocket (port 8765) `level`, `low`, `mid`, `high`, `onset`, `tone` et `dbg` (valeurs brutes pour
+  `debug.html`), ≈47 messages par seconde.
   Options : `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>`
   (défauts −35 et 20, calibrés sur un mix réel le 2026-11-05).
 - `audio-client.js`, partagé par les visuels : lissage par bande, `punch` (≥ 0,7 à chaque attaque, décroissance
@@ -218,9 +219,10 @@ mix Mixxx. La TV ouvre `index.html` dans son navigateur depuis un serveur HTTP s
   précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été retirés et restent dans l'historique.
 
 ```sh
+make visual V=sunburst            # écrit active.html (ignoré par git : obligatoire avant la première ouverture)
 make audio-server                 # analyse du son, à lancer sur l'ordinateur pendant le mix
 make audio-server ARGS="--range 25"
-make visual V=sunburst            # la TV bascule dans les 2 s
+python3 -m http.server -d visuals 8000   # un serveur statique parmi d'autres ; la TV ouvre http://<ip>:8000/
 ```
 
 ## Utilisation

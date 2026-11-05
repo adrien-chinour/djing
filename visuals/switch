@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# switch — active un visuel (écrit dans active.html, servi par l'iframe de index.html)
-# Usage : ./switch corridor | sunburst | <nom>
+# switch — activate a visual (written to active.html, served by the iframe of index.html)
+# Usage: ./switch corridor | sunburst | <name>
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -18,10 +18,15 @@ usage() {
       echo "  $name"
     fi
   done
-  exit 1
 }
 
-[ $# -eq 0 ] && usage
+if [ $# -eq 0 ]; then usage; exit 0; fi
+
+case "$1" in
+  index|active|debug)
+    echo "Erreur : '$1' n'est pas un visuel."
+    exit 1 ;;
+esac
 
 TARGET="$DIR/$1.html"
 
@@ -29,6 +34,7 @@ if [ ! -f "$TARGET" ]; then
   echo "Erreur : visuel '$1' introuvable (fichier $TARGET absent)."
   echo ""
   usage
+  exit 1
 fi
 
 cp "$TARGET" "$DIR/active.html"
