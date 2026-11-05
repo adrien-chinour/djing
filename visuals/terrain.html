@@ -1,0 +1,168 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TERRAIN</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="audio-client.js?v=3"></script>
+<script src="gl-visual.js?v=1"></script>
+<script type="x-shader/x-vertex" id="vs">
+// Uniforms shared with the fragment shader must have the same precision in both stages.
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+#define SHARED highp
+#else
+#define SHARED mediump
+#endif
+attribute vec2 aGrid;              // column index, row index
+uniform mat4 uMVP;
+uniform SHARED float uLow, uMid, uHigh, uDist, uHitDist;
+varying float vDepth;              // 0 = nearest row, 1 = horizon
+varying float vH;                  // height, for highlights
+
+#define NX 64.0
+#define NZ 48.0
+#define WIDTH 36.0
+#define SPEED 4.0
+// uDist wraps every 64 units (zw every 256): CELL divides 256 and frequencies are k * 2*pi / 256.
+#define CELL 0.9014085
+#define F(k) (k * 0.0245437)
+
+void main() {
+  float f = aGrid.y / (NZ - 1.0);
+  float x = (aGrid.x / (NX - 1.0) - 0.5) * WIDTH;
+  // Rows slide toward the camera and wrap every CELL; the height field is sampled in world
+  // coordinates so the relief flows continuously.
+  float zd = aGrid.y * CELL - mod(uDist * SPEED, CELL) + 1.2;
+  float zw = zd + uDist * SPEED;
+
+  // Relief amplitude by depth band: bass near the camera, mids in the middle, highs at the horizon.
+  float amp = 0.3 + 1.8 * (uLow * (1.0 - smoothstep(0.0, 0.6, f))
+                         + uMid * (1.0 - abs(f - 0.5) * 2.0)
+                         + uHigh * smoothstep(0.4, 1.0, f));
+  float h = sin(x * 0.31 + zw * F(7.0)) * sin(zw * F(4.0) + x * 0.05) + 0.5 * sin(x * 0.9 - zw * F(13.0));
+  float valley = smoothstep(0.0, 1.0, abs(x) / (WIDTH * 0.5));   // flat road in the centre, hills at the edges
+  h = h * amp * (0.25 + 0.75 * valley);
+
+  // Wave launched by the last kick, rolling from the camera to the horizon.
+  float since = (uDist - uHitDist) * SPEED;
+  h += 2.0 * exp(-pow((zd - since * 2.0) * 0.45, 2.0)) * exp(-since * 0.35);
+
+  vDepth = f;
+  vH = h;
+  gl_Position = uMVP * vec4(x, h, -zd, 1.0);
+}
+</script>
+<script type="x-shader/x-fragment" id="fs">
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform float uTone, uPunch, uHigh;
+varying float vDepth;
+varying float vH;
+
+void main() {
+  vec3 tint = thermo(uTone);
+  float fade = 1.0 - smoothstep(0.2, 1.0, vDepth);
+  vec3 col = tint * (0.35 + 0.65 * fade);
+  col += vec3(1.0) * clamp(vH * 0.25, 0.0, 0.6) * (0.4 + 0.6 * uHigh);
+  col += tint * 0.5 * uPunch * fade;
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+<script>
+(function () {
+  var NX = 64, NZ = 48;
+
+  // ── Minimal column-major mat4 ─────────────────────────────────────────────
+  function perspective(fovY, aspect, near, far) {
+    var f = 1 / Math.tan(fovY / 2), nf = 1 / (near - far);
+    return [f / aspect, 0, 0, 0,  0, f, 0, 0,  0, 0, (far + near) * nf, -1,  0, 0, 2 * far * near * nf, 0];
+  }
+  function normalize(v) { var l = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+  function cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+  function lookAt(eye, target, up) {
+    var z = normalize([eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]]);
+    var x = normalize(cross(up, z));
+    var y = cross(z, x);
+    return [x[0], y[0], z[0], 0,  x[1], y[1], z[1], 0,  x[2], y[2], z[2], 0,
+            -dot(x, eye), -dot(y, eye), -dot(z, eye), 1];
+  }
+  function multiply(a, b) {   // a * b
+    var out = new Float32Array(16), i, j, k, s;
+    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) {
+      s = 0;
+      for (k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+      out[i * 4 + j] = s;
+    }
+    return out;
+  }
+
+  // Same 7 colours as GLVisual.THERMO, for the sky (clear colour).
+  var THERMO = [[20, 40, 220], [60, 10, 200], [160, 10, 255], [255, 30, 80], [255, 110, 10], [255, 200, 20], [255, 245, 180]];
+  function thermo(t) {
+    t = Math.max(0, Math.min(1, t)) * 6;
+    var lo = Math.min(Math.floor(t), 5), f = t - lo, a = THERMO[lo], b = THERMO[lo + 1];
+    return [(a[0] + (b[0] - a[0]) * f) / 255, (a[1] + (b[1] - a[1]) * f) / 255, (a[2] + (b[2] - a[2]) * f) / 255];
+  }
+
+  var indexCount = 0, uMVP = null;
+
+  function setup(gl, prog) {
+    var grid = new Float32Array(NX * NZ * 2), ix, iz, n = 0;
+    for (iz = 0; iz < NZ; iz++) for (ix = 0; ix < NX; ix++) { grid[n++] = ix; grid[n++] = iz; }
+    var idx = [];
+    for (iz = 0; iz < NZ; iz++) for (ix = 0; ix < NX - 1; ix++) idx.push(iz * NX + ix, iz * NX + ix + 1);
+    for (ix = 0; ix < NX; ix++) for (iz = 0; iz < NZ - 1; iz++) idx.push(iz * NX + ix, (iz + 1) * NX + ix);
+    indexCount = idx.length;
+
+    var vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, grid, gl.STATIC_DRAW);
+    var aGrid = gl.getAttribLocation(prog, 'aGrid');
+    gl.enableVertexAttribArray(aGrid);
+    gl.vertexAttribPointer(aGrid, 2, gl.FLOAT, false, 0, 0);
+
+    var ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+
+    uMVP = gl.getUniformLocation(prog, 'uMVP');
+  }
+
+  function frame(gl, prog, a) {
+    var sky = thermo(a.tone), k = 0.06 + 0.06 * a.punch;
+    gl.clearColor(sky[0] * k, sky[1] * k, sky[2] * k, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    var aspect = gl.drawingBufferWidth / gl.drawingBufferHeight;
+    var bob = 0.15 * Math.sin(a.level * 2 + Date.now() / 1700);
+    var mvp = multiply(perspective(Math.PI / 3, aspect, 0.1, 120),
+                       lookAt([0, 2.6 + bob, 0], [0, -1.2, -30], [0, 1, 0]));   // horizon in the upper third
+    gl.uniformMatrix4fv(uMVP, false, mvp);
+    gl.drawElements(gl.LINES, indexCount, gl.UNSIGNED_SHORT, 0);
+  }
+
+  GLVisual.start({
+    canvas: document.getElementById('c'),
+    scale: 1,
+    period: 64,
+    vertex: document.getElementById('vs').textContent,
+    fragment: document.getElementById('fs').textContent.replace('varying float vDepth;', GLVisual.THERMO + 'varying float vDepth;'),
+    setup: setup,
+    frame: frame
+  });
+}());
+</script>
+</body>
+</html>
