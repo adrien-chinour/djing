@@ -79,7 +79,7 @@
   var curl  = 0;           // integrated spiral amount (radians at the edge)
 
   function rayEdge(angle, out) {
-    // Fills `out` with points from centre to DIAG along a spiral line
+    // Fills out with points from centre to DIAG along a spiral line
     for (var s = 0; s <= STEPS; s++) {
       var k = s / STEPS;
       var r = k * DIAG;

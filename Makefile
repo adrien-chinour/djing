@@ -9,6 +9,8 @@ check: ## Lint scripts and validate the mapping files
 	shellcheck visuals/switch
 	bash -n visuals/switch
 	node --check visuals/*.js
+	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)
+	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/*.html visuals/audio-client.js visuals/gl-visual.js || { echo 'ES5 only in TV files'; exit 1; }
 
 test: ## Offline checks (catalog, patterns) + loopback test of the MIDI bridge, no Mixxx needed
 	uv run python -m agent.check_offline
