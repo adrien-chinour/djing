@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop audio-server visual
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-service visuals-service-remove
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -50,8 +50,14 @@ daemon: ## Start the MIDI daemon in the background (owns the djing-agent port; s
 daemon-stop: ## Stop the MIDI daemon
 	pkill -f "agent.daemon" || true
 
-audio-server: ## Visuals: analyse the sound output and broadcast it to the TV (ARGS="--range 25")
+visuals: ## Visuals: one process for sound analysis, TV pages and control (ARGS="--range 25")
 	node visuals/audio-server.js $(ARGS)
 
-visual: ## Visuals: switch the TV to a visual (make visual V=sunburst)
+visual: ## Visuals: switch the TV to a visual from the terminal (make visual V=sunburst)
 	./visuals/switch $(V)
+
+visuals-service: ## Visuals: run audio-server.js at login as a user systemd service (no sudo)
+	./scripts/install-visuals-service.sh install
+
+visuals-service-remove: ## Visuals: remove the user service
+	./scripts/install-visuals-service.sh remove

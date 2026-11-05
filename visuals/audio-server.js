@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 // audio-server.js
-// Captures the PipeWire sink monitor (what goes to the speakers), analyses it
-// and broadcasts audio features over WebSocket (port 8765).
+// Single process behind the TV visuals:
+//   - captures the PipeWire sink monitor (what goes to the speakers) and analyses it,
+//   - broadcasts audio features over WebSocket,
+//   - serves the pages of this folder over HTTP (TV opens http://<host>:8765/,
+//     phone opens /control.html) and switches the active visual (POST /active/<name>).
+// Everything on PORT; active.html is created from DEFAULT_VISUAL when missing.
 //
-// Usage : node audio-server.js [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>]
+// Usage : node audio-server.js [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>] [--port <n>]
 //
 // Message (≈47 per second, raw values — smoothing is the visual's job):
 //   level  0-1  perceived loudness (full band, dB scale, bounded auto-gain)
@@ -17,6 +21,9 @@
 'use strict';
 
 const { spawn } = require('child_process');
+const fs = require('fs');
+const http = require('http');
+const path = require('path');
 const { WebSocketServer } = require('ws');
 
 // ── Config ─────────────────────────────────────────────────────────────────
@@ -24,7 +31,10 @@ const RATE     = 48000;
 const CHANNELS = 2;
 const FFTSIZE  = 4096;    // ≈11.7 Hz per bin → usable bass resolution
 const HOP      = 1024;    // new analysis every ≈21 ms → low latency despite large window
-const PORT     = 8765;
+let PORT       = 8765;
+const ROOT     = __dirname;                 // the pages live next to this file
+const DEFAULT_VISUAL = 'corridor';
+const RESERVED = new Set(['index', 'active', 'debug', 'control']);   // pages that are not visuals
 
 let TARGET  = 'alsa_output.pci-0000_00_1f.3.analog-stereo';
 // Auto-gain : a band's reference level follows its recent peak, but can never
@@ -41,21 +51,84 @@ for (let i = 2; i < process.argv.length; i++) {
   if (a === '--target'  && v) { TARGET = v; i++; }
   else if (a === '--min-ref' && v) { MIN_REF_DB = Number(v); i++; }
   else if (a === '--range'   && v) { RANGE_DB = Number(v); i++; }
+  else if (a === '--port'    && v) { PORT = Number(v); i++; }
   else { console.error(`unknown option or missing value: ${a}`); process.exit(2); }
 }
-if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0) {
-  console.error('--min-ref must be a number and --range a number > 0');
+if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0 || !Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  console.error('--min-ref must be a number, --range a number > 0, --port an integer in 1-65535');
   process.exit(2);
 }
 
 const HOP_S  = HOP / RATE;
 const BIN_HZ = RATE / FFTSIZE;
 
-// ── WebSocket ──────────────────────────────────────────────────────────────
+// ── Visuals : list, active one, activation ─────────────────────────────────
+function listVisuals() {
+  return fs.readdirSync(ROOT)
+    .filter(f => f.endsWith('.html') && !f.startsWith('.'))
+    .map(f => f.slice(0, -5))
+    .filter(n => !RESERVED.has(n))
+    .sort();
+}
+
+function activeVisual() {
+  let active;
+  try { active = fs.readFileSync(path.join(ROOT, 'active.html')); } catch (e) { return null; }
+  return listVisuals().find(n => fs.readFileSync(path.join(ROOT, `${n}.html`)).equals(active)) || null;
+}
+
+// Returns an error message, or null on success. Atomic: index.html polls active.html every 2 s.
+function activate(name) {
+  if (!/^[a-z0-9-]+$/.test(name) || RESERVED.has(name)) return `'${name}' is not a visual`;
+  const src = path.join(ROOT, `${name}.html`);
+  if (!fs.existsSync(src)) return `unknown visual '${name}' (available: ${listVisuals().join(', ')})`;
+  const tmp = path.join(ROOT, '.active.tmp');
+  fs.copyFileSync(src, tmp);
+  fs.renameSync(tmp, path.join(ROOT, 'active.html'));
+  return null;
+}
+
+if (!fs.existsSync(path.join(ROOT, 'active.html'))) {
+  const first = listVisuals().includes(DEFAULT_VISUAL) ? DEFAULT_VISUAL : listVisuals()[0];
+  if (first) { activate(first); console.log(`active.html missing: activated ${first}`); }
+}
+
+// ── HTTP : static pages + control API ──────────────────────────────────────
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+
+function send(res, code, body, type) {
+  res.writeHead(code, { 'Content-Type': type || 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(body);
+}
+
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url, 'http://localhost');
+
+  if (url.pathname === '/visuals' && req.method === 'GET') {
+    return send(res, 200, JSON.stringify({ visuals: listVisuals(), active: activeVisual() }), 'application/json');
+  }
+  const m = url.pathname.match(/^\/active\/([^/]+)$/);
+  if (m && req.method === 'POST') {
+    const err = activate(decodeURIComponent(m[1]));
+    return err ? send(res, 400, err) : send(res, 200, JSON.stringify({ active: m[1] }), 'application/json');
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
+
+  // Static: only top-level .html/.js files of this folder (no node_modules, no dotfiles).
+  const name = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
+  const ext = path.extname(name);
+  if (name.includes('/') || name.startsWith('.') || !MIME[ext]) return send(res, 404, 'not found');
+  fs.readFile(path.join(ROOT, name), (e, data) => {
+    if (e) return send(res, 404, 'not found');
+    send(res, 200, data, MIME[ext]);
+  });
+});
+server.on('error', e => { console.error('http server:', e.message); process.exit(1); });
+
+// ── WebSocket, on the same port ────────────────────────────────────────────
 // The server never reads anything meaningful: cap incoming frames (default is 100 MiB).
-const wss = new WebSocketServer({ port: PORT, maxPayload: 1024 });
-// Without these listeners a single malformed frame from any device on the LAN
-// (or a port already in use) throws and kills the process.
+const wss = new WebSocketServer({ server, maxPayload: 1024 });
+// Without these listeners a single malformed frame from any device on the LAN throws and kills the process.
 wss.on('error', e => { console.error('websocket server:', e.message); process.exit(1); });
 wss.on('connection', ws => ws.on('error', e => console.error('[ws client]', e.message)));
 function broadcast(obj) {
@@ -262,5 +335,7 @@ proc.stdout.on('data', chunk => {
   leftover = buf.subarray(frames * FRAME_BYTES);
 });
 
-console.log(`audio-server on ws://0.0.0.0:${PORT}`);
-console.log(`capture: monitor of ${TARGET} | silence below ${MIN_REF_DB - RANGE_DB} dBFS (min-ref ${MIN_REF_DB}, range ${RANGE_DB})`);
+server.listen(PORT, () => {
+  console.log(`visuals on http://0.0.0.0:${PORT}/  (TV: /  phone: /control.html  calibration: /debug.html)`);
+  console.log(`active visual: ${activeVisual() || 'none'} | capture: monitor of ${TARGET} | silence below ${MIN_REF_DB - RANGE_DB} dBFS (min-ref ${MIN_REF_DB}, range ${RANGE_DB})`);
+});

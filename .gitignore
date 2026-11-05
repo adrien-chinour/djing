@@ -7,3 +7,4 @@ analysis/*.json
 analysis/transitions.jsonl
 visuals/node_modules/
 visuals/active.html
+visuals/.active.tmp

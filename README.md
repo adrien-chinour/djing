@@ -199,31 +199,37 @@ durée, le BPM et la tonalité renvoyés, avec correction du décalage.
 ## Visuels Ambilight (`visuals/`)
 
 Fond animé plein écran pour une TV Ambilight (16:10), piloté par le son qui sort de l'ordinateur, donc par le
-mix Mixxx. La TV ouvre `index.html` dans son navigateur depuis un serveur HTTP statique lancé sur l'ordinateur
-(le dossier `visuals/` servi tel quel) ; l'ordinateur analyse le son et le diffuse en direct.
+mix Mixxx. Un seul processus, `visuals/audio-server.js` (Node 24, dépendance `ws`, `npm install` dans `visuals/`),
+fait tout sur le port 8765 :
 
-- `audio-server.js` (Node 24, dépendance `ws`, `npm install` dans `visuals/`) capture le monitor PipeWire de la
-  sortie (`pw-record` avec `stream.capture.sink=true`, sinon le micro est relié aussi), FFT 4096 / pas 1024,
-  et envoie en WebSocket (port 8765) `level`, `low`, `mid`, `high`, `onset`, `tone` et `dbg` (valeurs brutes pour
-  `debug.html`), ≈47 messages par seconde.
-  Options : `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>`
-  (défauts −35 et 20, calibrés sur un mix réel le 2026-11-05).
-- `audio-client.js`, partagé par les visuels : lissage par bande, `punch` (≥ 0,7 à chaque attaque, décroissance
-  0,28 s), `hit` (une frame par kick, pour les effets ponctuels), repli sur une simulation à 160 BPM sans serveur.
-  Le navigateur de la TV met ce fichier en cache : incrémenter `?v=` dans les visuels à chaque modification.
-- `index.html` est une coquille : une iframe sur `active.html`, rechargée sans flash quand ce fichier change
-  (sondage toutes les 2 s). `./switch <visuel>` copie `<visuel>.html` vers `active.html` ; sans argument il
-  liste les visuels et marque l'actif. `debug.html` affiche les vu-mètres pour le calibrage.
-- Visuels, un fichier HTML + Canvas 2D en ES5 (navigateur de TV) chacun : `corridor` (couloir de carrés en flux
-  vers l'écran, onde de choc par kick) et `sunburst` (12 rayons tournants, étoile par kick). Les visuels
-  précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été retirés et restent dans l'historique.
+- il capture le monitor PipeWire de la sortie (`pw-record --target <sink>` avec `stream.capture.sink=true`, sinon
+  le micro est relié aussi), FFT 4096 / pas 1024, et envoie en WebSocket `level`, `low`, `mid`, `high`, `onset`,
+  `tone` et `dbg` (valeurs brutes pour `debug.html`), ≈47 messages par seconde ;
+- il sert les pages du dossier : `/` pour la TV, `/control.html` pour le téléphone (un bouton par visuel, la TV
+  bascule dans les 2 s), `/debug.html` pour le calibrage ; `GET /visuals` liste les visuels et l'actif,
+  `POST /active/<visuel>` en active un ; `active.html` est créé avec `corridor` s'il manque.
+
+Options : `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>` (défauts −35
+et 20, calibrés sur un mix réel le 2026-11-05), `--port <n>` (8765).
 
 ```sh
-make visual V=sunburst            # écrit active.html (ignoré par git : obligatoire avant la première ouverture)
-make audio-server                 # analyse du son, à lancer sur l'ordinateur pendant le mix
-make audio-server ARGS="--range 25"
-python3 -m http.server -d visuals 8000   # un serveur statique parmi d'autres ; la TV ouvre http://<ip>:8000/
+make visuals                          # à la main, dans un terminal ; Ctrl-C pour arrêter
+make visuals ARGS="--range 25"
+make visuals-service                  # ou une fois pour toutes : service systemd utilisateur, lancé à la session
+make visuals-service-remove
+make visual V=sunburst                # bascule depuis le terminal (même effet que le téléphone)
 ```
+
+Puis la TV ouvre `http://<ip de l'ordinateur>:8765/` et le téléphone `http://<ip>:8765/control.html`. Journal du
+service : `journalctl --user -u djing-visuals -f`.
+
+Côté pages, tout est en HTML + Canvas 2D en ES5 (navigateur de TV) : `index.html` est une coquille dont l'iframe
+charge `active.html` et le recharge sans flash quand il change ; `audio-client.js`, partagé, lisse les bandes,
+calcule `punch` (≥ 0,7 à chaque attaque, décroissance 0,28 s) et `hit` (une frame par kick) et se replie sur une
+simulation à 160 BPM sans serveur ; le navigateur de la TV le met en cache, incrémenter `?v=` dans les pages à chaque
+modification. Visuels : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
+(12 rayons tournants, étoile par kick). Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
+retirés et restent dans l'historique.
 
 ## Utilisation
 

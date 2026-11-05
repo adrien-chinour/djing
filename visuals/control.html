@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VISUELS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0b10; color: #ddd; font: 16px/1.4 system-ui, sans-serif; }
+  body { padding: 24px 16px; max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 13px; letter-spacing: .3em; color: #888; margin-bottom: 18px; }
+  #status { font-size: 13px; color: #888; margin-bottom: 18px; }
+  #status.live { color: #3f6; }
+  button { display: block; width: 100%; padding: 22px; margin: 10px 0; font: inherit; font-size: 20px;
+           letter-spacing: .1em; text-transform: uppercase; color: #ddd; background: #1a1a24;
+           border: 2px solid #2a2a3a; border-radius: 8px; }
+  button.active { border-color: #7af; color: #fff; background: #1d2440; }
+  button:active { background: #2a2a3a; }
+  .hint { margin-top: 24px; font-size: 13px; color: #666; }
+</style>
+</head>
+<body>
+<h1>VISUELS</h1>
+<div id="status">connexion…</div>
+<div id="list"></div>
+<p class="hint">La TV bascule dans les 2 s. <a href="debug.html" style="color:#7af">Calibrage</a>.</p>
+<script src="audio-client.js?v=3"></script>
+<script>
+!function () {
+  var list = document.getElementById('list'), status = document.getElementById('status');
+  var known = '';
+
+  function render(data) {
+    var key = data.visuals.join(',') + '|' + data.active;
+    if (key === known) return;
+    known = key;
+    list.innerHTML = '';
+    data.visuals.forEach(function (name) {
+      var b = document.createElement('button');
+      b.textContent = name;
+      if (name === data.active) b.className = 'active';
+      b.onclick = function () {
+        fetch('active/' + encodeURIComponent(name), { method: 'POST' }).then(refresh);
+      };
+      list.appendChild(b);
+    });
+  }
+
+  function refresh() {
+    return fetch('visuals?_=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () { known = ''; list.innerHTML = ''; });
+  }
+
+  function tick() {
+    var s = AudioFeed.update(1 / 30);
+    status.textContent = s.live ? 'son en direct · niveau ' + Math.round(s.level * 100) + ' %' : 'pas de son du serveur : simulation 160 BPM';
+    status.className = s.live ? 'live' : '';
+  }
+
+  refresh();
+  setInterval(refresh, 2000);
+  setInterval(tick, 500);
+}();
+</script>
+</body>
+</html>

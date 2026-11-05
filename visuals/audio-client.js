@@ -18,7 +18,9 @@
 
   function connect() {
     var ws;
-    try { ws = new WebSocket('ws://' + (location.hostname || 'localhost') + ':8765'); }
+    // Served by audio-server.js itself: same host and port. Fallback for a file:// open.
+    var host = location.protocol === 'file:' || !location.host ? 'localhost:8765' : location.host;
+    try { ws = new WebSocket('ws://' + host); }
     catch (e) { setTimeout(connect, 3000); return; }
     ws.onmessage = function (e) {
       raw = JSON.parse(e.data);
