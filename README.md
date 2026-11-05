@@ -242,8 +242,8 @@ ouvrir `http://<ip>:8765/webgl-check.html` sur la TV : la page affiche le suppor
 `highp` et la cadence en pleine et demi-résolution, et l'envoie au serveur (`POST /report`, ajouté à
 `visuals/reports.jsonl`).
 
-Développer sans couper le visuel en cours : un second serveur `make visuals ARGS="--port 8767"` depuis un worktree,
-la TV et le téléphone sur `http://<ip>:8767/…`.
+La TV a `http://<ip>:8765/` en favori : pour tester une branche, arrêter le serveur en place et lancer `make visuals`
+depuis le worktree de la branche, sur le même port. `--port` sert seulement aux tests automatiques.
 
 ## Utilisation
 
