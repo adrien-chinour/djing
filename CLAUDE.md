@@ -8,8 +8,9 @@ Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire 
 - Scripts Bash (`scripts/`), lintés par shellcheck. Configuration Mixxx dans `mixxx/`, fichier système dans
   `system/`. Côté platine, pas de dépendance autre que Mixxx (paquet Ubuntu) et les outils ALSA ; `make check`
   exige aussi `node` depuis l'arrivée des visuels.
-- Visuels Ambilight dans `visuals/` : HTML + Canvas 2D en ES5 (navigateur de TV), serveur d'analyse audio en
-  Node 24 (`ws`, `npm install` dans `visuals/`), capture PipeWire par `pw-record`.
+- Visuels Ambilight dans `visuals/` : HTML + Canvas 2D ou WebGL 1 (GLSL ES 1.0, helper `gl-visual.js`) en ES5
+  (navigateur de TV ; `make check` le vérifie), serveur d'analyse audio en Node 24 (`ws`, `npm install` dans
+  `visuals/`), capture PipeWire par `pw-record`.
 - Prose en français, code et commentaires en anglais, Conventional Commits en français (cadre du workspace).
 
 ## Règles

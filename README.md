@@ -222,13 +222,28 @@ make visual V=sunburst                # bascule depuis le terminal (même effet 
 Puis la TV ouvre `http://<ip de l'ordinateur>:8765/` et le téléphone `http://<ip>:8765/control.html`. Journal du
 service : `journalctl --user -u djing-visuals -f`.
 
-Côté pages, tout est en HTML + Canvas 2D en ES5 (navigateur de TV) : `index.html` est une coquille dont l'iframe
-charge `active.html` et le recharge sans flash quand il change ; `audio-client.js`, partagé, lisse les bandes,
-calcule `punch` (≥ 0,7 à chaque attaque, décroissance 0,28 s) et `hit` (une frame par kick) et se replie sur une
-simulation à 160 BPM sans serveur ; le navigateur de la TV le met en cache, incrémenter `?v=` dans les pages à chaque
-modification. Visuels : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
+Côté pages, tout est en ES5 (navigateur de TV ; `make check` refuse `let`, `const`, `class`, fonctions fléchées et
+gabarits) : `index.html` est une coquille dont l'iframe charge `active.html` et le recharge sans flash quand il
+change ; `audio-client.js`, partagé, lisse les bandes, calcule `punch` (≥ 0,7 à chaque attaque, décroissance 0,28 s)
+et `hit` (une frame par kick) et se replie sur une simulation à 160 BPM sans serveur ; le navigateur de la TV le met en
+cache, incrémenter `?v=` dans les pages à chaque modification.
+
+Visuels en Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
 (12 rayons tournants, étoile par kick). Les précédents (tunnel, rain, lava, aurora, tide, orbit, solar, geo) ont été
 retirés et restent dans l'historique.
+
+Visuels en WebGL 1 (GLSL ES 1.0, sans bibliothèque) : `tunnel3d` (tunnel infini raymarché, rayon sur les basses,
+anneau de choc par kick) et `terrain` (grille filaire en perspective, relief basses / médiums / aigus selon la
+profondeur, vague par kick). Ils passent par `gl-visual.js` : contexte, quad plein écran, uniforms audio (`uLevel`,
+`uLow`, `uMid`, `uHigh`, `uPunch`, `uHit`, `uTone`), `uDist` (distance parcourue, bouclée tous les 64 pour la
+précision `mediump` des GPU de TV) et `uHitDist` (distance au dernier kick) ; une erreur de shader s'affiche sur la
+page. Option `scale: 0.5` dans la page pour rendre à moitié de résolution si la TV rame. Avant de s'en servir,
+ouvrir `http://<ip>:8765/webgl-check.html` sur la TV : la page affiche le support WebGL, le renderer, la précision
+`highp` et la cadence en pleine et demi-résolution, et l'envoie au serveur (`POST /report`, ajouté à
+`visuals/reports.jsonl`).
+
+Développer sans couper le visuel en cours : un second serveur `make visuals ARGS="--port 8767"` depuis un worktree,
+la TV et le téléphone sur `http://<ip>:8767/…`.
 
 ## Utilisation
 
