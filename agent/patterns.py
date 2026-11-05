@@ -13,9 +13,9 @@ from agent.catalog import Track
 
 KICK_ON = 0.35
 SPARSE_MIDS = 0.2
-TEASER_BARS = 4
 MAX_OVERLAP = 16
 MIN_BREAK = 4
+MIN_RUN_UP = 8        # bars B plays under A's break before its drop (listener: 4 is too short)
 KEYLOCK_THRESHOLD = 0.02
 PHRASE = 8
 
@@ -41,8 +41,20 @@ def _keylock(a_bpm: float, b: Track) -> bool:
 
 
 def _first_drop_bar(t: Track) -> int | None:
+    """First energetic kick section, whatever its kind: an opening groove counts."""
     for s in t.structure["sections"]:
         if s["kick"] and s["energy"] >= 0.6:
+            return s["start_bar"]
+    return None
+
+
+def _real_drop_bar(t: Track) -> int | None:
+    """First 'drop' section that a break leads into, at least MIN_RUN_UP bars in: a drop the
+    ear expects. An opening groove is not one (listener feedback 2026-11-05: B starting cold
+    under a break was rated 0)."""
+    secs = t.structure["sections"]
+    for prev, s in zip(secs, secs[1:]):
+        if s["kind"] == "drop" and prev["kind"] == "break" and s["start_bar"] >= MIN_RUN_UP:
             return s["start_bar"]
     return None
 
@@ -66,28 +78,28 @@ def _late_sections(a: Track, kinds: tuple[str, ...], after_bar: float, min_len: 
 # --- pattern 1: break -> drop ----------------------------------------------------------
 
 def break_drop(a: Track, b: Track, a_now: float, a_bpm: float) -> Plan | None:
-    """B's drop lands where A's drop would return after a late break. B shows up during the
-    break only if its material is complementary (drums -> 'bass', sparse -> 'tops'), else as
-    a 4-bar quiet teaser."""
-    drop_b = _first_drop_bar(b)
-    breaks = _late_sections(a, ("break", "outro"), a_now + 2, MIN_BREAK)
+    """B's drop lands where A's drop would return after a late break. B runs up to its drop
+    under the break for 8-16 bars: its drums low-passed ('bass') when its run-up has a kick,
+    its tops when the run-up is sparse, else a quiet high-passed teaser. Needs a real drop
+    in B and a break in A long enough for the run-up; shorter cases belong to slam."""
+    drop_b = _real_drop_bar(b)
+    breaks = _late_sections(a, ("break", "outro"), a_now + 2, MIN_RUN_UP)
     if drop_b is None or not breaks:
         return None
     br = breaks[0]
     cut = min(_snap(a, br["end_bar"]), a.structure["bars"])
-    length = min(MAX_OVERLAP, cut - br["start_bar"])
+    length = min(MAX_OVERLAP, cut - br["start_bar"], drop_b)
     length -= length % 4
-    length = min(length, drop_b - drop_b % 4)
+    if length < MIN_RUN_UP:
+        return None
     lows, mids = _window(b, drop_b - length, length)
     notes = [f"A break {br['start_bar']}-{br['end_bar']}", f"B drop at {drop_b}"]
-    if length and lows and sum(1 for v in lows if v >= KICK_ON) >= 0.75 * len(lows):
+    if sum(1 for v in lows if v >= KICK_ON) >= 0.75 * len(lows):
         entry, score = "bass", 0.85
-    elif length and mids and max(mids) < SPARSE_MIDS:
+    elif max(mids) < SPARSE_MIDS:
         entry, score = "tops", 0.8
-    elif length >= 1:
-        entry, length, score = "teaser", min(TEASER_BARS, length), 0.75
     else:
-        entry, length, score = "none", 0, 0.7  # B's drop is at its very start: nothing to overlap
+        entry, score = "teaser", 0.7
     return Plan("break_drop", cut - length, cut, drop_b - length, entry, _keylock(a_bpm, b), score, notes)
 
 

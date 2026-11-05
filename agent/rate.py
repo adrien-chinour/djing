@@ -1,4 +1,4 @@
-"""Rate the last transition: uv run python -m agent.rate 4 "parfait mais amorce inutile" """
+"""Rate the last transition (1 to 5, halves allowed): uv run python -m agent.rate 3.5 "amorce inutile" """
 
 import sys
 
@@ -6,9 +6,13 @@ from agent import feedback
 
 
 def main() -> int:
-    if len(sys.argv) < 2 or not sys.argv[1].isdigit():
+    try:
+        score = float(sys.argv[1].replace(",", "."))
+    except (IndexError, ValueError):
         print(__doc__); return 2
-    e = feedback.rate_last(int(sys.argv[1]), " ".join(sys.argv[2:]))
+    if not 1 <= score <= 5:
+        print(__doc__); return 2
+    e = feedback.rate_last(score, " ".join(sys.argv[2:]))
     if not e:
         print("no transition logged yet"); return 1
     print(f"rated {e['rating']}/5: {e['a']} -> {e['b']} [{e['pattern']}/{e['entry']}] {e.get('comment', '')}")
