@@ -18,6 +18,7 @@ visuals/
     webgl-check.html   sonde WebGL de la TV (outil affichable sur l'écran, POST /report)
     style.css          feuille de style commune à home, start, control et debug (les scènes ne l'utilisent pas)
     audio-client.js    partagé par les scènes : WebSocket, lissage, punch/hit, simulation 160 BPM
+    deck.js            vue régie DJ (VU-mètres, LED de kick, BPM, bande défilante, statistiques) pour start et control
     gl-visual.js       moteur WebGL 1 commun aux scènes en shader
     analysis.js        analyse du son, le même code dans Node et dans le navigateur
     scenes/            une page par visuel : corridor, sunburst, tunnel3d, terrain (+ privés, voir .gitignore)
@@ -73,7 +74,7 @@ son que d'un **onglet** : pour un logiciel (Mixxx), passer par « entrée audio 
 | `GET /s/<id>` | écran public ; code inconnu → 302 vers l'accueil |
 | `GET /c/<id>/<token>` | contrôle, jeton `control` |
 | `GET /qr/<id>/<jeton source>.svg` | QR code du lien de contrôle (`qrcode-generator`) |
-| `GET /visuals?s=<id>` | `{visuals, tools, active, activePath, source}` |
+| `GET /visuals?s=<id>` | `{visuals, tools, active, activePath, source, screens, createdAt, switches}` |
 | `POST /sessions/<id>/active/<nom>` | bascule, `Authorization: Bearer <jeton control>` |
 | `POST /active/<nom>` | raccourci réseau local sur `local` (`switch`) |
 | `POST /report` | rapport de `webgl-check.html` ; écrit `reports.jsonl` en mode local |
@@ -82,8 +83,8 @@ son que d'un **onglet** : pour un logiciel (Mixxx), passer par « entrée audio 
 
 WebSocket `/ws?s=<id>&r=screen` (lecture seule, sans jeton) ou `/ws?s=<id>&r=source&t=<jeton>` (une source par session,
 la dernière connexion remplace la précédente, 100 messages/s au plus). Serveur → client : `{t:'hello', id, active,
-activePath, visuals, tools, source}`, `{t:'audio', level, low, mid, high, onset, tone, dbg}`, `{t:'active', visual, path}`,
-`{t:'source', on}`. Les jetons sont des HMAC-SHA256 de `SESSION_SECRET` : le serveur ne stocke rien.
+activePath, visuals, tools, source, screens, createdAt, switches}`, `{t:'audio', level, low, mid, high, onset, tone, dbg}`
+(écrans seulement), `{t:'active', visual, path}`, `{t:'source', on}`, `{t:'screens', n}` (écrans et source). Les jetons sont des HMAC-SHA256 de `SESSION_SECRET` : le serveur ne stocke rien.
 
 ## Pages et scènes
 
