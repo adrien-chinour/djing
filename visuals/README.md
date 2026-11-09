@@ -11,6 +11,7 @@ visuals/
   package.json         Node ≥ 24 ; dépendances : ws, qrcode-generator
   public/              tout ce qui est servi, en ES5 (navigateur de TV ; `make check` le vérifie)
     index.html         écran : une iframe qui charge la scène active poussée par le serveur
+    home.html          accueil du mode distant : saisie du code à 4 caractères, bouton vers start.html
     start.html         page de démarrage d'une session distante (capture du son dans le navigateur)
     control.html       téléphone : un bouton par scène, jauges de calibrage
     debug.html         calibrage complet, sur ordinateur
@@ -28,7 +29,8 @@ visuals/
   <sink>` avec `stream.capture.sink=true`, sinon le micro est relié aussi), analyse le son et alimente la session
   réservée `local`. La TV ouvre `http://<ip>:8765/`, le téléphone `/control.html` (redirigé vers la page de contrôle
   signée de `local`), le terminal `make visual V=…`.
-- **Distant** (`--no-capture`, le conteneur) : `/` est `start.html`. Un visiteur partage le son d'un onglet ou de
+- **Distant** (`--no-capture`, le conteneur) : `/` est `home.html` (saisir le code d'une session pour l'afficher, ou
+  démarrer une session via `/start.html`). Un visiteur partage le son d'un onglet ou de
   l'écran (`getDisplayMedia`, Chrome ou Edge ; micro ou entrée audio en secours), son navigateur analyse le son avec
   `analysis.js` et publie les valeurs au serveur. Il obtient un lien d'écran public `/s/<id>` (4 caractères), un lien
   de contrôle signé `/c/<id>/<token>` et son QR code. Les sessions vivent en mémoire et expirent 12 h après le départ du
@@ -46,7 +48,7 @@ calibrés sur un mix réel le 2026-11-05), `--rise <dB>` (8, seuil de kick ; sur
 entre 6 et 12), `--port <n>` (8765, ou la variable `PORT`). Variable `SESSION_SECRET` : clé HMAC des liens ; générée au
 démarrage si absente, les liens de contrôle changent alors à chaque redémarrage. Variables `UMAMI_SRC`, `UMAMI_WEBSITE_ID`
 et, en option, `UMAMI_DOMAINS` : en mode `--no-capture` seulement, quand les deux premières sont définies, le serveur
-injecte la balise Umami dans `start.html` et dans l'écran (`/`, `/s/<id>`), jamais dans la page de contrôle (son URL porte
+injecte la balise Umami dans `home.html`, `start.html` et dans l'écran (`/`, `/s/<id>`), jamais dans la page de contrôle (son URL porte
 le jeton) ni dans les scènes. Elles sont posées dans l'environnement Coolify de l'instance déployée (`umami.chinour.fr`,
 `UMAMI_DOMAINS=v.chinour.fr`), pas dans l'image ni dans le dépôt : une image construite ailleurs ne compte rien, la TV en
 mode local non plus.
@@ -65,9 +67,9 @@ son que d'un **onglet** : pour un logiciel (Mixxx), passer par « entrée audio 
 
 | Route | Rôle |
 |---|---|
-| `GET /` | écran de `local` s'il existe, sinon `start.html` |
+| `GET /` | écran de `local` s'il existe, sinon `home.html` (accueil) ; `/?unknown=<code>` après un `/s/<code>` inconnu |
 | `POST /sessions` | crée une session : `id`, `screenUrl`, `controlUrl`, `controlQrUrl`, `sourceToken` ; 10 par minute et par IP, 200 vivantes |
-| `GET /s/<id>` | écran public |
+| `GET /s/<id>` | écran public ; code inconnu → 302 vers l'accueil |
 | `GET /c/<id>/<token>` | contrôle, jeton `control` |
 | `GET /qr/<id>/<jeton source>.svg` | QR code du lien de contrôle (`qrcode-generator`) |
 | `GET /visuals?s=<id>` | `{visuals, tools, active, activePath, source}` |
