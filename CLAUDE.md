@@ -11,7 +11,8 @@ Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire 
 - Visuels Ambilight dans `visuals/` : HTML + Canvas 2D ou WebGL 1 (GLSL ES 1.0, helper `gl-visual.js`) en ES5
   (navigateur de TV ; `make check` le vérifie), serveur Node 24 (`ws`, `npm install` dans `visuals/`) : capture
   PipeWire par `pw-record` en local, ou sessions distantes (`--no-capture`, analyse `analysis.js` dans le navigateur
-  du visiteur, liens signés) déployées sur Coolify par le `Dockerfile` de `visuals/`.
+  du visiteur, liens signés) déployées sur Coolify par le `Dockerfile` de `visuals/`. Pages servies dans `visuals/public/`,
+  scènes dans `visuals/public/scenes/` ; documentation : `visuals/README.md`.
 - Prose en français, code et commentaires en anglais, Conventional Commits en français (cadre du workspace).
 
 ## Règles

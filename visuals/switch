@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# switch — activate a visual on the local session of a running audio-server.js (POST /active/<name>)
+# switch — activate a visual on the local session of a running server.js (POST /active/<name>)
 # Usage: ./switch corridor | sunburst | <name>      (PORT=8765 by default)
 set -euo pipefail
 

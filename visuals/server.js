@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// audio-server.js
+// server.js
 // Single process behind the visuals. Two ways to feed it:
 //   - local (default): captures the PipeWire sink monitor (what goes to the speakers),
 //     analyses it and feeds the reserved session `local` (the TV opens http://<host>:8765/,
@@ -10,7 +10,7 @@
 //     (also as a QR code: /qr/<id>/<source token>.svg).
 // Sessions live in memory and expire after 12 h without any screen or source.
 //
-// Usage : node audio-server.js [--no-capture] [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>]
+// Usage : node server.js [--no-capture] [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>]
 //                              [--rise <dB>] [--port <n>]
 // Env   : PORT (default 8765), SESSION_SECRET (HMAC key of the links; random at startup when missing,
 //         so the links change on every restart).
@@ -29,17 +29,16 @@ const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const qrcode = require('qrcode-generator');
-const Analysis = require('./analysis');
+const Analysis = require('./public/analysis');
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const RATE     = 48000;
 const CHANNELS = 2;
 let PORT       = Number(process.env.PORT) || 8765;
-const ROOT     = __dirname;                 // the pages live next to this file
+const PUBLIC   = path.join(__dirname, 'public');          // everything served over HTTP
+const SCENES   = path.join(PUBLIC, 'scenes');             // one .html per visual
 const DEFAULT_VISUAL = 'corridor';
-const RESERVED = new Set(['index', 'start', 'control']);     // pages that can never go into the screen iframe
-const TOOLS    = new Set(['webgl-check']);                    // not visuals, but can be shown on the screen
-const HIDDEN   = new Set(['debug']);                          // desktop-only page, never offered for the screen
+const TOOLS    = new Set(['webgl-check']);                // pages of public/ that can be shown on the screen like a visual
 
 const LOCAL_ID       = 'local';
 const SESSION_TTL_MS = 12 * 3600 * 1000;    // without any screen or source
@@ -90,21 +89,25 @@ if (!SECRET) {
 
 // ── Visuals : list, validation ─────────────────────────────────────────────
 function listVisuals() {
-  return fs.readdirSync(ROOT)
+  return fs.readdirSync(SCENES)
     .filter(f => f.endsWith('.html') && !f.startsWith('.'))
     .map(f => f.slice(0, -5))
-    .filter(n => !RESERVED.has(n) && !TOOLS.has(n) && !HIDDEN.has(n))
     .sort();
 }
 
 function listTools() {
-  return [...TOOLS].filter(n => fs.existsSync(path.join(ROOT, `${n}.html`))).sort();
+  return [...TOOLS].filter(n => fs.existsSync(path.join(PUBLIC, `${n}.html`))).sort();
+}
+
+// URL of the page the screen iframe loads for a visual or a tool.
+function visualPath(name) {
+  return TOOLS.has(name) ? `/${name}.html` : `/scenes/${name}.html`;
 }
 
 // Returns an error message, or null when `name` can be shown on a screen.
 function checkVisual(name) {
-  if (!/^[a-z0-9-]+$/.test(name) || RESERVED.has(name) || HIDDEN.has(name)) return `'${name}' cannot be shown on the screen`;
-  if (!fs.existsSync(path.join(ROOT, `${name}.html`))) return `unknown visual '${name}' (available: ${listVisuals().join(', ')})`;
+  if (!/^[a-z0-9-]+$/.test(name)) return `'${name}' cannot be shown on the screen`;
+  if (!fs.existsSync(path.join(PUBLIC, visualPath(name)))) return `unknown visual '${name}' (available: ${listVisuals().join(', ')})`;
   return null;
 }
 
@@ -145,7 +148,7 @@ function touch(s) {
 }
 
 function sessionInfo(s) {
-  return { visuals: listVisuals(), tools: listTools(), active: s.active, source: s.source !== null };
+  return { visuals: listVisuals(), tools: listTools(), active: s.active, activePath: s.active && visualPath(s.active), source: s.source !== null };
 }
 
 function broadcast(s, obj) {
@@ -158,7 +161,7 @@ function setActive(s, name) {
   const err = checkVisual(name);
   if (err) return err;
   s.active = name;
-  broadcast(s, { t: 'active', visual: name });
+  broadcast(s, { t: 'active', visual: name, path: visualPath(name) });
   return null;
 }
 
@@ -183,7 +186,7 @@ function send(res, code, body, type, extra) {
 function sendJson(res, code, obj) { send(res, code, JSON.stringify(obj), 'application/json'); }
 
 function sendPage(res, name) {
-  fs.readFile(path.join(ROOT, name), (e, data) => {
+  fs.readFile(path.join(PUBLIC, name), (e, data) => {
     if (e) return send(res, 404, 'not found');
     send(res, 200, data, MIME['.html']);
   });
@@ -303,18 +306,18 @@ const server = http.createServer((req, res) => {
       try { report = JSON.parse(body.toString('utf8')); } catch (e) { return send(res, 400, 'invalid JSON'); }
       const line = JSON.stringify(Object.assign({ at: new Date().toISOString(), from: clientIp(req) }, report));
       console.log('\n[report] ' + line);
-      if (CAPTURE) fs.appendFileSync(path.join(ROOT, 'reports.jsonl'), line + '\n');   // the container has no writable folder
+      if (CAPTURE) fs.appendFileSync(path.join(__dirname, 'reports.jsonl'), line + '\n');   // the container has no writable folder
       send(res, 200, 'ok');
     });
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
 
-  // Static: only top-level .html/.js files of this folder (no node_modules, no dotfiles).
+  // Static: .html/.js files of public/ and public/scenes/ only (no dotfiles, no traversal).
   const name = decodeURIComponent(p.slice(1));
   const ext = path.extname(name);
-  if (name.includes('/') || name.startsWith('.') || !MIME[ext]) return send(res, 404, 'not found');
-  fs.readFile(path.join(ROOT, name), (e, data) => {
+  if (!/^(scenes\/)?[A-Za-z0-9_-]+\.(html|js)$/.test(name) || !MIME[ext]) return send(res, 404, 'not found');
+  fs.readFile(path.join(PUBLIC, name), (e, data) => {
     if (e) return send(res, 404, 'not found');
     send(res, 200, data, MIME[ext]);
   });

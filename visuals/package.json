@@ -2,9 +2,9 @@
   "name": "djing-visuals",
   "version": "1.0.0",
   "description": "Ambilight visuals for djing: sound analysis (PipeWire or browser), sessions and screen pages",
-  "main": "audio-server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node audio-server.js --no-capture"
+    "start": "node server.js --no-capture"
   },
   "keywords": [],
   "author": "",

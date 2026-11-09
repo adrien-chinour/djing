@@ -9,10 +9,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
-COPY *.js *.html ./
+COPY server.js ./
+COPY public ./public
 
 USER node
 EXPOSE 8765
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8765/healthz || exit 1
-CMD ["node", "audio-server.js", "--no-capture"]
+CMD ["node", "server.js", "--no-capture"]
