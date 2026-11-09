@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-image visuals-lint-docker
+.PHONY: web check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-image visuals-lint-docker
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -9,6 +9,7 @@ check: ## Lint scripts and validate the mapping files
 	shellcheck visuals/switch
 	bash -n visuals/switch
 	node --check visuals/server.js visuals/public/*.js
+	node --check web/*.js
 	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)
 	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/public/*.html visuals/public/scenes/*.html visuals/public/*.js || { echo 'ES5 only in TV files'; exit 1; }
 
@@ -64,3 +65,6 @@ visuals-lint-docker: ## Visuals: lint the Dockerfile with hadolint (Docker)
 visuals-image: ## Visuals: build the remote image and run it on port 8765 (SECRET=... for stable links)
 	docker build -t djing-visuals visuals
 	docker run --rm -p 8765:8765 -e SESSION_SECRET="$(SECRET)" djing-visuals
+
+web: ## Web DJ proof of concept on http://localhost:8800 (open in Chrome; localhost is needed for Web MIDI)
+	python3 -m http.server 8800 --bind 127.0.0.1 --directory web

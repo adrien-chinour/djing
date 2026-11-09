@@ -213,6 +213,12 @@ make visuals                 # serveur local (Ctrl-C pour arrêter)
 make visual V=sunburst       # bascule la TV depuis le terminal
 ```
 
+## Logiciel web (`web/`, POC)
+
+Preuve de concept d'un logiciel de mix dans Chrome, sans Mixxx : Web MIDI pour la platine, Web Audio pour le
+son, MAIN sur les canaux 1-2 et casque sur 3-4. `make web`, puis <http://localhost:8800>. Détails et limites :
+`web/README.md`.
+
 ## Utilisation
 
 - Brancher la platine **avant** de lancer Mixxx. Enceintes sur MAIN (RCA), casque sur le jack de façade.

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>djing web</title>
+<style>
+  :root { --bg: #111317; --panel: #1b1e24; --line: #2c313a; --text: #e6e8eb; --dim: #8a929e; --a: #4fb3ff; --b: #ff8a4f; --ok: #5ad17a; --warn: #ffcc4d; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  .pill { padding: 3px 10px; border-radius: 99px; background: var(--panel); color: var(--dim); }
+  .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
+  button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.on { border-color: var(--ok); color: var(--ok); }
+  main { display: grid; grid-template-columns: 1fr 180px 1fr; gap: 12px; padding: 16px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  .deck, .mixer { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .deck[data-deck="0"] { --accent: var(--a); } .deck[data-deck="1"] { --accent: var(--b); }
+  .deck h2 { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
+  .name { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.4em; }
+  canvas { width: 100%; height: 70px; display: block; background: #0c0e11; border-radius: 6px; margin: 8px 0; cursor: pointer; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  .time { font-variant-numeric: tabular-nums; color: var(--dim); }
+  label { display: flex; align-items: center; gap: 6px; color: var(--dim); }
+  input[type=range] { accent-color: var(--accent, var(--text)); }
+  .knobs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .knobs label { flex-direction: column; font-size: 11px; }
+  .knobs input { width: 100%; }
+  .mixer { display: flex; flex-direction: column; gap: 10px; }
+  .mixer h2 { margin: 0; font-size: 14px; }
+  #log { margin: 0 16px 16px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; height: 120px; overflow: auto; font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre; }
+  .drop { outline: 2px dashed var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>djing web · POC</h1>
+  <button id="start">Démarrer l'audio</button>
+  <select id="device" disabled><option>Sortie : défaut</option></select>
+  <button id="labels" title="Chrome ne donne le nom des sorties qu'après une autorisation micro">Noms des sorties</button>
+  <span id="out" class="pill">sortie : —</span>
+  <span id="midi" class="pill">MIDI : —</span>
+  <button id="toneMain">Bip MAIN (1-2)</button>
+  <button id="toneCue">Bip casque (3-4)</button>
+</header>
+
+<main>
+  <section class="deck" data-deck="0"></section>
+  <section class="mixer">
+    <h2>Mixer</h2>
+    <label>Crossfader <input id="xfader" type="range" min="0" max="1" step="0.001" value="0.5"></label>
+    <label>Casque <input id="cueVol" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label>Master <input id="mainVol" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label><input id="rateInvert" type="checkbox" checked> pitch inversé</label>
+  </section>
+  <section class="deck" data-deck="1"></section>
+</main>
+
+<div id="log"></div>
+
+<template id="deckTpl">
+  <h2></h2>
+  <div class="name">Glisser un fichier ici ou</div>
+  <input type="file" accept="audio/*">
+  <canvas width="1000" height="140"></canvas>
+  <div class="row">
+    <button data-act="cue">CUE</button>
+    <button data-act="play">PLAY</button>
+    <button data-act="pfl">🎧 PFL</button>
+    <span class="time">0:00.0 / 0:00</span>
+    <span class="time rate">±0.00 %</span>
+  </div>
+  <div class="knobs">
+    <label>Gain<input data-knob="gain" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <label>High<input data-knob="high" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <label>Mid<input data-knob="mid" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <label>Low<input data-knob="low" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <label>Filtre<input data-knob="filter" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+  </div>
+  <div class="row">
+    <label>Volume <input data-knob="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label>Pitch <input data-knob="rate" type="range" min="-1" max="1" step="0.001" value="0"></label>
+  </div>
+</template>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
