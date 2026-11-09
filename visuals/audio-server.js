@@ -9,14 +9,7 @@
 //
 // Usage : node audio-server.js [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>] [--rise <dB>] [--port <n>]
 //
-// Message (≈47 per second, raw values — smoothing is the visual's job):
-//   level  0-1  perceived loudness (full band, dB scale, bounded auto-gain)
-//   low    0-1  40-120 Hz   (kick / sub)
-//   mid    0-1  250-2000 Hz (voices, synths)
-//   high   0-1  4-12 kHz    (hats, cymbals)
-//   onset  0-1  strength of a kick (rise of the low band) on this hop, 0 otherwise
-//   tone   0-1  spectral balance : 1 = bass-heavy (warm), 0 = treble-heavy (cold)
-//   dbg    raw dB values, auto-gain references, low-band rise and threshold (for debug.html)
+// Message format and analysis: analysis.js (shared with the browser).
 
 'use strict';
 
@@ -25,12 +18,11 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const Analysis = require('./analysis');
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const RATE     = 48000;
 const CHANNELS = 2;
-const FFTSIZE  = 4096;    // ≈11.7 Hz per bin → usable bass resolution
-const HOP      = 1024;    // new analysis every ≈21 ms → low latency despite large window
 let PORT       = 8765;
 const ROOT     = __dirname;                 // the pages live next to this file
 const DEFAULT_VISUAL = 'corridor';
@@ -68,8 +60,6 @@ if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0 
   process.exit(2);
 }
 
-const HOP_S  = HOP / RATE;
-const BIN_HZ = RATE / FFTSIZE;
 
 // ── Visuals : list, active one, activation ─────────────────────────────────
 function listVisuals() {
@@ -165,100 +155,6 @@ function broadcast(obj) {
   for (const ws of wss.clients) if (ws.readyState === 1) ws.send(msg);
 }
 
-// ── FFT (radix-2, in place) with precomputed twiddles ─────────────────────
-const twRe = new Float32Array(FFTSIZE / 2);
-const twIm = new Float32Array(FFTSIZE / 2);
-for (let k = 0; k < FFTSIZE / 2; k++) {
-  twRe[k] = Math.cos(-2 * Math.PI * k / FFTSIZE);
-  twIm[k] = Math.sin(-2 * Math.PI * k / FFTSIZE);
-}
-
-function fft(re, im) {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i++) {
-    let bit = n >> 1;
-    for (; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if (i < j) {
-      let t = re[i]; re[i] = re[j]; re[j] = t;
-      t = im[i]; im[i] = im[j]; im[j] = t;
-    }
-  }
-  for (let len = 2; len <= n; len <<= 1) {
-    const half = len >> 1, step = n / len;
-    for (let i = 0; i < n; i += len) {
-      for (let j = 0; j < half; j++) {
-        const wr = twRe[j * step], wi = twIm[j * step];
-        const a = i + j, b = a + half;
-        const vr = re[b] * wr - im[b] * wi;
-        const vi = re[b] * wi + im[b] * wr;
-        re[b] = re[a] - vr; im[b] = im[a] - vi;
-        re[a] += vr;        im[a] += vi;
-      }
-    }
-  }
-}
-
-const hann = new Float32Array(FFTSIZE);
-for (let k = 0; k < FFTSIZE; k++) hann[k] = 0.5 * (1 - Math.cos(2 * Math.PI * k / (FFTSIZE - 1)));
-// Scale so that a full-scale sine reads ≈ 0 dBFS (Hann coherent gain 0.5, single-sided ×2)
-const MAG_SCALE = 4 / FFTSIZE;
-const HANN_ENBW = 1.5;
-
-// ── Bands ──────────────────────────────────────────────────────────────────
-function bins(loHz, hiHz) {
-  return [Math.max(1, Math.round(loHz / BIN_HZ)), Math.min(FFTSIZE / 2 - 1, Math.round(hiHz / BIN_HZ))];
-}
-const BANDS = {
-  full: bins(30,   16000),
-  low:  bins(40,   120),
-  mid:  bins(250,  2000),
-  high: bins(4000, 12000),
-};
-
-function bandDb(power, [lo, hi]) {
-  let sum = 0;
-  for (let k = lo; k <= hi; k++) sum += power[k];
-  return 10 * Math.log10(sum / HANN_ENBW + 1e-12);
-}
-
-// ── Bounded auto-gain, one per band ───────────────────────────────────────
-const ref = { full: MIN_REF_DB, low: MIN_REF_DB, mid: MIN_REF_DB, high: MIN_REF_DB };
-
-function toLevel(name, db) {
-  ref[name] = Math.max(MIN_REF_DB, ref[name] - REF_RELEASE_DB_PER_S * HOP_S, db);
-  const floor = ref[name] - RANGE_DB;
-  return Math.min(1, Math.max(0, (db - floor) / RANGE_DB));
-}
-
-// ── Kick detection : rise of the low band over the last few hops ──────────
-// The 40-120 Hz level drops between kicks and jumps back on each one; the jump
-// is what we detect, so a regular pattern never becomes "normal" and a loud
-// shock does not raise any threshold. No look-ahead: fires on the first hop
-// where the rise exceeds RISE_DB.
-const RISE_HOPS = 3;                // ≈64 ms of look-back
-const lowHist = new Float32Array(RISE_HOPS).fill(-120);
-let lowCount = 0;
-const REFRACTORY_S = 0.15;
-let lastOnsetT = -1;
-let t = 0;
-
-function detectOnset(lowDb) {
-  let prevMin = Infinity;
-  for (let i = 0; i < RISE_HOPS; i++) prevMin = Math.min(prevMin, lowHist[i]);
-  lowHist[lowCount++ % RISE_HOPS] = lowDb;
-  const rise = lowDb - prevMin;
-
-  let onset = 0;
-  // Gate on absolute level (silence floor), not on the auto-gained level.
-  const audible = lowDb > MIN_REF_DB - RANGE_DB;
-  if (lowCount > RISE_HOPS && rise > RISE_DB && audible && (t - lastOnsetT) > REFRACTORY_S) {
-    onset = Math.min(1, 0.4 + (rise - RISE_DB) / 16);
-    lastOnsetT = t;
-  }
-  return { onset, rise };
-}
-
 // ── Capture ────────────────────────────────────────────────────────────────
 // stream.capture.sink=true makes PipeWire link the sink monitor (speakers),
 // not the microphone.
@@ -272,81 +168,33 @@ proc.on('error', e => { console.error('pw-record:', e.message); process.exit(1);
 proc.stderr.on('data', d => process.stderr.write('[pw-record] ' + d));
 proc.on('exit', code => { console.error('\npw-record exited with code', code); process.exit(1); });
 
-const ring = new Float32Array(FFTSIZE);   // circular buffer of the last FFTSIZE mono samples
-let ringPos = 0;                            // next write index (= oldest sample)
-let pendingHop = 0;                         // samples received since last analysis
-let leftover = Buffer.alloc(0);
-const FRAME_BYTES = 2 * CHANNELS;
-
-const re = new Float32Array(FFTSIZE);
-const im = new Float32Array(FFTSIZE);
-const power = new Float32Array(FFTSIZE / 2);
-const logMag = new Float32Array(FFTSIZE / 2);
-
-function analyse() {
-  for (let i = 0; i < FFTSIZE; i++) {
-    re[i] = ring[(ringPos + i) % FFTSIZE] * hann[i];   // oldest → newest
-    im[i] = 0;
-  }
-  fft(re, im);
-  for (let k = 0; k < FFTSIZE / 2; k++) {
-    const m = Math.hypot(re[k], im[k]) * MAG_SCALE;
-    power[k] = m * m;
-    logMag[k] = Math.max(-120, 20 * Math.log10(m + 1e-9));
-  }
-
-  const db = {
-    full: bandDb(power, BANDS.full),
-    low:  bandDb(power, BANDS.low),
-    mid:  bandDb(power, BANDS.mid),
-    high: bandDb(power, BANDS.high),
-  };
-  const level = toLevel('full', db.full);
-  const low   = toLevel('low',  db.low);
-  const mid   = toLevel('mid',  db.mid);
-  const high  = toLevel('high', db.high);
-
-  const { onset, rise } = detectOnset(db.low);
-
-  // Balance between bands, each already auto-gained → a track that is
-  // naturally bass-heavy does not stay red forever. Neutral 0.5 when silent.
-  const sum  = low + mid + high;
-  const tone = sum > 0.05 ? (low * 1 + mid * 0.5) / sum : 0.5;
-
-  t += HOP_S;
-
-  const r3 = v => Math.round(v * 1000) / 1000;
-  const r1 = v => Math.round(v * 10) / 10;
-  broadcast({
-    level: r3(level), low: r3(low), mid: r3(mid), high: r3(high),
-    onset: r3(onset), tone: r3(tone),
-    dbg: {
-      db:  { full: r1(db.full), low: r1(db.low), mid: r1(db.mid), high: r1(db.high) },
-      ref: { full: r1(ref.full), low: r1(ref.low), mid: r1(ref.mid), high: r1(ref.high) },
-      rise: r1(rise), thr: RISE_DB, range: RANGE_DB, minRef: MIN_REF_DB,
-    },
-  });
-
-  if (lowCount % 12 === 0 || onset > 0) {
+// pw-record gives s16 interleaved stereo; the analyser wants mono floats in [-1, 1].
+const analyser = Analysis.create({ rate: RATE, minRefDb: MIN_REF_DB, rangeDb: RANGE_DB, riseDb: RISE_DB }, onFeatures);
+let hops = 0;
+function onFeatures(f) {
+  broadcast(f);
+  if (++hops % 12 === 0 || f.onset > 0) {
     process.stdout.write(
-      `\rlevel=${level.toFixed(2)} low=${low.toFixed(2)} mid=${mid.toFixed(2)} high=${high.toFixed(2)} ` +
-      `tone=${tone.toFixed(2)} onset=${onset ? onset.toFixed(2) : '  - '} ` +
-      `| dB full=${db.full.toFixed(0)} low=${db.low.toFixed(0)} | clients=${wss.clients.size}   `
+      `\rlevel=${f.level.toFixed(2)} low=${f.low.toFixed(2)} mid=${f.mid.toFixed(2)} high=${f.high.toFixed(2)} ` +
+      `tone=${f.tone.toFixed(2)} onset=${f.onset ? f.onset.toFixed(2) : '  - '} ` +
+      `| dB full=${f.dbg.db.full.toFixed(0)} low=${f.dbg.db.low.toFixed(0)} | clients=${wss.clients.size}   `
     );
   }
 }
 
+let leftover = Buffer.alloc(0);
+const FRAME_BYTES = 2 * CHANNELS;
 proc.stdout.on('data', chunk => {
   const buf = leftover.length ? Buffer.concat([leftover, chunk]) : chunk;
   const frames = Math.floor(buf.length / FRAME_BYTES);
+  const mono = new Float32Array(frames);
   for (let f = 0; f < frames; f++) {
     const o = f * FRAME_BYTES;
     const L = buf.readInt16LE(o);
     const R = CHANNELS > 1 ? buf.readInt16LE(o + 2) : L;
-    ring[ringPos] = (L + R) / 65536;
-    ringPos = (ringPos + 1) % FFTSIZE;
-    if (++pendingHop >= HOP) { pendingHop = 0; analyse(); }
+    mono[f] = (L + R) / 65536;
   }
+  analyser.push(mono);
   leftover = buf.subarray(frames * FRAME_BYTES);
 });
 
