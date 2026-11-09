@@ -16,6 +16,7 @@ visuals/
     control.html       téléphone : un bouton par scène, jauges de calibrage
     debug.html         calibrage complet, sur ordinateur
     webgl-check.html   sonde WebGL de la TV (outil affichable sur l'écran, POST /report)
+    style.css          feuille de style commune à home, start, control et debug (les scènes ne l'utilisent pas)
     audio-client.js    partagé par les scènes : WebSocket, lissage, punch/hit, simulation 160 BPM
     gl-visual.js       moteur WebGL 1 commun aux scènes en shader
     analysis.js        analyse du son, le même code dans Node et dans le navigateur
@@ -77,7 +78,7 @@ son que d'un **onglet** : pour un logiciel (Mixxx), passer par « entrée audio 
 | `POST /active/<nom>` | raccourci réseau local sur `local` (`switch`) |
 | `POST /report` | rapport de `webgl-check.html` ; écrit `reports.jsonl` en mode local |
 | `GET /healthz` | `{ok, sessions}` |
-| statique | `public/*.html`, `public/*.js`, `public/scenes/*.html` |
+| statique | `public/*.html`, `public/*.js`, `public/*.css`, `public/scenes/*.html` |
 
 WebSocket `/ws?s=<id>&r=screen` (lecture seule, sans jeton) ou `/ws?s=<id>&r=source&t=<jeton>` (une source par session,
 la dernière connexion remplace la précédente, 100 messages/s au plus). Serveur → client : `{t:'hello', id, active,

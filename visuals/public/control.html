@@ -4,57 +4,54 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>VISUELS</title>
+<title>Visuels · contrôle</title>
+<link rel="stylesheet" href="/style.css?v=1">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #0b0b10; color: #ddd; font: 16px/1.4 system-ui, sans-serif; }
-  body { padding: 24px 16px; max-width: 480px; margin: 0 auto; }
-  h1 { font-size: 13px; letter-spacing: .3em; color: #888; margin-bottom: 18px; }
-  #status { font-size: 13px; color: #888; margin-bottom: 18px; }
-  #status.live { color: #3f6; }
-  button { display: block; width: 100%; padding: 22px; margin: 10px 0; font: inherit; font-size: 20px;
-           letter-spacing: .1em; text-transform: uppercase; color: #ddd; background: #1a1a24;
-           border: 2px solid #2a2a3a; border-radius: 8px; }
-  button.active { border-color: #7af; color: #fff; background: #1d2440; }
-  button:active { background: #2a2a3a; }
-  .hint { margin-top: 24px; font-size: 13px; color: #666; }
-  h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin: 28px 0 6px; }
-  .tool { padding: 12px; font-size: 14px; color: #999; }
-  .meter { display: grid; grid-template-columns: 44px 1fr 92px; align-items: center; gap: 8px; margin: 6px 0;
-           font: 13px ui-monospace, monospace; color: #999; }
-  .bar { position: relative; height: 16px; background: #1a1a24; border-radius: 3px; overflow: hidden; }
-  .raw, .smooth { position: absolute; left: 0; top: 0; bottom: 0; }
-  .raw { background: #3a3a55; } .smooth { background: #7af; opacity: .85; }
-  #onset { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #222; vertical-align: middle; }
-  #floor { font-size: 12px; color: #666; margin-top: 6px; }
-  #screen { font: 13px ui-monospace, monospace; color: #7af; word-break: break-all; margin-bottom: 18px; }
-  #error { color: #f66; font-size: 13px; }
+  #screen { margin: -6px 0 18px; }
+  #screen a { font: 15px ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-decoration: none; }
+  #tools { margin-top: 18px; }
+  #floor { margin-top: 8px; }
 </style>
 </head>
 <body>
-<h1>VISUELS</h1>
+<header class="brand"><a class="mark" href="/">visuels<b>.</b></a><span class="where">contrôle</span></header>
+<div id="trait" class="trait"><i id="traitBar"></i></div>
+
 <div id="screen"></div>
-<div id="status">connexion…</div>
-<div id="error"></div>
-<div id="list"></div>
-<h2>CALIBRAGE</h2>
-<div id="meters"></div>
-<div class="meter"><div>onset</div><div><span id="onset"></span> <span id="onsetCount"></span></div><div></div></div>
-<div id="floor"></div>
-<h2>OUTILS</h2>
-<div id="tools"></div>
-<p class="hint">L'écran bascule aussitôt. Un outil s'affiche sur l'écran à la place du visuel. Barre sombre : valeur brute ; barre bleue : valeur lissée vue par les visuels. <a id="debug" href="/debug.html" style="color:#7af">Page de calibrage complète</a> (ordinateur).</p>
+<div id="status" class="status">connexion…</div>
+<div id="error" class="error"></div>
+
+<section class="card">
+  <h2>Scène affichée</h2>
+  <div id="list" class="scenes"></div>
+  <div id="tools" class="scenes"></div>
+  <small>L'écran bascule aussitôt. Un outil remplace la scène le temps de l'afficher.</small>
+</section>
+
+<section class="card">
+  <h2>Calibrage</h2>
+  <div id="meters"></div>
+  <div class="meter"><div>kick</div><div><span id="onset" class="lamp"></span><span id="onsetCount"></span></div><div></div></div>
+  <small id="floor"></small>
+  <small>Barre sombre : valeur brute. Barre claire : valeur lissée, celle que voient les scènes.
+  <a id="debug" href="/debug.html">Calibrage complet</a> sur ordinateur.</small>
+</section>
+
 <script src="/audio-client.js?v=4"></script>
 <script>
 !function () {
   var list = document.getElementById('list'), tools = document.getElementById('tools'), status = document.getElementById('status');
   var screenEl = document.getElementById('screen'), errorEl = document.getElementById('error');
+  var trait = document.getElementById('trait'), traitBar = document.getElementById('traitBar');
   var known = '', active = null, sourceOn = null;
 
   // Served at /c/<id>/<token>: the token signs every switch.
   var m = /^\/c\/([0-9a-z]+)\/([^/]+)$/.exec(location.pathname);
   var session = m ? m[1] : AudioFeed.session, token = m ? m[2] : '';
-  if (session !== 'local') screenEl.textContent = 'écran : ' + location.origin + '/s/' + session;
+  if (session !== 'local') {
+    var url = location.origin + '/s/' + session;
+    screenEl.innerHTML = 'Écran : <a href="' + url + '" target="_blank" rel="noopener">' + url + '</a>';
+  }
   document.getElementById('debug').href = '/debug.html?s=' + session;
 
   function button(name, cls) {
@@ -66,7 +63,7 @@
         method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
       }).then(function (r) {
         if (r.ok) { errorEl.textContent = ''; return refresh(); }
-        return r.text().then(function (t) { errorEl.textContent = r.status + ' : ' + t; });
+        return r.text().then(function (t) { errorEl.textContent = (r.status === 403 ? 'Ce lien de contrôle n\'est plus valable. ' : '') + r.status + ' : ' + t; });
       });
     };
     return b;
@@ -111,21 +108,23 @@
     var now = Date.now(), dt = Math.min(0.1, (now - lastTick) / 1000);
     lastTick = now;
     var s = AudioFeed.update(dt), raw = s.raw, dbg = raw && raw.dbg;
-    if (s.live) status.textContent = 'son en direct · niveau ' + Math.round(s.level * 100) + ' %';
-    else if (sourceOn === false) status.textContent = 'aucune source : la page de capture est fermée · simulation 160 BPM';
-    else status.textContent = 'pas de son du serveur : simulation 160 BPM';
-    status.className = s.live ? 'live' : '';
+    if (s.live) status.textContent = 'Son en direct · niveau ' + Math.round(s.level * 100) + ' %';
+    else if (sourceOn === false) status.textContent = 'Aucune source : la page de capture est fermée. Simulation à 160 BPM.';
+    else status.textContent = 'Pas de son reçu du serveur. Simulation à 160 BPM.';
+    status.className = s.live ? 'status live' : 'status';
+    traitBar.style.width = (s.level * 100) + '%';
+    trait.className = s.live ? (s.punch > 0.5 ? 'trait hit' : 'trait') : 'trait idle';
     BANDS.forEach(function (name) {
-      var m = meters[name];
-      m.raw.style.width = (raw ? raw[name] * 100 : 0) + '%';
-      m.smooth.style.width = (s[name] * 100) + '%';
+      var mm = meters[name];
+      mm.raw.style.width = (raw ? raw[name] * 100 : 0) + '%';
+      mm.smooth.style.width = (s[name] * 100) + '%';
       var full = name === 'level' ? 'full' : name;
-      m.num.textContent = dbg ? dbg.db[full].toFixed(0) + ' dB / ref ' + dbg.ref[full].toFixed(0) : s[name].toFixed(2);
+      mm.num.textContent = dbg ? dbg.db[full].toFixed(0) + ' dB / ref ' + dbg.ref[full].toFixed(0) : s[name].toFixed(2);
     });
     if (s.hit > 0) { onsetCount++; onsetEl.style.background = '#fff'; }
-    else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,255,255,' + s.punch + ')' : '#222';
-    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr : '');
-    floorEl.textContent = dbg ? 'plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ')' : '';
+    else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,210,138,' + s.punch + ')' : '';
+    onsetCountEl.textContent = onsetCount + ' kicks' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr : '');
+    floorEl.textContent = dbg ? 'Plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ').' : '';
     requestAnimationFrame(tick);
   }
 

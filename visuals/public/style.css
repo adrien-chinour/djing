@@ -1,0 +1,110 @@
+/* style.css — shared by the pages of the remote mode and the phone (home, start, control, debug).
+   Night-violet room, warm ink, one amber spotlight. Scenes do not use it. */
+
+:root {
+  --bg: #15132b;        /* room */
+  --bg-2: #1c1a36;      /* card */
+  --line: #2d2a52;      /* borders, idle bars */
+  --line-2: #38346a;    /* hover */
+  --ink: #f2ede4;       /* warm text */
+  --ink-2: #a7a1c6;     /* secondary text */
+  --mute: #6f6a8f;      /* hints, idle status */
+  --amber: #ffb454;     /* the spotlight: actions, active scene, kicks */
+  --amber-2: #ffd28a;
+  --signal: #7fd8ea;    /* live sound */
+  --alert: #ff7a7a;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); color: var(--ink); -webkit-text-size-adjust: 100%;
+       font: 16px/1.5 "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+body { max-width: 38rem; margin: 0 auto; padding: 24px 20px 56px; }
+a { color: var(--amber); }
+::selection { background: var(--amber); color: #1b1500; }
+
+/* ── Brand strip: name on the left, page on the right, then the sound trait ─── */
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand .mark { font-size: 18px; font-weight: 700; color: var(--ink); text-decoration: none; letter-spacing: .01em; }
+.brand .mark b { color: var(--amber); font-weight: 700; }
+.brand .where { color: var(--mute); font-size: 14px; }
+/* The trait under the brand: width follows the sound level, amber on a kick. Pages without
+   sound keep it as a thin idle line. */
+.trait { height: 3px; margin: 10px 0 30px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.trait > i { display: block; height: 100%; width: 0; background: var(--signal); }
+.trait.hit > i { background: var(--amber-2); }
+.trait.idle > i { width: 18%; background: var(--line-2); }
+
+h1 { font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; margin-bottom: 10px; }
+h2 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+p { color: var(--ink-2); margin: 8px 0; }
+p.lead { color: var(--ink); font-size: 17px; }
+small, .hint { display: block; color: var(--mute); font-size: 14px; line-height: 1.45; margin-top: 10px; }
+.hint b { color: var(--ink-2); font-weight: 600; }
+code { font: 14px ui-monospace, Menlo, Consolas, monospace; color: var(--ink-2); }
+
+.card { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin: 18px 0; }
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+button, .button {
+  display: inline-block; font: inherit; font-weight: 600; text-align: center; text-decoration: none;
+  color: var(--ink); background: var(--line); border: 1px solid transparent; border-radius: var(--radius);
+  padding: 14px 18px; cursor: pointer;
+}
+button:hover, .button:hover { background: var(--line-2); }
+.primary, button.primary { background: var(--amber); color: #1b1500; border-color: var(--amber); }
+.primary:hover, button.primary:hover { background: var(--amber-2); }
+.block { display: block; width: 100%; }
+.quiet { background: transparent; border-color: var(--line); color: var(--ink-2); font-weight: 500; font-size: 14px; padding: 9px 12px; }
+.quiet:hover { background: var(--bg-2); color: var(--ink); }
+button:disabled, button:disabled:hover { opacity: .45; cursor: default; background: var(--line); color: var(--ink); }
+button.primary:disabled { background: var(--amber); color: #1b1500; }
+button:focus-visible, .button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--amber); outline-offset: 2px;
+}
+select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+         border-radius: var(--radius); padding: 12px; margin: 10px 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > * { flex: 1 1 12rem; }
+
+/* The session code: four wide cells, the one big thing on the home page. */
+input.code {
+  display: block; width: 100%; padding: 18px 0; text-align: center; text-transform: lowercase;
+  font: 600 44px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .55em; text-indent: .55em;
+  color: var(--ink); caret-color: var(--amber); background: var(--bg);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+input.code::placeholder { color: var(--line-2); }
+
+.error { color: var(--alert); font-size: 14px; min-height: 1.45em; margin-top: 10px; }
+.status { color: var(--mute); font-size: 14px; font-variant-numeric: tabular-nums; margin: 12px 0 0; }
+.status.live { color: var(--signal); }
+
+/* ── Links to hand out ─────────────────────────────────────────────────────── */
+.handout h2 { margin-bottom: 4px; }
+.handout .url { display: block; margin: 4px 0 8px; font: 15px/1.4 ui-monospace, Menlo, Consolas, monospace;
+                color: var(--amber); text-decoration: none; word-break: break-all; }
+.handout .url:hover { text-decoration: underline; }
+.qr { display: block; width: 176px; height: 176px; margin: 14px 0 4px; padding: 6px; background: #fff; border-radius: 8px; }
+
+/* ── Meters (control, debug) ───────────────────────────────────────────────── */
+.meter { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 10px; align-items: center; margin: 8px 0;
+         font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.meter .bar { position: relative; height: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.meter .raw, .meter .smooth { position: absolute; left: 0; top: 0; bottom: 0; }
+.meter .raw { background: var(--line-2); }
+.meter .smooth { background: var(--signal); opacity: .9; }
+.meter .num { color: var(--mute); font: 13px ui-monospace, Menlo, Consolas, monospace; white-space: pre; }
+.lamp { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--line); vertical-align: -2px; margin-right: 6px; }
+
+/* ── Scene grid (control) ──────────────────────────────────────────────────── */
+.scenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr)); gap: 10px; }
+.scenes button { padding: 20px 8px; font-size: 17px; overflow: hidden; text-overflow: ellipsis; }
+.scenes button.active { background: var(--amber); color: #1b1500; }
+.scenes button.tool { background: transparent; border-color: var(--line); color: var(--ink-2); font-weight: 500; }
+.scenes button.tool.active { background: var(--amber); color: #1b1500; border-color: var(--amber); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .trait > i, .meter .raw, .meter .smooth { transition: width 60ms linear; }
+  button, .button { transition: background-color 120ms ease; }
+}
