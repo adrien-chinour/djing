@@ -1,6 +1,7 @@
 // audio-client.js — shared by the visuals.
-// Connects to audio-server.js and exposes smoothed, ready-to-use values.
-// Falls back to a 160 BPM simulation when the server is unreachable.
+// Connects to audio-server.js (session taken from ?s=<id>, from /s/<id> or /c/<id>/..., else local)
+// and exposes smoothed, ready-to-use values.
+// Falls back to a 160 BPM simulation when no audio arrives.
 //
 //   AudioFeed.update(dt)  call once per frame, returns the state below
 //   state.live            true when real audio is flowing
@@ -9,6 +10,8 @@
 //   state.punch           0-1, jumps on each attack, decays in ≈0.3 s
 //   state.hit             0.7-1 on the frame an attack arrives, 0 otherwise (to trigger one-off effects)
 //   state.raw             last raw message (debug)
+//   AudioFeed.session     session id
+//   AudioFeed.onHello(msg) / onActive(visual) / onSource(on)   optional callbacks for the screen and control pages
 (function (global) {
   var SIM_BPS = 160 / 60;
 
@@ -16,21 +19,38 @@
   var state = { live: false, level: 0, low: 0, mid: 0, high: 0, tone: 0.5, punch: 0, hit: 0, raw: null };
   var simT = 0, simLastBeat = -1;
 
+  function sessionId() {
+    var m = /[?&]s=([0-9a-z]+)/.exec(location.search);
+    if (m) return m[1];
+    m = /^\/(s|c)\/([0-9a-z]+)/.exec(location.pathname);
+    return m ? m[2] : 'local';
+  }
+  var session = sessionId();
+
   function connect() {
     var ws;
     // Served by audio-server.js itself: same host and port. Fallback for a file:// open.
     var host = location.protocol === 'file:' || !location.host ? 'localhost:8765' : location.host;
-    try { ws = new WebSocket('ws://' + host); }
+    var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    try { ws = new WebSocket(proto + host + '/ws?s=' + session + '&r=screen'); }
     catch (e) { setTimeout(connect, 3000); return; }
     ws.onmessage = function (e) {
-      raw = JSON.parse(e.data);
-      lastMsgAt = Date.now();
-      // Latch onsets: the server sends ≈47 msg/s, a frame may see several or none
-      if (raw.onset > pendingOnset) pendingOnset = raw.onset;
+      var msg = JSON.parse(e.data);
+      if (msg.t === 'audio' || (msg.t === undefined && typeof msg.level === 'number')) {
+        raw = msg;
+        lastMsgAt = Date.now();
+        // Latch onsets: the source sends ≈47 msg/s, a frame may see several or none
+        if (raw.onset > pendingOnset) pendingOnset = raw.onset;
+      } else if (msg.t === 'active') {
+        if (feed.onActive) feed.onActive(msg.visual);
+      } else if (msg.t === 'hello') {
+        if (feed.onHello) feed.onHello(msg);
+      } else if (msg.t === 'source') {
+        if (feed.onSource) feed.onSource(msg.on);
+      }
     };
     ws.onclose = function () { setTimeout(connect, 3000); };
   }
-  connect();
 
   // Frame-rate independent exponential smoothing toward target
   function follow(cur, target, dt, tauUp, tauDown) {
@@ -80,5 +100,7 @@
     return state;
   }
 
-  global.AudioFeed = { update: update, state: state };
+  var feed = { update: update, state: state, session: session, onHello: null, onActive: null, onSource: null };
+  global.AudioFeed = feed;
+  connect();
 }(window));

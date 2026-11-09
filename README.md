@@ -203,21 +203,41 @@ durée, le BPM et la tonalité renvoyés, avec correction du décalage.
 
 ## Visuels Ambilight (`visuals/`)
 
-Fond animé plein écran pour une TV Ambilight (16:10), piloté par le son qui sort de l'ordinateur, donc par le
-mix Mixxx. Un seul processus, `visuals/audio-server.js` (Node 24, dépendance `ws`, `npm install` dans `visuals/`),
-fait tout sur le port 8765 :
+Fond animé plein écran pour une TV Ambilight (16:10) ou n'importe quel écran, piloté par le son. Un seul processus,
+`visuals/audio-server.js` (Node 24, dépendance `ws`, `npm install` dans `visuals/`), fait tout sur le port 8765, en
+deux modes :
 
-- il capture le monitor PipeWire de la sortie (`pw-record --target <sink>` avec `stream.capture.sink=true`, sinon
-  le micro est relié aussi), FFT 4096 / pas 1024, et envoie en WebSocket `level`, `low`, `mid`, `high`, `onset`,
-  `tone` et `dbg` (valeurs brutes pour `debug.html`), ≈47 messages par seconde ; `onset` est un kick : la bande
-  40-120 Hz monte de plus de 8 dB en 3 pas (64 ms), réfractaire 150 ms ;
-- il sert les pages du dossier : `/` pour la TV, `/control.html` pour le téléphone (un bouton par visuel, la TV
-  bascule dans les 2 s), `/debug.html` pour le calibrage ; `GET /visuals` liste les visuels et l'actif,
-  `POST /active/<visuel>` en active un ; `active.html` est créé avec `corridor` s'il manque.
+- **local** (défaut, la TV de la maison) : il capture le monitor PipeWire de la sortie (`pw-record --target <sink>`
+  avec `stream.capture.sink=true`, sinon le micro est relié aussi), analyse le son et alimente la session réservée
+  `local` ; la TV ouvre `/`, le téléphone `/control.html`, le terminal `make visual V=…` ;
+- **distant** (`--no-capture`, le conteneur, voir « Déploiement ») : `/` est une page de démarrage ; un visiteur
+  partage le son d'un onglet ou de l'écran (`getDisplayMedia`, Chrome ou Edge ; micro ou entrée audio en secours),
+  son navigateur analyse le son avec le même code et publie les valeurs au serveur ; il obtient un lien d'écran
+  public `/s/<id>` et un lien de contrôle signé `/c/<id>/<token>`. Les sessions vivent en mémoire et expirent
+  12 h après le départ du dernier écran et de la source. L'audio ne quitte jamais le navigateur du visiteur.
 
-Options : `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>` (défauts −35
-et 20, calibrés sur un mix réel le 2026-11-05), `--rise <dB>` (8, seuil de kick : sur un mix à 156 BPM le résultat ne
-bouge pas entre 6 et 12), `--port <n>` (8765).
+L'analyse (`visuals/analysis.js`, ES5, chargé par Node et par le navigateur) : FFT 4096 / pas 1024, bandes `level`
+(30-16 000 Hz), `low` (40-120), `mid` (250-2000), `high` (4000-12 000) avec gain automatique borné, `onset` = kick (la
+bande 40-120 Hz monte de plus de 8 dB en 3 pas, 64 ms, réfractaire 150 ms), `tone` (balance grave/aigu) et `dbg`
+(valeurs brutes pour `debug.html`), ≈47 messages par seconde. Dans le navigateur, la capture passe par un
+`AudioContext` à 48 kHz et un `ScriptProcessorNode` de 1024 trames (un pas d'analyse), traitements vocaux de Chrome
+désactivés (`echoCancellation`, `noiseSuppression`, `autoGainControl`). Sous Linux, Chrome ne partage le son que d'un
+**onglet** : pour un logiciel (Mixxx), passer par le secours « entrée audio » et choisir le « Monitor of … ».
+
+Routes : `GET /` (écran de `local`, sinon `start.html`), `POST /sessions` (crée une session : `id`, `screenUrl`,
+`controlUrl`, `sourceToken` ; 10 par minute et par IP, 200 vivantes au plus), `GET /s/<id>`, `GET /c/<id>/<token>`,
+`GET /visuals?s=<id>` (visuels, outils, actif, présence d'une source), `POST /sessions/<id>/active/<visuel>` avec
+`Authorization: Bearer <token>`, `POST /active/<visuel>` (raccourci réseau local sur `local`, utilisé par `switch`),
+`POST /report` (sonde WebGL ; écrit `reports.jsonl` en mode local seulement), `GET /healthz`. WebSocket sur
+`/ws?s=<id>&r=screen` (lecture seule, sans token) ou `/ws?s=<id>&r=source&t=<token>` (une source par session, la
+dernière connexion remplace la précédente) ; le serveur envoie `{t:'hello'}`, `{t:'audio', …}`,
+`{t:'active', visual}` et `{t:'source', on}`. Les tokens sont des HMAC-SHA256 de `SESSION_SECRET` (variable
+d'environnement ; générée au démarrage si absente, les liens changent alors à chaque redémarrage) : le serveur ne
+stocke rien.
+
+Options : `--no-capture`, `--target <sink>` (la carte interne est en dur par défaut), `--min-ref <dB>`, `--range <dB>`
+(défauts −35 et 20, calibrés sur un mix réel le 2026-11-05), `--rise <dB>` (8, seuil de kick : sur un mix à 156 BPM le
+résultat ne bouge pas entre 6 et 12), `--port <n>` (8765, ou la variable `PORT`).
 
 ```sh
 make visuals                          # à la main, dans un terminal ; Ctrl-C pour arrêter
@@ -227,14 +247,15 @@ make visuals-service-remove
 make visual V=sunburst                # bascule depuis le terminal (même effet que le téléphone)
 ```
 
-Puis la TV ouvre `http://<ip de l'ordinateur>:8765/` et le téléphone `http://<ip>:8765/control.html`. Journal du
-service : `journalctl --user -u djing-visuals -f`.
+Puis la TV ouvre `http://<ip de l'ordinateur>:8765/` et le téléphone `http://<ip>:8765/control.html` (redirigé vers la
+page de contrôle signée de `local`). Journal du service : `journalctl --user -u djing-visuals -f`.
 
 Côté pages, tout est en ES5 (navigateur de TV ; `make check` refuse `let`, `const`, `class`, fonctions fléchées et
-gabarits) : `index.html` est une coquille dont l'iframe charge `active.html` et le recharge sans flash quand il
-change ; `audio-client.js`, partagé, lisse les bandes, calcule `punch` (≥ 0,7 à chaque attaque, décroissance 0,28 s)
-et `hit` (une frame par kick) et se replie sur une simulation à 160 BPM sans serveur ; le navigateur de la TV le met en
-cache, incrémenter `?v=` dans les pages à chaque modification.
+gabarits) : `index.html` est une coquille dont l'iframe charge le visuel actif poussé par le serveur, sans flash ;
+`audio-client.js`, partagé, choisit la session (`?s=`, `/s/<id>`, `/c/<id>/…`, sinon `local`), passe en `wss:` derrière
+HTTPS, lisse les bandes, calcule `punch` (≥ 0,7 à chaque attaque, décroissance 0,28 s) et `hit` (une frame par kick)
+et se replie sur une simulation à 160 BPM sans son ; le navigateur de la TV le met en cache, incrémenter `?v=` dans
+les pages à chaque modification.
 
 Visuels en Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick) et `sunburst`
 (12 rayons tournants, étoile par kick). Un visuel privé reste dans `visuals/` et se liste comme les autres, mais son
@@ -253,6 +274,26 @@ ouvrir `http://<ip>:8765/webgl-check.html` sur la TV : la page affiche le suppor
 
 La TV a `http://<ip>:8765/` en favori : pour tester une branche, arrêter le serveur en place et lancer `make visuals`
 depuis le worktree de la branche, sur le même port. `--port` sert seulement aux tests automatiques.
+
+### Déploiement (mode distant, Coolify)
+
+`visuals/Dockerfile` construit l'image du mode distant : `node:24-alpine` épinglé par digest, `npm ci --omit=dev`,
+utilisateur `node`, `HEALTHCHECK` sur `/healthz`, commande `node audio-server.js --no-capture`. Seuls les `.js` et
+`.html` suivis par git entrent dans l'image quand Coolify construit depuis GitHub : un visuel privé (`.gitignore`)
+n'est jamais publié. En local :
+
+```sh
+make visuals-lint-docker              # hadolint
+make visuals-image SECRET=$(openssl rand -hex 32)   # construit et lance sur http://localhost:8765/
+```
+
+Instance de production : `https://v.chinour.fr`, ressource Coolify de type **Dockerfile** construite depuis
+`github.com/adrien-chinour/djing` (branche `main`, répertoire de base `/visuals`, Dockerfile `/Dockerfile`, port
+`8765`, redéploiement automatique à chaque push). Variables : `SESSION_SECRET` (obligatoire, sinon les liens de
+contrôle changent à chaque redémarrage ; `openssl rand -hex 32`). Le proxy de Coolify termine le TLS et relaie les
+WebSockets sans réglage ; le serveur lit `X-Forwarded-For` (limite de création par IP) et `X-Forwarded-Proto` /
+`X-Forwarded-Host` (liens absolus renvoyés par `POST /sessions`). Vérification après déploiement :
+`curl https://v.chinour.fr/healthz`, puis une session depuis `/`.
 
 ## Utilisation
 

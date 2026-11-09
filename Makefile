@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-service visuals-service-remove
+.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-service visuals-service-remove visuals-image visuals-lint-docker
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -10,7 +10,7 @@ check: ## Lint scripts and validate the mapping files
 	bash -n visuals/switch
 	node --check visuals/*.js
 	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)
-	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/*.html visuals/audio-client.js visuals/gl-visual.js || { echo 'ES5 only in TV files'; exit 1; }
+	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/*.html visuals/audio-client.js visuals/gl-visual.js visuals/analysis.js || { echo 'ES5 only in TV files'; exit 1; }
 
 test: ## Offline checks (catalog, patterns) + loopback test of the MIDI bridge, no Mixxx needed
 	uv run python -m agent.check_offline
@@ -63,3 +63,10 @@ visuals-service: ## Visuals: run audio-server.js at login as a user systemd serv
 
 visuals-service-remove: ## Visuals: remove the user service
 	./scripts/install-visuals-service.sh remove
+
+visuals-lint-docker: ## Visuals: lint the Dockerfile with hadolint (Docker)
+	docker run --rm -i hadolint/hadolint:v2.12.0 < visuals/Dockerfile
+
+visuals-image: ## Visuals: build the remote image and run it on port 8765 (SECRET=... for stable links)
+	docker build -t djing-visuals visuals
+	docker run --rm -p 8765:8765 -e SESSION_SECRET="$(SECRET)" djing-visuals

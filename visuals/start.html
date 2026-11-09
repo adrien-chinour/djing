@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>VISUELS · DÉMARRER</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0b10; color: #ddd; font: 16px/1.5 system-ui, sans-serif; }
+  body { padding: 32px 16px; max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 13px; letter-spacing: .3em; color: #888; margin-bottom: 18px; }
+  p { color: #aaa; margin: 10px 0; }
+  button { display: block; width: 100%; padding: 20px; margin: 14px 0; font: inherit; font-size: 18px;
+           letter-spacing: .08em; text-transform: uppercase; color: #ddd; background: #1a1a24;
+           border: 2px solid #2a2a3a; border-radius: 8px; cursor: pointer; }
+  button.primary { border-color: #7af; color: #fff; background: #1d2440; }
+  button:disabled { opacity: .4; cursor: default; }
+  select { width: 100%; padding: 10px; font: inherit; color: #ddd; background: #1a1a24; border: 2px solid #2a2a3a; border-radius: 8px; }
+  .hidden { display: none; }
+  .link { margin: 14px 0; padding: 14px; background: #121219; border-radius: 8px; }
+  .link h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin-bottom: 6px; }
+  .link a { display: block; font: 15px ui-monospace, monospace; color: #7af; word-break: break-all; }
+  .link small { color: #666; }
+  .copy { display: inline-block; width: auto; padding: 6px 12px; margin: 8px 0 0; font-size: 12px; text-transform: none; letter-spacing: 0; }
+  #status { font: 13px ui-monospace, monospace; color: #888; margin-top: 18px; }
+  #status.live { color: #3f6; }
+  #error { color: #f66; font-size: 14px; margin-top: 12px; white-space: pre-wrap; }
+  .bar { height: 10px; background: #1a1a24; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .bar div { height: 100%; width: 0; background: #7af; }
+  .warn { color: #fc6; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>VISUELS</h1>
+
+<div id="setup">
+  <p>Des visuels plein écran qui réagissent au son de <strong>cet ordinateur</strong>. Le son est analysé ici, dans
+  votre navigateur ; seules quelques valeurs par seconde partent vers le serveur, jamais l'audio.</p>
+  <button id="share" class="primary">Partager le son d'un onglet ou de l'écran</button>
+  <p><small>Chrome ou Edge. Dans la fenêtre de partage, choisissez l'onglet ou l'écran qui joue la musique et cochez
+  « Partager l'audio ». Sous Linux, Chrome ne propose le son que pour un <strong>onglet</strong>.</small></p>
+  <button id="micToggle">Utiliser un micro ou une entrée audio…</button>
+  <div id="micBox" class="hidden">
+    <select id="mic"></select>
+    <button id="micStart">Démarrer avec cette entrée</button>
+  </div>
+</div>
+
+<div id="running" class="hidden">
+  <div class="link">
+    <h2>ÉCRAN</h2>
+    <a id="screenUrl" target="_blank" rel="noopener"></a>
+    <small>Lien public : à ouvrir en plein écran sur la TV, le vidéoprojecteur ou un autre onglet.</small>
+    <button class="copy" data-copy="screenUrl">Copier</button>
+  </div>
+  <div class="link">
+    <h2>CONTRÔLE</h2>
+    <a id="controlUrl" target="_blank" rel="noopener"></a>
+    <small>Lien signé : change le visuel affiché. Ne le partagez qu'à ceux qui doivent avoir la main.</small>
+    <button class="copy" data-copy="controlUrl">Copier</button>
+  </div>
+  <p class="warn">Laissez cet onglet ouvert : c'est lui qui écoute et envoie. La session dure 12 h après la fermeture de
+  tous les écrans.</p>
+  <div class="bar"><div id="level"></div></div>
+  <div id="status">démarrage…</div>
+  <button id="stop">Arrêter</button>
+</div>
+<div id="error"></div>
+
+<script src="/analysis.js?v=1"></script>
+<script>
+!function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var MIN_REF_DB = -35, RANGE_DB = 20, RISE_DB = 8;   // same defaults as the PipeWire capture
+  var stream = null, ctx = null, ws = null, session = null, stopped = false;
+  var sent = 0, sentAt = Date.now(), peakLevel = 0, connected = false;
+
+  function fail(msg) { $('error').textContent = msg; }
+
+  function constraints() {
+    // Chrome processes shared audio like a voice call unless told otherwise: music would be crushed.
+    return { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  }
+
+  // ── Capture ──────────────────────────────────────────────────────────────
+  $('share').onclick = function () {
+    fail('');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return fail('Ce navigateur ne sait pas partager le son d\'un onglet : essayez Chrome ou Edge, ou une entrée audio.');
+    // Must be the first thing in the click: the permission prompt needs the user activation.
+    navigator.mediaDevices.getDisplayMedia({ video: true, audio: constraints(), systemAudio: 'include', selfBrowserSurface: 'exclude' })
+      .then(function (s) {
+        if (s.getAudioTracks().length === 0) {
+          s.getTracks().forEach(function (t) { t.stop(); });
+          return fail('Aucune piste audio : recommencez en cochant « Partager l\'audio » dans la fenêtre de partage.');
+        }
+        start(s);
+      })
+      .catch(function (e) { fail('Partage refusé ou impossible : ' + e.message); });
+  };
+
+  $('micToggle').onclick = function () {
+    fail('');
+    var box = $('micBox');
+    if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return fail('Pas d\'accès aux entrées audio dans ce navigateur.');
+    // Ask once so that enumerateDevices returns labels, then list the inputs.
+    navigator.mediaDevices.getUserMedia({ audio: constraints() })
+      .then(function (probe) {
+        probe.getTracks().forEach(function (t) { t.stop(); });
+        return navigator.mediaDevices.enumerateDevices();
+      })
+      .then(function (devs) {
+        var sel = $('mic');
+        sel.innerHTML = '';
+        devs.filter(function (d) { return d.kind === 'audioinput'; }).forEach(function (d) {
+          var o = document.createElement('option');
+          o.value = d.deviceId;
+          o.textContent = d.label || ('Entrée ' + (sel.length + 1));
+          sel.appendChild(o);
+        });
+        box.classList.remove('hidden');
+      })
+      .catch(function (e) { fail('Accès au micro refusé : ' + e.message); });
+  };
+
+  $('micStart').onclick = function () {
+    fail('');
+    var c = constraints();
+    c.deviceId = { exact: $('mic').value };
+    navigator.mediaDevices.getUserMedia({ audio: c })
+      .then(start)
+      .catch(function (e) { fail('Entrée audio impossible : ' + e.message); });
+  };
+
+  // ── Session + analysis + publication ─────────────────────────────────────
+  function start(s) {
+    stream = s;
+    // Created inside the click handler: autoplay policies allow it to run. 48 kHz keeps the PipeWire calibration.
+    try { ctx = new AC({ sampleRate: 48000 }); } catch (e) { ctx = new AC(); }
+    fetch('/sessions', { method: 'POST' })
+      .then(function (r) { if (!r.ok) return r.text().then(function (t) { throw new Error(r.status + ' ' + t); }); return r.json(); })
+      .then(function (info) {
+        session = info;
+        $('screenUrl').textContent = info.screenUrl; $('screenUrl').href = info.screenUrl;
+        $('controlUrl').textContent = info.controlUrl; $('controlUrl').href = info.controlUrl;
+        $('setup').classList.add('hidden');
+        $('running').classList.remove('hidden');
+        wire();
+        connect();
+      })
+      .catch(function (e) {
+        s.getTracks().forEach(function (t) { t.stop(); });
+        fail('Le serveur refuse la session : ' + e.message);
+      });
+  }
+
+  function wire() {
+    var analyser = Analysis.create({ rate: ctx.sampleRate, minRefDb: MIN_REF_DB, rangeDb: RANGE_DB, riseDb: RISE_DB }, publish);
+    var src = ctx.createMediaStreamSource(stream);
+    // 1024 frames = one analysis hop; one input channel = Web Audio downmixes stereo to 0.5·(L+R).
+    var proc = ctx.createScriptProcessor(1024, 1, 1);
+    var mute = ctx.createGain();
+    mute.gain.value = 0;
+    proc.onaudioprocess = function (e) { analyser.push(e.inputBuffer.getChannelData(0)); };
+    src.connect(proc);
+    proc.connect(mute);          // a ScriptProcessor only runs when it reaches the destination…
+    mute.connect(ctx.destination);   // …but we never want to hear the music twice.
+    if (ctx.state !== 'running') ctx.resume();
+    stream.getTracks().forEach(function (t) { t.onended = function () { stop('partage arrêté'); }; });
+  }
+
+  function publish(f) {
+    if (f.level > peakLevel) peakLevel = f.level;   // peak-held one second for the meter
+    if (ws && ws.readyState === 1) { ws.send(JSON.stringify(f)); sent++; }
+  }
+
+  function connect() {
+    if (stopped) return;
+    var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    try { ws = new WebSocket(proto + location.host + '/ws?s=' + session.id + '&r=source&t=' + session.sourceToken); }
+    catch (e) { setTimeout(connect, 3000); return; }
+    ws.onopen = function () { connected = true; };
+    ws.onclose = function (e) {
+      connected = false;
+      if (stopped) return;
+      if (e.code === 4000) return stop('une autre page de capture a pris la main sur cette session');
+      setTimeout(connect, 3000);
+    };
+  }
+
+  function stop(reason) {
+    stopped = true;
+    if (ws) ws.close();
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    if (ctx) ctx.close();
+    $('status').textContent = 'arrêté : ' + (reason || 'par vous') + '. Rechargez la page pour une nouvelle session.';
+    $('status').className = '';
+    $('stop').disabled = true;
+  }
+  $('stop').onclick = function () { stop(); };
+
+  Array.prototype.forEach.call(document.querySelectorAll('.copy'), function (b) {
+    b.onclick = function () {
+      var text = $(b.getAttribute('data-copy')).textContent;
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { b.textContent = 'Copié'; });
+    };
+  });
+
+  setInterval(function () {
+    if (stopped || !session) return;
+    var now = Date.now(), rate = Math.round(sent * 1000 / (now - sentAt));
+    sent = 0; sentAt = now;
+    $('level').style.width = Math.round(peakLevel * 100) + '%';
+    peakLevel = 0;
+    $('status').textContent = (connected ? 'connecté' : 'reconnexion…') + ' · ' + rate + ' msg/s · ' + Math.round(ctx.sampleRate) + ' Hz · session ' + session.id;
+    $('status').className = connected && rate > 0 ? 'live' : '';
+  }, 1000);
+}();
+</script>
+</body>
+</html>
