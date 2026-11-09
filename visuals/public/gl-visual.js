@@ -18,8 +18,8 @@
 //           wrapped at period so that mediump GPUs (TV) keep their precision,
 //   uHitDist value of uDist at the last kick (for shock waves travelling away from the camera).
 //
-// GLVisual.THERMO is a GLSL snippet defining vec3 thermo(float t): the 7-colour palette of
-// corridor.html / sunburst.html (0 = cold blue, 1 = warm white). Prepend it to a fragment shader.
+// GLVisual.THERMO is a GLSL snippet defining vec3 thermo(float t): the shared 7-colour palette
+// (0 = cold blue, 1 = warm white). Prepend it to a fragment shader.
 (function (global) {
   var QUAD_VS = 'attribute vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }';
   var UNIFORMS = ['uTime', 'uRes', 'uLevel', 'uLow', 'uMid', 'uHigh', 'uPunch', 'uHit', 'uTone', 'uDist', 'uHitDist'];
