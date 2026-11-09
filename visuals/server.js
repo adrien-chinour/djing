@@ -4,8 +4,9 @@
 //   - local (default): captures the PipeWire sink monitor (what goes to the speakers),
 //     analyses it and feeds the reserved session `local` (the TV opens http://<host>:8765/,
 //     the phone /control.html);
-//   - remote (--no-capture, the container): anyone opens /, shares a tab's sound from
-//     their browser (start.html analyses it and publishes the features over WebSocket),
+//   - remote (--no-capture, the container): / is a home page (home.html) to type a session code
+//     or start one; start.html shares a tab's sound from the browser (it analyses it and
+//     publishes the features over WebSocket),
 //     gets a public screen link /s/<id> and a signed control link /c/<id>/<token>
 //     (also as a QR code: /qr/<id>/<source token>.svg).
 // Sessions live in memory and expire after 12 h without any screen or source.
@@ -91,7 +92,7 @@ const UMAMI_OK = !CAPTURE && httpsUrl(UMAMI_SRC) && /^[0-9a-f-]{36}$/.test(UMAMI
 const UMAMI_TAG = UMAMI_OK
   ? `<script defer src="${UMAMI_SRC}" data-website-id="${UMAMI_WEBSITE_ID}"${UMAMI_DOMAINS ? ` data-domains="${UMAMI_DOMAINS}"` : ''}></script>\n</head>`
   : '';
-const TRACKED_PAGES = new Set(['start.html', 'index.html']);
+const TRACKED_PAGES = new Set(['home.html', 'start.html', 'index.html']);
 if (!CAPTURE && (UMAMI_SRC || UMAMI_WEBSITE_ID) && !UMAMI_OK) console.warn('UMAMI_SRC / UMAMI_WEBSITE_ID / UMAMI_DOMAINS malformed: analytics disabled');
 
 let SECRET = process.env.SESSION_SECRET;
@@ -252,7 +253,7 @@ const server = http.createServer((req, res) => {
   if (p === '/healthz' && req.method === 'GET') return sendJson(res, 200, { ok: true, sessions: sessions.size });
 
   if (p === '/' && (req.method === 'GET' || req.method === 'HEAD')) {
-    return sendPage(res, sessions.has(LOCAL_ID) ? 'index.html' : 'start.html');
+    return sendPage(res, sessions.has(LOCAL_ID) ? 'index.html' : 'home.html');
   }
 
   if (p === '/sessions' && req.method === 'POST') {
@@ -282,7 +283,10 @@ const server = http.createServer((req, res) => {
   }
 
   if ((m = p.match(/^\/s\/([^/]+)$/)) && req.method === 'GET') {
-    return sessions.has(m[1]) ? sendPage(res, 'index.html') : send(res, 404, 'unknown session');
+    if (sessions.has(m[1])) return sendPage(res, 'index.html');
+    // Unknown or expired code: back to the home page, which explains and lets the user retype it.
+    if (/^[0-9a-z]{1,8}$/.test(m[1]) && !sessions.has(LOCAL_ID)) return send(res, 302, '', null, { Location: `/?unknown=${m[1]}` });
+    return send(res, 404, 'unknown session');
   }
 
   if ((m = p.match(/^\/c\/([^/]+)\/([^/]+)$/)) && req.method === 'GET') {

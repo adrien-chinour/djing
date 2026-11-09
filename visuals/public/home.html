@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>VISUELS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0b0b10; color: #ddd; font: 16px/1.5 system-ui, sans-serif; }
+  body { padding: 32px 16px; max-width: 560px; margin: 0 auto; }
+  h1 { font-size: 13px; letter-spacing: .3em; color: #888; margin-bottom: 18px; }
+  h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin: 28px 0 10px; }
+  p { color: #aaa; margin: 10px 0; }
+  .card { padding: 18px; background: #121219; border-radius: 8px; margin: 14px 0; }
+  form { display: flex; gap: 10px; }
+  input { flex: 1; min-width: 0; padding: 16px; font: inherit; font-size: 28px; letter-spacing: .4em; text-align: center;
+          text-transform: lowercase; color: #fff; background: #1a1a24; border: 2px solid #2a2a3a; border-radius: 8px; }
+  input:focus { outline: none; border-color: #7af; }
+  button { padding: 16px 20px; font: inherit; font-size: 16px; letter-spacing: .08em; text-transform: uppercase; color: #ddd;
+           background: #1a1a24; border: 2px solid #2a2a3a; border-radius: 8px; cursor: pointer; }
+  button.primary { border-color: #7af; color: #fff; background: #1d2440; }
+  button:disabled { opacity: .4; cursor: default; }
+  a.button { display: block; text-align: center; text-decoration: none; padding: 18px; font-size: 18px; }
+  #error { color: #f66; font-size: 14px; margin-top: 10px; min-height: 1.4em; }
+  small { color: #666; }
+</style>
+</head>
+<body>
+<h1>VISUELS</h1>
+<p>Des visuels plein écran qui réagissent au son. Une personne démarre une session depuis l'ordinateur qui joue la
+musique ; les écrans la rejoignent avec son code.</p>
+
+<div class="card">
+  <h2>AFFICHER UNE SESSION SUR CET ÉCRAN</h2>
+  <form id="join" autocomplete="off">
+    <input id="code" name="code" maxlength="4" autocapitalize="none" autocorrect="off" spellcheck="false"
+           inputmode="text" pattern="[0-9a-zA-Z]{4}" placeholder="code" aria-label="code de la session, 4 caractères">
+    <button type="submit" id="go" class="primary">Afficher</button>
+  </form>
+  <div id="error" role="alert"></div>
+  <small>Le code est la fin du lien d'écran, <span id="example">https://…/s/<b>xxxx</b></span>. Passez ensuite le navigateur
+  en plein écran.</small>
+</div>
+
+<div class="card">
+  <h2>DÉMARRER UNE SESSION</h2>
+  <p>Depuis l'ordinateur qui joue la musique : le son est analysé dans votre navigateur, vous obtenez un lien d'écran et un
+  lien de contrôle.</p>
+  <a class="button primary" href="/start.html">Démarrer une session</a>
+</div>
+
+<script>
+!function () {
+  var form = document.getElementById('join'), input = document.getElementById('code'), go = document.getElementById('go');
+  var error = document.getElementById('error');
+  document.getElementById('example').innerHTML = location.origin + '/s/<b>xxxx</b>';
+
+  // Arriving from an unknown /s/<code>: prefill and explain.
+  var m = /[?&]unknown=([0-9a-z]{1,8})/.exec(location.search);
+  if (m) { input.value = m[1]; error.textContent = 'La session « ' + m[1] + ' » n\'existe pas ou a expiré.'; }
+
+  input.oninput = function () {
+    input.value = input.value.toLowerCase().replace(/[^0-9a-z]/g, '').slice(0, 4);
+    error.textContent = '';
+  };
+
+  form.onsubmit = function (e) {
+    e.preventDefault();
+    var code = input.value;
+    if (!/^[0-9a-z]{4}$/.test(code)) { error.textContent = 'Le code fait 4 caractères, chiffres et lettres.'; input.focus(); return; }
+    go.disabled = true;
+    fetch('/visuals?s=' + code)
+      .then(function (r) {
+        if (r.ok) { location.href = '/s/' + code; return; }
+        error.textContent = r.status === 404 ? 'La session « ' + code + ' » n\'existe pas ou a expiré.' : 'Erreur ' + r.status;
+        go.disabled = false;
+      })
+      .catch(function () { error.textContent = 'Serveur injoignable.'; go.disabled = false; });
+  };
+
+  input.focus();
+}();
+</script>
+</body>
+</html>
