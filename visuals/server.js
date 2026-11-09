@@ -13,7 +13,8 @@
 // Usage : node server.js [--no-capture] [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>]
 //                              [--rise <dB>] [--port <n>]
 // Env   : PORT (default 8765), SESSION_SECRET (HMAC key of the links; random at startup when missing,
-//         so the links change on every restart).
+//         so the links change on every restart), UMAMI_SRC + UMAMI_WEBSITE_ID [+ UMAMI_DOMAINS] (analytics on the
+//         public pages, remote mode only).
 //
 // WebSocket /ws?s=<id>&r=screen            read-only, no token (screen links are public)
 //           /ws?s=<id>&r=source&t=<token>  publishes {t:'audio', ...} (format: analysis.js), one per session
@@ -78,6 +79,20 @@ if (!Number.isFinite(MIN_REF_DB) || !Number.isFinite(RANGE_DB) || RANGE_DB <= 0 
   console.error('--min-ref must be a number, --range and --rise numbers > 0, --port an integer in 1-65535');
   process.exit(2);
 }
+
+// Umami analytics, injected into the public pages (start page and screen) in remote mode only, when
+// UMAMI_SRC and UMAMI_WEBSITE_ID are set (Coolify environment, never the image or the repository). The
+// local TV never loads the script. The control page is never tagged: its URL carries the signed token.
+const UMAMI_SRC = process.env.UMAMI_SRC || '';
+const UMAMI_WEBSITE_ID = process.env.UMAMI_WEBSITE_ID || '';
+const UMAMI_DOMAINS = process.env.UMAMI_DOMAINS || '';   // optional data-domains: Umami ignores other hosts
+function httpsUrl(v) { try { const u = new URL(v); return u.protocol === 'https:' && !/["'<>&$\\]/.test(v); } catch (e) { return false; } }
+const UMAMI_OK = !CAPTURE && httpsUrl(UMAMI_SRC) && /^[0-9a-f-]{36}$/.test(UMAMI_WEBSITE_ID) && /^[A-Za-z0-9.,-]*$/.test(UMAMI_DOMAINS);
+const UMAMI_TAG = UMAMI_OK
+  ? `<script defer src="${UMAMI_SRC}" data-website-id="${UMAMI_WEBSITE_ID}"${UMAMI_DOMAINS ? ` data-domains="${UMAMI_DOMAINS}"` : ''}></script>\n</head>`
+  : '';
+const TRACKED_PAGES = new Set(['start.html', 'index.html']);
+if (!CAPTURE && (UMAMI_SRC || UMAMI_WEBSITE_ID) && !UMAMI_OK) console.warn('UMAMI_SRC / UMAMI_WEBSITE_ID / UMAMI_DOMAINS malformed: analytics disabled');
 
 let SECRET = process.env.SESSION_SECRET;
 if (!SECRET) {
@@ -188,6 +203,10 @@ function sendJson(res, code, obj) { send(res, code, JSON.stringify(obj), 'applic
 function sendPage(res, name) {
   fs.readFile(path.join(PUBLIC, name), (e, data) => {
     if (e) return send(res, 404, 'not found');
+    if (UMAMI_OK && TRACKED_PAGES.has(name)) {
+      // Function replacement: the tag is inserted literally, whatever characters it holds.
+      return send(res, 200, data.toString('utf8').replace('</head>', () => UMAMI_TAG), MIME['.html']);
+    }
     send(res, 200, data, MIME['.html']);
   });
 }
@@ -317,6 +336,7 @@ const server = http.createServer((req, res) => {
   const name = decodeURIComponent(p.slice(1));
   const ext = path.extname(name);
   if (!/^(scenes\/)?[A-Za-z0-9_-]+\.(html|js)$/.test(name) || !MIME[ext]) return send(res, 404, 'not found');
+  if (ext === '.html') return sendPage(res, name);
   fs.readFile(path.join(PUBLIC, name), (e, data) => {
     if (e) return send(res, 404, 'not found');
     send(res, 200, data, MIME[ext]);

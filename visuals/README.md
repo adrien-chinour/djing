@@ -44,7 +44,12 @@ node visuals/server.js --no-capture    # mode distant en local, pour tester star
 Options : `--no-capture`, `--target <sink>` (carte interne par défaut), `--min-ref <dB>` et `--range <dB>` (−35 et 20,
 calibrés sur un mix réel le 2026-11-05), `--rise <dB>` (8, seuil de kick ; sur un mix à 156 BPM le résultat ne bouge pas
 entre 6 et 12), `--port <n>` (8765, ou la variable `PORT`). Variable `SESSION_SECRET` : clé HMAC des liens ; générée au
-démarrage si absente, les liens de contrôle changent alors à chaque redémarrage.
+démarrage si absente, les liens de contrôle changent alors à chaque redémarrage. Variables `UMAMI_SRC`, `UMAMI_WEBSITE_ID`
+et, en option, `UMAMI_DOMAINS` : en mode `--no-capture` seulement, quand les deux premières sont définies, le serveur
+injecte la balise Umami dans `start.html` et dans l'écran (`/`, `/s/<id>`), jamais dans la page de contrôle (son URL porte
+le jeton) ni dans les scènes. Elles sont posées dans l'environnement Coolify de l'instance déployée (`umami.chinour.fr`,
+`UMAMI_DOMAINS=v.chinour.fr`), pas dans l'image ni dans le dépôt : une image construite ailleurs ne compte rien, la TV en
+mode local non plus.
 
 ## Analyse du son (`public/analysis.js`)
 
