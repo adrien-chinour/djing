@@ -41,6 +41,8 @@
   <p class="lead">Laissez cet onglet ouvert : c'est lui qui écoute et envoie. Elle reste disponible 12 heures après la
   fermeture du dernier écran.</p>
 
+  <div id="deck"></div>
+
   <section class="card handout">
     <h2>Écran</h2>
     <a id="screenUrl" class="url" target="_blank" rel="noopener"></a>
@@ -59,10 +61,12 @@
 
   <div id="status" class="status">démarrage…</div>
   <button id="stop" class="quiet" style="margin-top:14px">Arrêter la session</button>
+  <a id="back" class="button primary block hidden" href="/" style="margin-top:14px">Retour à l'accueil</a>
 </div>
 <div id="error" class="error"></div>
 
 <script src="/analysis.js?v=1"></script>
+<script src="/deck.js?v=1"></script>
 <script>
 !function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -71,6 +75,7 @@
   var stream = null, ctx = null, ws = null, session = null, stopped = false;
   var sent = 0, sentAt = Date.now(), peakLevel = 0, connected = false, hitUntil = 0;
   var trait = $('trait'), traitBar = $('traitBar');
+  var deck = null, lastF = null, pendingHit = 0, switches = 0, lastFrame = 0;
 
   function fail(msg) { $('error').textContent = msg; }
 
@@ -144,6 +149,9 @@
         $('setup').classList.add('hidden');
         $('running').classList.remove('hidden');
         trait.className = 'trait';
+        deck = Deck.mount($('deck'));
+        deck.setStats({ since: Date.now(), screens: 0, switches: 0, rate: 0 });
+        requestAnimationFrame(frame);
         wire();
         connect();
       })
@@ -168,7 +176,27 @@
     stream.getTracks().forEach(function (t) { t.onended = function () { stop('le partage a été arrêté'); }; });
   }
 
+  // Display loop: the analyser produces ≈47 features/s, the deck is drawn once per frame with the
+  // latest one; kicks are latched so none is missed between two frames.
+  function frame(now) {
+    if (stopped) return;
+    var dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0.016;
+    lastFrame = now;
+    var f = lastF || { level: 0, low: 0, mid: 0, high: 0 };
+    deck.update(dt, { level: f.level, low: f.low, mid: f.mid, high: f.high, hit: pendingHit, live: connected && lastF !== null });
+    pendingHit = 0;
+    requestAnimationFrame(frame);
+  }
+
+  function onMeta(msg) {
+    if (msg.t === 'hello') { deck.setScene(msg.active); deck.setStats({ since: msg.createdAt, screens: msg.screens, switches: msg.switches }); switches = msg.switches; }
+    else if (msg.t === 'active') { switches++; deck.setScene(msg.visual); deck.setStats({ switches: switches }); }
+    else if (msg.t === 'screens') deck.setStats({ screens: msg.n });
+  }
+
   function publish(f) {
+    lastF = f;
+    if (f.onset > pendingHit) pendingHit = f.onset;
     if (f.level > peakLevel) peakLevel = f.level;   // peak-held one second for the status line
     traitBar.style.width = Math.round(f.level * 100) + '%';
     if (f.onset > 0) hitUntil = Date.now() + 120;
@@ -182,6 +210,7 @@
     try { ws = new WebSocket(proto + location.host + '/ws?s=' + session.id + '&r=source&t=' + session.sourceToken); }
     catch (e) { setTimeout(connect, 3000); return; }
     ws.onopen = function () { connected = true; };
+    ws.onmessage = function (e) { try { onMeta(JSON.parse(e.data)); } catch (err) { /* ignore */ } };
     ws.onclose = function (e) {
       connected = false;
       if (stopped) return;
@@ -198,7 +227,10 @@
     $('status').textContent = 'Session arrêtée' + (reason ? ' : ' + reason : '') + '. Rechargez la page pour en ouvrir une autre.';
     $('status').className = 'status';
     $('stop').disabled = true;
+    $('stop').classList.add('hidden');
+    $('back').classList.remove('hidden');
     trait.className = 'trait idle';
+    if (deck) deck.setStats({ rate: null });
   }
   $('stop').onclick = function () { stop(); };
 
@@ -215,6 +247,7 @@
     sent = 0; sentAt = now;
     $('status').textContent = (connected ? 'Connecté' : 'Reconnexion…') + ' · ' + rate + ' mesures/s · ' + Math.round(ctx.sampleRate) + ' Hz · niveau ' + Math.round(peakLevel * 100) + ' % · session ' + session.id;
     $('status').className = connected && rate > 0 ? 'status live' : 'status';
+    deck.setStats({ rate: rate });
     peakLevel = 0;
   }, 1000);
 }();

@@ -10,7 +10,6 @@
   #screen { margin: -6px 0 18px; }
   #screen a { font: 15px ui-monospace, Menlo, Consolas, monospace; word-break: break-all; text-decoration: none; }
   #tools { margin-top: 18px; }
-  #floor { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -21,6 +20,8 @@
 <div id="status" class="status">connexion…</div>
 <div id="error" class="error"></div>
 
+<div id="deck"></div>
+
 <section class="card">
   <h2>Scène affichée</h2>
   <div id="list" class="scenes"></div>
@@ -28,16 +29,10 @@
   <small>L'écran bascule aussitôt. Un outil remplace la scène le temps de l'afficher.</small>
 </section>
 
-<section class="card">
-  <h2>Calibrage</h2>
-  <div id="meters"></div>
-  <div class="meter"><div>kick</div><div><span id="onset" class="lamp"></span><span id="onsetCount"></span></div><div></div></div>
-  <small id="floor"></small>
-  <small>Barre sombre : valeur brute. Barre claire : valeur lissée, celle que voient les scènes.
-  <a id="debug" href="/debug.html">Calibrage complet</a> sur ordinateur.</small>
-</section>
+<p class="hint"><span id="floor"></span> <a id="debug" href="/debug.html">Calibrage complet</a> sur ordinateur.</p>
 
-<script src="/audio-client.js?v=4"></script>
+<script src="/audio-client.js?v=5"></script>
+<script src="/deck.js?v=1"></script>
 <script>
 !function () {
   var list = document.getElementById('list'), tools = document.getElementById('tools'), status = document.getElementById('status');
@@ -72,6 +67,8 @@
   function render(data) {
     var toolNames = data.tools || [];
     active = data.active;
+    deck.setScene(active);
+    deck.setStats({ switches: data.switches, screens: Math.max(0, data.screens - 1) });
     var key = data.visuals.join(',') + '|' + toolNames.join(',') + '|' + active;
     if (key === known) return;
     known = key;
@@ -88,21 +85,19 @@
       .catch(function () { known = ''; list.innerHTML = ''; });
   }
 
-  AudioFeed.onActive = function (visual) { active = visual; refresh(); };
-  AudioFeed.onHello = function (msg) { sourceOn = msg.source; };
   AudioFeed.onSource = function (on) { sourceOn = on; };
 
-  // ── Calibration meters (same data as debug.html, phone-sized) ───────────
-  var BANDS = ['level', 'low', 'mid', 'high'], meters = {}, onsetCount = 0, lastTick = Date.now();
-  var metersEl = document.getElementById('meters'), onsetEl = document.getElementById('onset');
-  var onsetCountEl = document.getElementById('onsetCount'), floorEl = document.getElementById('floor');
-  BANDS.forEach(function (name) {
-    var row = document.createElement('div');
-    row.className = 'meter';
-    row.innerHTML = '<div>' + name + '</div><div class="bar"><div class="raw"></div><div class="smooth"></div></div><div class="num"></div>';
-    metersEl.appendChild(row);
-    meters[name] = { raw: row.querySelector('.raw'), smooth: row.querySelector('.smooth'), num: row.querySelector('.num') };
-  });
+  // ── Deck: the DJ view. The control page is itself a screen: it is not counted.
+  var deck = Deck.mount(document.getElementById('deck'));
+  var floorEl = document.getElementById('floor'), lastTick = Date.now();
+  deck.setStats({ rate: null });
+  AudioFeed.onHello = function (msg) {
+    sourceOn = msg.source;
+    deck.setScene(msg.active);
+    deck.setStats({ since: msg.createdAt, screens: Math.max(0, msg.screens - 1), switches: msg.switches });
+  };
+  AudioFeed.onActive = function (visual) { active = visual; deck.setScene(visual); refresh(); };
+  AudioFeed.onScreens = function (n) { deck.setStats({ screens: Math.max(0, n - 1) }); };
 
   function tick() {
     var now = Date.now(), dt = Math.min(0.1, (now - lastTick) / 1000);
@@ -114,16 +109,7 @@
     status.className = s.live ? 'status live' : 'status';
     traitBar.style.width = (s.level * 100) + '%';
     trait.className = s.live ? (s.punch > 0.5 ? 'trait hit' : 'trait') : 'trait idle';
-    BANDS.forEach(function (name) {
-      var mm = meters[name];
-      mm.raw.style.width = (raw ? raw[name] * 100 : 0) + '%';
-      mm.smooth.style.width = (s[name] * 100) + '%';
-      var full = name === 'level' ? 'full' : name;
-      mm.num.textContent = dbg ? dbg.db[full].toFixed(0) + ' dB / ref ' + dbg.ref[full].toFixed(0) : s[name].toFixed(2);
-    });
-    if (s.hit > 0) { onsetCount++; onsetEl.style.background = '#fff'; }
-    else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,210,138,' + s.punch + ')' : '';
-    onsetCountEl.textContent = onsetCount + ' kicks' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr : '');
+    deck.update(dt, s);
     floorEl.textContent = dbg ? 'Plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ').' : '';
     requestAnimationFrame(tick);
   }

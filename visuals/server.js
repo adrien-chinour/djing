@@ -19,8 +19,8 @@
 //
 // WebSocket /ws?s=<id>&r=screen            read-only, no token (screen links are public)
 //           /ws?s=<id>&r=source&t=<token>  publishes {t:'audio', ...} (format: analysis.js), one per session
-// Server → client: {t:'hello', id, active, visuals, tools, source}, {t:'audio', ...}, {t:'active', visual},
-//                  {t:'source', on}.
+// Server → client: {t:'hello', id, active, activePath, visuals, tools, source, screens, createdAt, switches},
+//                  {t:'audio', ...} (screens only), {t:'active', visual, path}, {t:'source', on}, {t:'screens', n}.
 
 'use strict';
 
@@ -154,7 +154,7 @@ function checkToken(id, role, given) {
 }
 
 function createSession(id) {
-  const s = { id, active: defaultVisual(), source: null, screens: new Set(), emptySince: Date.now(), createdAt: Date.now(), msgTimes: [] };
+  const s = { id, active: defaultVisual(), source: null, screens: new Set(), emptySince: Date.now(), createdAt: Date.now(), msgTimes: [], switches: 0 };
   sessions.set(id, s);
   return s;
 }
@@ -164,7 +164,18 @@ function touch(s) {
 }
 
 function sessionInfo(s) {
-  return { visuals: listVisuals(), tools: listTools(), active: s.active, activePath: s.active && visualPath(s.active), source: s.source !== null };
+  return {
+    visuals: listVisuals(), tools: listTools(), active: s.active, activePath: s.active && visualPath(s.active),
+    source: s.source !== null, screens: s.screens.size, createdAt: s.createdAt, switches: s.switches,
+  };
+}
+
+// Meta messages (active scene, screen count, source presence) go to the screens and to the source;
+// audio goes to the screens only (broadcast).
+function notify(s, obj) {
+  const msg = JSON.stringify(obj);
+  for (const ws of s.screens) if (ws.readyState === 1) ws.send(msg);
+  if (s.source && s.source.readyState === 1) s.source.send(msg);
 }
 
 function broadcast(s, obj) {
@@ -177,7 +188,8 @@ function setActive(s, name) {
   const err = checkVisual(name);
   if (err) return err;
   s.active = name;
-  broadcast(s, { t: 'active', visual: name, path: visualPath(name) });
+  s.switches++;
+  notify(s, { t: 'active', visual: name, path: visualPath(name) });
   return null;
 }
 
@@ -374,29 +386,34 @@ function attach(ws, s, role) {
   ws.on('error', e => console.error('[ws client]', e.message));
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
+  // The client is registered first so that its hello already counts it; hello goes out before
+  // the presence update that tells everybody (itself included).
+  const hello = () => ws.send(JSON.stringify(Object.assign({ t: 'hello', id: s.id }, sessionInfo(s))));
 
   if (role === 'screen') {
     s.screens.add(ws);
     touch(s);
     ws.on('message', () => ws.close(4400, 'screens do not send'));
-    ws.on('close', () => { s.screens.delete(ws); touch(s); });
+    ws.on('close', () => { s.screens.delete(ws); touch(s); notify(s, { t: 'screens', n: s.screens.size }); });
+    hello();
+    notify(s, { t: 'screens', n: s.screens.size });
   } else {
     if (s.source) s.source.close(4000, 'replaced by a new source');
     s.source = ws;
     s.msgTimes = [];
     touch(s);
-    broadcast(s, { t: 'source', on: true });
+    hello();
+    notify(s, { t: 'source', on: true });
     console.log(`session ${s.id}: source connected`);
     ws.on('message', data => onSourceMessage(s, ws, data));
     ws.on('close', () => {
       if (s.source !== ws) return;   // already replaced
       s.source = null;
       touch(s);
-      broadcast(s, { t: 'source', on: false });
+      notify(s, { t: 'source', on: false });
       console.log(`session ${s.id}: source left`);
     });
   }
-  ws.send(JSON.stringify(Object.assign({ t: 'hello', id: s.id }, sessionInfo(s))));
 }
 
 const unit = v => (typeof v === 'number' && Number.isFinite(v)) ? Math.min(1, Math.max(0, v)) : 0;

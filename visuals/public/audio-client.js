@@ -11,7 +11,7 @@
 //   state.hit             0.7-1 on the frame an attack arrives, 0 otherwise (to trigger one-off effects)
 //   state.raw             last raw message (debug)
 //   AudioFeed.session     session id
-//   AudioFeed.onHello(msg) / onActive(visual, msg) / onSource(on)   optional callbacks for the screen and control pages
+//   AudioFeed.onHello(msg) / onActive(visual, msg) / onSource(on) / onScreens(n)   optional callbacks for the pages
 (function (global) {
   var SIM_BPS = 160 / 60;
 
@@ -47,6 +47,8 @@
         if (feed.onHello) feed.onHello(msg);
       } else if (msg.t === 'source') {
         if (feed.onSource) feed.onSource(msg.on);
+      } else if (msg.t === 'screens') {
+        if (feed.onScreens) feed.onScreens(msg.n);
       }
     };
     ws.onclose = function () { setTimeout(connect, 3000); };
@@ -100,7 +102,7 @@
     return state;
   }
 
-  var feed = { update: update, state: state, session: session, onHello: null, onActive: null, onSource: null };
+  var feed = { update: update, state: state, session: session, onHello: null, onActive: null, onSource: null, onScreens: null };
   global.AudioFeed = feed;
   connect();
 }(window));
