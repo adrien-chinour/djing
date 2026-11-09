@@ -275,6 +275,26 @@ ouvrir `http://<ip>:8765/webgl-check.html` sur la TV : la page affiche le suppor
 La TV a `http://<ip>:8765/` en favori : pour tester une branche, arrêter le serveur en place et lancer `make visuals`
 depuis le worktree de la branche, sur le même port. `--port` sert seulement aux tests automatiques.
 
+### Déploiement (mode distant, Coolify)
+
+`visuals/Dockerfile` construit l'image du mode distant : `node:24-alpine` épinglé par digest, `npm ci --omit=dev`,
+utilisateur `node`, `HEALTHCHECK` sur `/healthz`, commande `node audio-server.js --no-capture`. Seuls les `.js` et
+`.html` suivis par git entrent dans l'image quand Coolify construit depuis GitHub : un visuel privé (`.gitignore`)
+n'est jamais publié. En local :
+
+```sh
+make visuals-lint-docker              # hadolint
+make visuals-image SECRET=$(openssl rand -hex 32)   # construit et lance sur http://localhost:8765/
+```
+
+Instance de production : `https://v.chinour.fr`, ressource Coolify de type **Dockerfile** construite depuis
+`github.com/adrien-chinour/djing` (branche `main`, répertoire de base `/visuals`, Dockerfile `/Dockerfile`, port
+`8765`, redéploiement automatique à chaque push). Variables : `SESSION_SECRET` (obligatoire, sinon les liens de
+contrôle changent à chaque redémarrage ; `openssl rand -hex 32`). Le proxy de Coolify termine le TLS et relaie les
+WebSockets sans réglage ; le serveur lit `X-Forwarded-For` (limite de création par IP) et `X-Forwarded-Proto` /
+`X-Forwarded-Host` (liens absolus renvoyés par `POST /sessions`). Vérification après déploiement :
+`curl https://v.chinour.fr/healthz`, puis une session depuis `/`.
+
 ## Utilisation
 
 - Brancher la platine **avant** de lancer Mixxx. Enceintes sur MAIN (RCA), casque sur le jack de façade.
