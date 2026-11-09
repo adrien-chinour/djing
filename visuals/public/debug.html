@@ -3,44 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DEBUG AUDIO</title>
+<title>Visuels · calibrage</title>
+<link rel="stylesheet" href="/style.css?v=1">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0b0b10; color: #ddd; font: 13px/1.4 ui-monospace, monospace; padding: 20px; }
-  h1 { font-size: 14px; letter-spacing: .2em; margin-bottom: 4px; }
-  #status { margin-bottom: 18px; color: #888; }
-  #status.live { color: #3f6; }
-  .row { display: grid; grid-template-columns: 70px 1fr 260px; align-items: center; gap: 12px; margin: 6px 0; }
-  .bar { position: relative; height: 22px; background: #1a1a24; border-radius: 3px; overflow: hidden; }
-  .raw, .smooth { position: absolute; left: 0; top: 0; bottom: 0; }
-  .raw { background: #3a3a55; }
-  .smooth { background: #7af; opacity: .85; }
-  .num { color: #aaa; white-space: pre; }
-  #onsetLamp { width: 22px; height: 22px; border-radius: 50%; background: #222; display: inline-block; vertical-align: middle; }
-  canvas { display: block; width: 100%; height: 220px; margin-top: 18px; background: #111118; border-radius: 3px; }
+  body { max-width: 56rem; }
+  .meter { grid-template-columns: 3.4em 1fr 19em; }
+  .meter .bar { height: 20px; border-radius: 10px; }
+  canvas { display: block; width: 100%; height: 220px; margin-top: 18px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); }
+  .legend { margin-top: 8px; font: 13px ui-monospace, Menlo, Consolas, monospace; color: var(--mute); }
   .legend span { margin-right: 18px; }
-  .help { margin-top: 18px; color: #888; max-width: 900px; }
-  .help b { color: #ccc; }
 </style>
 </head>
 <body>
-<h1>AUDIO DEBUG</h1>
-<div id="status">connexion au serveur…</div>
+<header class="brand"><a class="mark" href="/">visuels<b>.</b></a><span class="where">calibrage</span></header>
+<div id="trait" class="trait"><i id="traitBar"></i></div>
+<div id="status" class="status">connexion au serveur…</div>
 
-<div id="meters"></div>
-<div class="row"><div>onset</div><div><span id="onsetLamp"></span> <span id="onsetCount" class="num"></span></div><div class="num" id="fluxNum"></div></div>
+<section class="card">
+  <div id="meters"></div>
+  <div class="meter"><div>kick</div><div><span id="onsetLamp" class="lamp"></span><span id="onsetCount" class="num"></span></div><div class="num" id="fluxNum"></div></div>
+  <canvas id="plot"></canvas>
+  <div class="legend">
+    <span style="color:#7fd8ea">■ level</span><span style="color:#ff8a5b">■ low</span><span style="color:#8fd694">■ mid</span><span style="color:#c9a0ff">■ high</span><span style="color:#ffd28a">| kick</span>
+  </div>
+</section>
 
-<canvas id="plot"></canvas>
-<div class="legend num">
-  <span style="color:#7af">■ level</span><span style="color:#f84">■ low</span><span style="color:#6d6">■ mid</span><span style="color:#c6f">■ high</span><span style="color:#fff">| onset</span>
-</div>
-
-<div class="help">
-  <p>Barre sombre = valeur brute envoyée par le serveur, barre bleue = valeur lissée utilisée par les visuels.</p>
-  <p><b>Calibrage :</b> musique coupée, les dB bruts doivent être sous le plancher (<span id="floorNum"></span> dBFS) et toutes les barres à 0.
-  Si ce n'est pas le cas, relancer le serveur avec un <b>--min-ref</b> plus haut (ex. <b>node audio-server.js --min-ref -25</b>).
-  Si la musique ne remplit jamais les barres, baisser <b>--range</b> (ex. 24). Le kick doit faire clignoter la lampe onset à chaque coup.</p>
-</div>
+<p class="hint">Barre sombre : valeur brute envoyée par le serveur. Barre claire : valeur lissée, celle que voient les scènes.</p>
+<p class="hint"><b>Calibrage :</b> musique coupée, les dB bruts doivent rester sous le plancher (<span id="floorNum"></span> dBFS) et toutes les
+barres à 0. Sinon, relancer le serveur avec un <b>--min-ref</b> plus haut (par exemple <code>node server.js --min-ref -25</code>).
+Si la musique ne remplit jamais les barres, baisser <b>--range</b> (par exemple 24). Chaque kick doit allumer la lampe.</p>
 
 <script src="audio-client.js?v=4"></script>
 <script>
@@ -50,13 +41,14 @@
   var el = {};
   KEYS.forEach(function (k) {
     var row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'meter';
     row.innerHTML = '<div>' + k + '</div><div class="bar"><div class="raw"></div><div class="smooth"></div></div><div class="num"></div>';
     meters.appendChild(row);
     el[k] = { raw: row.querySelector('.raw'), smooth: row.querySelector('.smooth'), num: row.querySelector('.num') };
   });
 
   var status = document.getElementById('status');
+  var trait = document.getElementById('trait'), traitBar = document.getElementById('traitBar');
   var lamp = document.getElementById('onsetLamp');
   var onsetCountEl = document.getElementById('onsetCount');
   var fluxNum = document.getElementById('fluxNum');
@@ -76,8 +68,10 @@
     var a = AudioFeed.update(dt);
     var r = a.raw;
 
-    status.textContent = a.live ? 'LIVE — serveur connecté' : 'SIMULATION — aucun son reçu du serveur (session ' + AudioFeed.session + ')';
-    status.className = a.live ? 'live' : '';
+    status.textContent = a.live ? 'Son en direct · session ' + AudioFeed.session : 'Pas de son reçu du serveur (session ' + AudioFeed.session + '). Simulation à 160 BPM.';
+    status.className = a.live ? 'status live' : 'status';
+    traitBar.style.width = (a.level * 100) + '%';
+    trait.className = a.live ? (a.punch > 0.5 ? 'trait hit' : 'trait') : 'trait idle';
 
     var bandDb = { level: 'full', low: 'low', mid: 'mid', high: 'high' };
     KEYS.forEach(function (k) {
@@ -91,7 +85,7 @@
 
     if (r && r !== lastRaw && r.onset > 0) onsets++;
     lastRaw = r;
-    lamp.style.background = a.punch > 0.05 ? 'rgba(255,255,255,' + a.punch.toFixed(2) + ')' : '#222';
+    lamp.style.background = a.punch > 0.05 ? 'rgba(255,210,138,' + a.punch.toFixed(2) + ')' : '';
     onsetCountEl.textContent = 'punch ' + a.punch.toFixed(2) + '   total ' + onsets;
     if (r) {
       fluxNum.textContent = 'montée ' + r.dbg.rise.toFixed(1) + ' / seuil ' + r.dbg.thr.toFixed(0) + ' dB';
@@ -107,8 +101,8 @@
 
   function drawPlot() {
     var w = plot.width = plot.clientWidth, h = plot.height = plot.clientHeight;
-    pctx.fillStyle = '#111118'; pctx.fillRect(0, 0, w, h);
-    var colors = { level: '#7af', low: '#f84', mid: '#6d6', high: '#c6f' };
+    pctx.fillStyle = '#15132b'; pctx.fillRect(0, 0, w, h);
+    var colors = { level: '#7fd8ea', low: '#ff8a5b', mid: '#8fd694', high: '#c9a0ff' };
     Object.keys(colors).forEach(function (k) {
       pctx.strokeStyle = colors[k]; pctx.lineWidth = 1.5; pctx.beginPath();
       hist.forEach(function (p, i) {
@@ -117,7 +111,7 @@
       });
       pctx.stroke();
     });
-    pctx.fillStyle = '#fff';
+    pctx.fillStyle = '#ffd28a';
     hist.forEach(function (p, i) {
       if (p.jump) pctx.fillRect(w - (hist.length - i) * (w / HIST), 0, 2, h);
     });

@@ -192,7 +192,7 @@ setInterval(() => {
 }, 60 * 1000).unref();
 
 // ── HTTP ───────────────────────────────────────────────────────────────────
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 
 function send(res, code, body, type, extra) {
   res.writeHead(code, Object.assign({ 'Content-Type': type || 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }, extra || {}));
@@ -336,10 +336,10 @@ const server = http.createServer((req, res) => {
 
   if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'method not allowed');
 
-  // Static: .html/.js files of public/ and public/scenes/ only (no dotfiles, no traversal).
+  // Static: .html/.js/.css files of public/ and public/scenes/ only (no dotfiles, no traversal).
   const name = decodeURIComponent(p.slice(1));
   const ext = path.extname(name);
-  if (!/^(scenes\/)?[A-Za-z0-9_-]+\.(html|js)$/.test(name) || !MIME[ext]) return send(res, 404, 'not found');
+  if (!/^(scenes\/)?[A-Za-z0-9_-]+\.(html|js|css)$/.test(name) || !MIME[ext]) return send(res, 404, 'not found');
   if (ext === '.html') return sendPage(res, name);
   fs.readFile(path.join(PUBLIC, name), (e, data) => {
     if (e) return send(res, 404, 'not found');

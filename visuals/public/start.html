@@ -4,72 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>VISUELS · DÉMARRER</title>
+<title>Visuels · démarrer</title>
+<link rel="stylesheet" href="/style.css?v=1">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #0b0b10; color: #ddd; font: 16px/1.5 system-ui, sans-serif; }
-  body { padding: 32px 16px; max-width: 560px; margin: 0 auto; }
-  h1 { font-size: 13px; letter-spacing: .3em; color: #888; margin-bottom: 18px; }
-  p { color: #aaa; margin: 10px 0; }
-  button { display: block; width: 100%; padding: 20px; margin: 14px 0; font: inherit; font-size: 18px;
-           letter-spacing: .08em; text-transform: uppercase; color: #ddd; background: #1a1a24;
-           border: 2px solid #2a2a3a; border-radius: 8px; cursor: pointer; }
-  button.primary { border-color: #7af; color: #fff; background: #1d2440; }
-  button:disabled { opacity: .4; cursor: default; }
-  select { width: 100%; padding: 10px; font: inherit; color: #ddd; background: #1a1a24; border: 2px solid #2a2a3a; border-radius: 8px; }
   .hidden { display: none; }
-  .link { margin: 14px 0; padding: 14px; background: #121219; border-radius: 8px; }
-  .link h2 { font-size: 12px; letter-spacing: .3em; color: #666; margin-bottom: 6px; }
-  .link a { display: block; font: 15px ui-monospace, monospace; color: #7af; word-break: break-all; }
-  .link small { color: #666; }
-  .copy { display: inline-block; width: auto; padding: 6px 12px; margin: 8px 0 0; font-size: 12px; text-transform: none; letter-spacing: 0; }
-  #status { font: 13px ui-monospace, monospace; color: #888; margin-top: 18px; }
-  #status.live { color: #3f6; }
-  #error { color: #f66; font-size: 14px; margin-top: 12px; white-space: pre-wrap; }
-  .bar { height: 10px; background: #1a1a24; border-radius: 3px; overflow: hidden; margin-top: 8px; }
-  .bar div { height: 100%; width: 0; background: #7af; }
-  .warn { color: #fc6; font-size: 13px; }
-  .qr { display: block; width: 180px; height: 180px; margin: 12px 0 4px; border-radius: 6px; background: #fff; }
+  .alt { margin: 4px 0 0 2px; }
+  #micBox { margin-top: 12px; }
 </style>
 </head>
 <body>
-<h1><a href="/" style="color:inherit;text-decoration:none">VISUELS</a> · DÉMARRER</h1>
+<header class="brand"><a class="mark" href="/">visuels<b>.</b></a><span class="where">démarrer une session</span></header>
+<div id="trait" class="trait idle"><i id="traitBar"></i></div>
 
 <div id="setup">
-  <p>Des visuels plein écran qui réagissent au son de <strong>cet ordinateur</strong>. Le son est analysé ici, dans
-  votre navigateur ; seules quelques valeurs par seconde partent vers le serveur, jamais l'audio.</p>
-  <button id="share" class="primary">Partager le son d'un onglet ou de l'écran</button>
-  <p><small>Chrome ou Edge. Dans la fenêtre de partage, choisissez l'onglet ou l'écran qui joue la musique et cochez
-  « Partager l'audio ». Sous Linux, Chrome ne propose le son que pour un <strong>onglet</strong>.</small></p>
-  <button id="micToggle">Utiliser un micro ou une entrée audio…</button>
-  <div id="micBox" class="hidden">
-    <select id="mic"></select>
-    <button id="micStart">Démarrer avec cette entrée</button>
+  <h1>Partagez le son de cet ordinateur</h1>
+  <p class="lead">Le son est analysé ici, dans votre navigateur. Seules quelques valeurs par seconde partent vers le
+  serveur, jamais l'audio.</p>
+
+  <section class="card">
+    <button id="share" class="primary block">Partager le son d'un onglet ou de l'écran</button>
+    <small>Chrome ou Edge. Dans la fenêtre de partage, choisissez l'onglet ou l'écran qui joue la musique et cochez
+    « Partager l'audio ». Sous Linux, Chrome ne propose le son que pour un <b>onglet</b>.</small>
+  </section>
+
+  <div class="alt">
+    <button id="micToggle" class="quiet">Utiliser un micro ou une entrée audio…</button>
+    <div id="micBox" class="hidden">
+      <select id="mic" aria-label="Entrée audio"></select>
+      <button id="micStart" class="block">Démarrer avec cette entrée</button>
+    </div>
   </div>
 </div>
 
 <div id="running" class="hidden">
-  <div class="link">
-    <h2>ÉCRAN</h2>
-    <a id="screenUrl" target="_blank" rel="noopener"></a>
-    <small>Lien public : à ouvrir en plein écran sur la TV, le vidéoprojecteur ou un autre onglet.</small>
-    <button class="copy" data-copy="screenUrl">Copier</button>
-  </div>
-  <div class="link">
-    <h2>CONTRÔLE</h2>
-    <a id="controlUrl" target="_blank" rel="noopener"></a>
-    <small>Lien signé : change le visuel affiché. Ne le partagez qu'à ceux qui doivent avoir la main.</small>
-    <button class="copy" data-copy="controlUrl">Copier</button>
+  <h1>La session est ouverte</h1>
+  <p class="lead">Laissez cet onglet ouvert : c'est lui qui écoute et envoie. Elle reste disponible 12 heures après la
+  fermeture du dernier écran.</p>
+
+  <section class="card handout">
+    <h2>Écran</h2>
+    <a id="screenUrl" class="url" target="_blank" rel="noopener"></a>
+    <p>Lien public : à ouvrir en plein écran sur la TV, le vidéoprojecteur ou un autre onglet. Le code est à la fin.</p>
+    <button class="copy quiet" data-copy="screenUrl">Copier le lien</button>
+  </section>
+
+  <section class="card handout">
+    <h2>Contrôle</h2>
+    <a id="controlUrl" class="url" target="_blank" rel="noopener"></a>
+    <p>Lien signé : change la scène affichée. Ne le donnez qu'à ceux qui doivent avoir la main.</p>
     <img id="controlQr" class="qr" alt="QR code du lien de contrôle">
     <small>Scannez-le avec le téléphone qui pilotera les visuels.</small>
-  </div>
-  <p class="warn">Laissez cet onglet ouvert : c'est lui qui écoute et envoie. La session dure 12 h après la fermeture de
-  tous les écrans.</p>
-  <div class="bar"><div id="level"></div></div>
-  <div id="status">démarrage…</div>
-  <button id="stop">Arrêter</button>
+    <button class="copy quiet" data-copy="controlUrl">Copier le lien</button>
+  </section>
+
+  <div id="status" class="status">démarrage…</div>
+  <button id="stop" class="quiet" style="margin-top:14px">Arrêter la session</button>
 </div>
-<div id="error"></div>
+<div id="error" class="error"></div>
 
 <script src="/analysis.js?v=1"></script>
 <script>
@@ -78,7 +69,8 @@
   var AC = window.AudioContext || window.webkitAudioContext;
   var MIN_REF_DB = -35, RANGE_DB = 20, RISE_DB = 8;   // same defaults as the PipeWire capture
   var stream = null, ctx = null, ws = null, session = null, stopped = false;
-  var sent = 0, sentAt = Date.now(), peakLevel = 0, connected = false;
+  var sent = 0, sentAt = Date.now(), peakLevel = 0, connected = false, hitUntil = 0;
+  var trait = $('trait'), traitBar = $('traitBar');
 
   function fail(msg) { $('error').textContent = msg; }
 
@@ -90,13 +82,13 @@
   // ── Capture ──────────────────────────────────────────────────────────────
   $('share').onclick = function () {
     fail('');
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return fail('Ce navigateur ne sait pas partager le son d\'un onglet : essayez Chrome ou Edge, ou une entrée audio.');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return fail('Ce navigateur ne sait pas partager le son d\'un onglet. Essayez Chrome ou Edge, ou une entrée audio.');
     // Must be the first thing in the click: the permission prompt needs the user activation.
     navigator.mediaDevices.getDisplayMedia({ video: true, audio: constraints(), systemAudio: 'include', selfBrowserSurface: 'exclude' })
       .then(function (s) {
         if (s.getAudioTracks().length === 0) {
           s.getTracks().forEach(function (t) { t.stop(); });
-          return fail('Aucune piste audio : recommencez en cochant « Partager l\'audio » dans la fenêtre de partage.');
+          return fail('Aucune piste audio. Recommencez en cochant « Partager l\'audio » dans la fenêtre de partage.');
         }
         start(s);
       })
@@ -151,6 +143,7 @@
         $('controlQr').src = info.controlQrUrl;
         $('setup').classList.add('hidden');
         $('running').classList.remove('hidden');
+        trait.className = 'trait';
         wire();
         connect();
       })
@@ -172,11 +165,14 @@
     proc.connect(mute);          // a ScriptProcessor only runs when it reaches the destination…
     mute.connect(ctx.destination);   // …but we never want to hear the music twice.
     if (ctx.state !== 'running') ctx.resume();
-    stream.getTracks().forEach(function (t) { t.onended = function () { stop('partage arrêté'); }; });
+    stream.getTracks().forEach(function (t) { t.onended = function () { stop('le partage a été arrêté'); }; });
   }
 
   function publish(f) {
-    if (f.level > peakLevel) peakLevel = f.level;   // peak-held one second for the meter
+    if (f.level > peakLevel) peakLevel = f.level;   // peak-held one second for the status line
+    traitBar.style.width = Math.round(f.level * 100) + '%';
+    if (f.onset > 0) hitUntil = Date.now() + 120;
+    trait.className = Date.now() < hitUntil ? 'trait hit' : 'trait';
     if (ws && ws.readyState === 1) { ws.send(JSON.stringify(f)); sent++; }
   }
 
@@ -199,16 +195,17 @@
     if (ws) ws.close();
     if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
     if (ctx) ctx.close();
-    $('status').textContent = 'arrêté : ' + (reason || 'par vous') + '. Rechargez la page pour une nouvelle session.';
-    $('status').className = '';
+    $('status').textContent = 'Session arrêtée' + (reason ? ' : ' + reason : '') + '. Rechargez la page pour en ouvrir une autre.';
+    $('status').className = 'status';
     $('stop').disabled = true;
+    trait.className = 'trait idle';
   }
   $('stop').onclick = function () { stop(); };
 
   Array.prototype.forEach.call(document.querySelectorAll('.copy'), function (b) {
     b.onclick = function () {
       var text = $(b.getAttribute('data-copy')).textContent;
-      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { b.textContent = 'Copié'; });
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { b.textContent = 'Lien copié'; });
     };
   });
 
@@ -216,10 +213,9 @@
     if (stopped || !session) return;
     var now = Date.now(), rate = Math.round(sent * 1000 / (now - sentAt));
     sent = 0; sentAt = now;
-    $('level').style.width = Math.round(peakLevel * 100) + '%';
+    $('status').textContent = (connected ? 'Connecté' : 'Reconnexion…') + ' · ' + rate + ' mesures/s · ' + Math.round(ctx.sampleRate) + ' Hz · niveau ' + Math.round(peakLevel * 100) + ' % · session ' + session.id;
+    $('status').className = connected && rate > 0 ? 'status live' : 'status';
     peakLevel = 0;
-    $('status').textContent = (connected ? 'connecté' : 'reconnexion…') + ' · ' + rate + ' msg/s · ' + Math.round(ctx.sampleRate) + ' Hz · session ' + session.id;
-    $('status').className = connected && rate > 0 ? 'live' : '';
   }, 1000);
 }();
 </script>
