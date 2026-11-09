@@ -6,7 +6,8 @@
 //     the phone /control.html);
 //   - remote (--no-capture, the container): anyone opens /, shares a tab's sound from
 //     their browser (start.html analyses it and publishes the features over WebSocket),
-//     gets a public screen link /s/<id> and a signed control link /c/<id>/<token>.
+//     gets a public screen link /s/<id> and a signed control link /c/<id>/<token>
+//     (also as a QR code: /qr/<id>/<source token>.svg).
 // Sessions live in memory and expire after 12 h without any screen or source.
 //
 // Usage : node audio-server.js [--no-capture] [--target <sink-node-name>] [--min-ref <dB>] [--range <dB>]
@@ -27,6 +28,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
+const qrcode = require('qrcode-generator');
 const Analysis = require('./analysis');
 
 // ── Config ─────────────────────────────────────────────────────────────────
@@ -45,8 +47,8 @@ const MAX_SESSIONS   = 200;
 const CREATE_PER_MIN = 10;                  // per client IP
 const SOURCE_MAX_MSG_PER_S = 100;           // a source sends ≈47/s
 const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';   // 32 symbols, no i/l/o/u
-const ID_LENGTH   = 8;
-const ID_RE       = /^[0-9a-z]{8}$/;
+const ID_LENGTH   = 4;                      // 32^4 ≈ 1M ids, easy to type on a TV
+const ID_RE       = /^[0-9a-z]{4}$/;
 const TOKEN_LENGTH = 22;                    // base64url chars ≈ 130 bits
 
 let CAPTURE = true;
@@ -241,8 +243,20 @@ const server = http.createServer((req, res) => {
       id: s.id,
       screenUrl: `${base}/s/${s.id}`,
       controlUrl: `${base}/c/${s.id}/${token(s.id, 'control')}`,
+      controlQrUrl: `${base}/qr/${s.id}/${token(s.id, 'source')}.svg`,
       sourceToken: token(s.id, 'source'),
     });
+  }
+
+  if ((m = p.match(/^\/qr\/([^/]+)\/([^/.]+)\.svg$/)) && req.method === 'GET') {
+    // QR code of the control link, for the phone of whoever started the session (source token).
+    const s = sessions.get(m[1]);
+    if (!s) return send(res, 404, 'unknown session');
+    if (!checkToken(s.id, 'source', m[2])) return send(res, 403, 'source token required');
+    const qr = qrcode(0, 'M');
+    qr.addData(`${origin(req)}/c/${s.id}/${token(s.id, 'control')}`);
+    qr.make();
+    return send(res, 200, qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }), 'image/svg+xml');
   }
 
   if ((m = p.match(/^\/s\/([^/]+)$/)) && req.method === 'GET') {

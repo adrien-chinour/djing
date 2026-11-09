@@ -224,8 +224,10 @@ bande 40-120 Hz monte de plus de 8 dB en 3 pas, 64 ms, réfractaire 150 ms), `to
 désactivés (`echoCancellation`, `noiseSuppression`, `autoGainControl`). Sous Linux, Chrome ne partage le son que d'un
 **onglet** : pour un logiciel (Mixxx), passer par le secours « entrée audio » et choisir le « Monitor of … ».
 
-Routes : `GET /` (écran de `local`, sinon `start.html`), `POST /sessions` (crée une session : `id`, `screenUrl`,
-`controlUrl`, `sourceToken` ; 10 par minute et par IP, 200 vivantes au plus), `GET /s/<id>`, `GET /c/<id>/<token>`,
+Routes : `GET /` (écran de `local`, sinon `start.html`), `POST /sessions` (crée une session : `id` de 4 caractères
+`[0-9a-z]`, `screenUrl`, `controlUrl`, `controlQrUrl`, `sourceToken` ; 10 par minute et par IP, 200 vivantes au plus),
+`GET /s/<id>`, `GET /c/<id>/<token>`, `GET /qr/<id>/<jeton source>.svg` (QR code du lien de contrôle, affiché par la page
+de démarrage, bibliothèque `qrcode-generator`),
 `GET /visuals?s=<id>` (visuels, outils, actif, présence d'une source), `POST /sessions/<id>/active/<visuel>` avec
 `Authorization: Bearer <token>`, `POST /active/<visuel>` (raccourci réseau local sur `local`, utilisé par `switch`),
 `POST /report` (sonde WebGL ; écrit `reports.jsonl` en mode local seulement), `GET /healthz`. WebSocket sur

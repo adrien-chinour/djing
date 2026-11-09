@@ -29,6 +29,7 @@
   .bar { height: 10px; background: #1a1a24; border-radius: 3px; overflow: hidden; margin-top: 8px; }
   .bar div { height: 100%; width: 0; background: #7af; }
   .warn { color: #fc6; font-size: 13px; }
+  .qr { display: block; width: 180px; height: 180px; margin: 12px 0 4px; border-radius: 6px; background: #fff; }
 </style>
 </head>
 <body>
@@ -59,6 +60,8 @@
     <a id="controlUrl" target="_blank" rel="noopener"></a>
     <small>Lien signé : change le visuel affiché. Ne le partagez qu'à ceux qui doivent avoir la main.</small>
     <button class="copy" data-copy="controlUrl">Copier</button>
+    <img id="controlQr" class="qr" alt="QR code du lien de contrôle">
+    <small>Scannez-le avec le téléphone qui pilotera les visuels.</small>
   </div>
   <p class="warn">Laissez cet onglet ouvert : c'est lui qui écoute et envoie. La session dure 12 h après la fermeture de
   tous les écrans.</p>
@@ -145,6 +148,7 @@
         session = info;
         $('screenUrl').textContent = info.screenUrl; $('screenUrl').href = info.screenUrl;
         $('controlUrl').textContent = info.controlUrl; $('controlUrl').href = info.controlUrl;
+        $('controlQr').src = info.controlQrUrl;
         $('setup').classList.add('hidden');
         $('running').classList.remove('hidden');
         wire();

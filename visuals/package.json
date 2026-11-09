@@ -11,6 +11,7 @@
   "license": "GPL-2.0-or-later",
   "type": "commonjs",
   "dependencies": {
+    "qrcode-generator": "2.0.4",
     "ws": "^8.22.1"
   },
   "engines": {
