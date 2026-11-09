@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>VISUELS</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,11 +27,15 @@
   .raw { background: #3a3a55; } .smooth { background: #7af; opacity: .85; }
   #onset { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: #222; vertical-align: middle; }
   #floor { font-size: 12px; color: #666; margin-top: 6px; }
+  #screen { font: 13px ui-monospace, monospace; color: #7af; word-break: break-all; margin-bottom: 18px; }
+  #error { color: #f66; font-size: 13px; }
 </style>
 </head>
 <body>
 <h1>VISUELS</h1>
+<div id="screen"></div>
 <div id="status">connexion…</div>
+<div id="error"></div>
 <div id="list"></div>
 <h2>CALIBRAGE</h2>
 <div id="meters"></div>
@@ -38,40 +43,57 @@
 <div id="floor"></div>
 <h2>OUTILS</h2>
 <div id="tools"></div>
-<p class="hint">La TV bascule dans les 2 s. Un outil s'affiche sur la TV à la place du visuel. Barre sombre : valeur brute ; barre bleue : valeur lissée vue par les visuels. <a href="debug.html" style="color:#7af">Page de calibrage complète</a> (ordinateur).</p>
-<script src="audio-client.js?v=3"></script>
+<p class="hint">L'écran bascule aussitôt. Un outil s'affiche sur l'écran à la place du visuel. Barre sombre : valeur brute ; barre bleue : valeur lissée vue par les visuels. <a id="debug" href="/debug.html" style="color:#7af">Page de calibrage complète</a> (ordinateur).</p>
+<script src="/audio-client.js?v=4"></script>
 <script>
 !function () {
   var list = document.getElementById('list'), tools = document.getElementById('tools'), status = document.getElementById('status');
-  var known = '';
+  var screenEl = document.getElementById('screen'), errorEl = document.getElementById('error');
+  var known = '', active = null, sourceOn = null;
 
-  function button(name, active, cls) {
+  // Served at /c/<id>/<token>: the token signs every switch.
+  var m = /^\/c\/([0-9a-z]+)\/([^/]+)$/.exec(location.pathname);
+  var session = m ? m[1] : AudioFeed.session, token = m ? m[2] : '';
+  if (session !== 'local') screenEl.textContent = 'écran : ' + location.origin + '/s/' + session;
+  document.getElementById('debug').href = '/debug.html?s=' + session;
+
+  function button(name, cls) {
     var b = document.createElement('button');
     b.textContent = name;
     b.className = (cls || '') + (name === active ? ' active' : '');
     b.onclick = function () {
-      fetch('active/' + encodeURIComponent(name), { method: 'POST' }).then(refresh);
+      fetch('/sessions/' + session + '/active/' + encodeURIComponent(name), {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+      }).then(function (r) {
+        if (r.ok) { errorEl.textContent = ''; return refresh(); }
+        return r.text().then(function (t) { errorEl.textContent = r.status + ' : ' + t; });
+      });
     };
     return b;
   }
 
   function render(data) {
     var toolNames = data.tools || [];
-    var key = data.visuals.join(',') + '|' + toolNames.join(',') + '|' + data.active;
+    active = data.active;
+    var key = data.visuals.join(',') + '|' + toolNames.join(',') + '|' + active;
     if (key === known) return;
     known = key;
     list.innerHTML = '';
     tools.innerHTML = '';
-    data.visuals.forEach(function (name) { list.appendChild(button(name, data.active, '')); });
-    toolNames.forEach(function (name) { tools.appendChild(button(name, data.active, 'tool')); });
+    data.visuals.forEach(function (name) { list.appendChild(button(name, '')); });
+    toolNames.forEach(function (name) { tools.appendChild(button(name, 'tool')); });
   }
 
   function refresh() {
-    return fetch('visuals?_=' + Date.now())
-      .then(function (r) { return r.json(); })
+    return fetch('/visuals?s=' + session + '&_=' + Date.now())
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(render)
       .catch(function () { known = ''; list.innerHTML = ''; });
   }
+
+  AudioFeed.onActive = function (visual) { active = visual; refresh(); };
+  AudioFeed.onHello = function (msg) { sourceOn = msg.source; };
+  AudioFeed.onSource = function (on) { sourceOn = on; };
 
   // ── Calibration meters (same data as debug.html, phone-sized) ───────────
   var BANDS = ['level', 'low', 'mid', 'high'], meters = {}, onsetCount = 0, lastTick = Date.now();
@@ -89,7 +111,9 @@
     var now = Date.now(), dt = Math.min(0.1, (now - lastTick) / 1000);
     lastTick = now;
     var s = AudioFeed.update(dt), raw = s.raw, dbg = raw && raw.dbg;
-    status.textContent = s.live ? 'son en direct · niveau ' + Math.round(s.level * 100) + ' %' : 'pas de son du serveur : simulation 160 BPM';
+    if (s.live) status.textContent = 'son en direct · niveau ' + Math.round(s.level * 100) + ' %';
+    else if (sourceOn === false) status.textContent = 'aucune source : la page de capture est fermée · simulation 160 BPM';
+    else status.textContent = 'pas de son du serveur : simulation 160 BPM';
     status.className = s.live ? 'live' : '';
     BANDS.forEach(function (name) {
       var m = meters[name];
@@ -100,7 +124,7 @@
     });
     if (s.hit > 0) { onsetCount++; onsetEl.style.background = '#fff'; }
     else onsetEl.style.background = s.punch > 0.05 ? 'rgba(255,255,255,' + s.punch + ')' : '#222';
-    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr.toFixed(0) + ' dB' : '');
+    onsetCountEl.textContent = onsetCount + ' attaques' + (dbg ? ' · montée ' + dbg.rise.toFixed(1) + ' / seuil ' + dbg.thr : '');
     floorEl.textContent = dbg ? 'plancher ' + (dbg.minRef - dbg.range) + ' dBFS (min-ref ' + dbg.minRef + ', range ' + dbg.range + ')' : '';
     requestAnimationFrame(tick);
   }

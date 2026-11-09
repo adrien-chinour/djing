@@ -42,7 +42,7 @@
   Si la musique ne remplit jamais les barres, baisser <b>--range</b> (ex. 24). Le kick doit faire clignoter la lampe onset à chaque coup.</p>
 </div>
 
-<script src="audio-client.js?v=3"></script>
+<script src="audio-client.js?v=4"></script>
 <script>
 (function () {
   var KEYS = ['level', 'low', 'mid', 'high', 'tone'];
@@ -76,7 +76,7 @@
     var a = AudioFeed.update(dt);
     var r = a.raw;
 
-    status.textContent = a.live ? 'LIVE — audio-server connecté' : 'SIMULATION — audio-server injoignable (ws://' + location.hostname + ':8765)';
+    status.textContent = a.live ? 'LIVE — audio-server connecté' : 'SIMULATION — aucun son reçu du serveur (session ' + AudioFeed.session + ')';
     status.className = a.live ? 'live' : '';
 
     var bandDb = { level: 'full', low: 'low', mid: 'mid', high: 'high' };

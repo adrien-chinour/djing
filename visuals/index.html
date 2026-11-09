@@ -11,31 +11,24 @@
 </style>
 </head>
 <body>
-<iframe id="v" src="active.html"></iframe>
+<iframe id="v" src="about:blank"></iframe>
+<script src="/audio-client.js?v=4"></script>
 <script>
 !function () {
+  // Screen page: served at / (local session) and /s/<id>. The active visual is pushed
+  // by the server; the visual itself opens its own WebSocket on the same session.
   var iframe = document.getElementById('v');
-  var last   = '';
+  var current = null;
 
-  function check() {
-    fetch('active.html?_=' + Date.now())
-      .then(function (r) { return r.text(); })
-      .then(function (t) {
-        if (last && t !== last) {
-          // Swap the src without reloading the parent page: no flash, no browser bar
-          iframe.src = 'active.html?_=' + Date.now();
-        }
-        last = t;
-      })
-      .catch(function () {});
+  function show(visual) {
+    if (!visual || visual === current) return;
+    current = visual;
+    // Swap the src without reloading the parent page: no flash, no browser bar
+    iframe.src = '/' + visual + '.html?s=' + AudioFeed.session + '&_=' + Date.now();
   }
 
-  // Initialise last with the current content
-  fetch('active.html')
-    .then(function (r) { return r.text(); })
-    .then(function (t) { last = t; });
-
-  setInterval(check, 2000);
+  AudioFeed.onHello = function (msg) { show(msg.active); };
+  AudioFeed.onActive = show;
 }();
 </script>
 </body>
