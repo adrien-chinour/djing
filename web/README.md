@@ -8,28 +8,45 @@ carte son, sans Mixxx.
 
 1. Fermer Mixxx (il garde le port MIDI et la carte son).
 2. Brancher la platine.
-3. `make web`, puis ouvrir <http://localhost:8800> dans **Chrome ou Edge** (Web MIDI et `AudioContext.setSinkId`).
-4. Cliquer « Démarrer l'audio » et accepter l'accès MIDI.
-5. Si la liste des sorties n'a pas de noms, cliquer « Noms des sorties » (Chrome ne les donne qu'après une
-   autorisation micro), puis choisir la sortie de la platine.
+3. `make web-split` dans un terminal (le laisser tourner : les deux sorties disparaissent à l'arrêt).
+4. `make web` dans un autre, puis ouvrir <http://localhost:8800> dans **Chrome ou Edge**.
+5. Cliquer « Démarrer l'audio » et accepter l'accès MIDI. Si les sorties n'ont pas de nom, cliquer « Noms des
+   sorties » (Chrome ne les donne qu'après une autorisation micro) : « Inpulse MAIN » et « Inpulse Casque » sont
+   alors choisies seules.
 
 ## Ce qu'il faut vérifier
 
-- Pastille « sortie » verte : 4 canaux. Orange : stéréo seulement, le casque ne reçoit rien.
+- Pastille de sortie verte : MAIN et casque partent sur deux sorties différentes.
 - « Bip MAIN » sonne dans les enceintes (440 Hz), « Bip casque » dans le casque seul (880 Hz).
 - Les messages MIDI s'affichent dans le journal en bas quand on touche la platine.
 - PLAY, CUE, PFL, volumes, EQ, gain, filtre, pitch, crossfader et jogs agissent sur les decks ; les LED PLAY, CUE
   et PFL suivent.
 
-Si la sortie reste en stéréo, passer la carte en profil « Pro Audio » (`pavucontrol`, onglet Configuration) et
-recharger la page.
+## Tester sans la platine
+
+- `make web-test` : test de bout en bout, sans matériel ni Mixxx. Il crée une platine simulée (port MIDI virtuel
+  au nom de la platine), une sortie PipeWire 4 canaux qui tient lieu de carte son, la découpe avec
+  `split-outputs.sh`, pilote Chrome headless, joue un titre depuis la platine simulée et mesure avec `pw-record`
+  le son de chaque canal (MAIN, PFL, fader, crossfader), les LED reçues, le pitch et le jog. Tout ce qu'il crée
+  est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
+  `pw-loopback`, `pw-link`), `uv`.
+- `make web-sim` : la platine simulée seule, pour jouer à la main avec la page. Une commande par ligne :
+  `press A play`, `knob A volume 0.5`, `xfader 0`, `rate B 0.3`, `jog A 20 touched`, `leds`… (liste en tête de
+  `sim/controller.py`). Les LED que la page allume s'affichent en JSON.
+
+que ne reçoit rien.
+- « Bip MAIN » sonne dans les enceintes (440 Hz), « Bip casque » dans le casque seul (880 Hz).
+- Les messages MIDI s'affichent dans le journal en bas quand on touche la platine.
+- PLAY, CUE, PFL, volumes, EQ, gain, filtre, pitch, crossfader et jogs agissent sur les decks ; les LED PLAY, CUE
+  et PFL suivent.
 
 ## Contenu
 
+- `sim/controller.py` : platine simulée (MIDI). `test/e2e.mjs` : test de bout en bout.
 - `midi.js` : lecture des messages et LED ; numéros MIDI tirés de
   `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`.
 - `engine.js` : Web Audio, deux decks (gain, EQ 3 bandes, filtre, fader, PFL), crossfader à puissance constante,
-  sortie 4 canaux discrets.
+  sortie en deux flux stéréo ou en 4 canaux discrets.
 - `app.js`, `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 ## Limites connues

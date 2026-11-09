@@ -38,7 +38,8 @@
 <header>
   <h1>djing web · POC</h1>
   <button id="start">Démarrer l'audio</button>
-  <select id="device" disabled><option>Sortie : défaut</option></select>
+  <label>MAIN <select id="mainDevice" disabled><option>défaut</option></select></label>
+  <label>Casque <select id="cueDevice" disabled><option>défaut</option></select></label>
   <button id="labels" title="Chrome ne donne le nom des sorties qu'après une autorisation micro">Noms des sorties</button>
   <span id="out" class="pill">sortie : —</span>
   <span id="midi" class="pill">MIDI : —</span>

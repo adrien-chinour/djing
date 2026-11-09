@@ -1,6 +1,10 @@
-// Audio engine: two decks, a mixer and a 4-channel output.
-// Channels 1-2 (indexes 0-1) carry MAIN, channels 3-4 (indexes 2-3) carry the headphone cue,
-// matching the Inpulse 300 MK2 sound card (see README.md, "Matériel").
+// Audio engine: two decks, a mixer, a MAIN bus and a headphone cue bus.
+// The Inpulse 300 MK2 card carries MAIN on channels 1-2 and the headphones on 3-4 (README.md,
+// "Matériel"). Two ways to reach them:
+// - "4ch": one 4-channel output (when the browser exposes more than 2 channels);
+// - "split": two stereo outputs, MAIN through the AudioContext and the cue through an <audio>
+//   element, each sent to its own device. Chrome on Linux caps outputs at 2 channels, so there
+//   scripts/split-outputs.sh exposes the card as two stereo sinks, "Inpulse MAIN" and "Inpulse Casque".
 
 const EQ_CUT_DB = -26;
 const EQ_BOOST_DB = 6;
@@ -15,35 +19,56 @@ export class Engine {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
     this.master = this.ctx.createGain();
     this.cue = this.ctx.createGain();
-    this.merger = this.ctx.createChannelMerger(4);
-    const masterSplit = this.ctx.createChannelSplitter(2);
-    const cueSplit = this.ctx.createChannelSplitter(2);
-    this.master.connect(masterSplit);
-    this.cue.connect(cueSplit);
-    masterSplit.connect(this.merger, 0, 0);
-    masterSplit.connect(this.merger, 1, 1);
-    cueSplit.connect(this.merger, 0, 2);
-    cueSplit.connect(this.merger, 1, 3);
-    this.merger.connect(this.ctx.destination);
+    this.cueStream = this.ctx.createMediaStreamDestination();
+    this.cueElement = new Audio();
+    this.cueElement.srcObject = this.cueStream.stream;
     this.decks = [new Deck(this, 0), new Deck(this, 1)];
     this.crossfader = 0.5;
-    this.configureOutput();
+    this.mode = null;
+    this.route('split');
   }
 
-  /** Uses 4 discrete channels when the device allows it, else stereo (MAIN only). */
-  configureOutput() {
+  /** Rewires MAIN and cue for "4ch" (one device) or "split" (two stereo devices). */
+  route(mode) {
+    if (mode === '4ch' && this.ctx.destination.maxChannelCount < 4) mode = 'split';
+    this.master.disconnect();
+    this.cue.disconnect();
+    this.merger?.disconnect();
     const dest = this.ctx.destination;
-    this.fourChannels = dest.maxChannelCount >= 4;
-    dest.channelCount = this.fourChannels ? 4 : 2;
     dest.channelCountMode = 'explicit';
     dest.channelInterpretation = 'discrete';
-    return this.fourChannels;
+    if (mode === '4ch') {
+      this.merger = this.ctx.createChannelMerger(4);
+      [[this.master, 0], [this.cue, 2]].forEach(([bus, first]) => {
+        const split = this.ctx.createChannelSplitter(2);
+        bus.connect(split);
+        split.connect(this.merger, 0, first);
+        split.connect(this.merger, 1, first + 1);
+      });
+      dest.channelCount = 4;
+      this.merger.connect(dest);
+      this.cueElement.pause();
+    } else {
+      dest.channelCount = 2;
+      this.master.connect(dest);
+      this.cue.connect(this.cueStream);
+      this.cueElement.play().catch(() => {});
+    }
+    this.mode = mode;
+    return mode;
   }
 
-  async setOutputDevice(deviceId) {
+  /** MAIN device: the AudioContext output ('' = system default). */
+  async setMainDevice(deviceId) {
     if (!this.ctx.setSinkId) throw new Error('AudioContext.setSinkId non supporté (Chrome 110+)');
     await this.ctx.setSinkId(deviceId);
-    return this.configureOutput();
+    return this.route(this.mode);
+  }
+
+  /** Headphone device, used in "split" mode only. */
+  async setCueDevice(deviceId) {
+    await this.cueElement.setSinkId(deviceId);
+    await this.cueElement.play().catch(() => {});
   }
 
   setCrossfader(v) {

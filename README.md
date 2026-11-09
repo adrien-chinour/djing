@@ -216,8 +216,9 @@ make visual V=sunburst       # bascule la TV depuis le terminal
 ## Logiciel web (`web/`, POC)
 
 Preuve de concept d'un logiciel de mix dans Chrome, sans Mixxx : Web MIDI pour la platine, Web Audio pour le
-son, MAIN sur les canaux 1-2 et casque sur 3-4. `make web`, puis <http://localhost:8800>. Détails et limites :
-`web/README.md`.
+son, MAIN sur les canaux 1-2 et casque sur 3-4 (Chrome sous Linux ne sort qu'en stéréo : `make web-split` découpe la
+carte en deux sorties). `make web-split`, `make web`, puis <http://localhost:8800>. Sans platine : `make web-test`
+(platine simulée, test de bout en bout). Détails et limites : `web/README.md`.
 
 ## Utilisation
 
