@@ -94,7 +94,7 @@
     lamp.style.background = a.punch > 0.05 ? 'rgba(255,255,255,' + a.punch.toFixed(2) + ')' : '#222';
     onsetCountEl.textContent = 'punch ' + a.punch.toFixed(2) + '   total ' + onsets;
     if (r) {
-      fluxNum.textContent = 'flux ' + r.dbg.flux.toFixed(2) + ' / seuil ' + r.dbg.thr.toFixed(2);
+      fluxNum.textContent = 'montée ' + r.dbg.rise.toFixed(1) + ' / seuil ' + r.dbg.thr.toFixed(0) + ' dB';
       floorNum.textContent = (r.dbg.minRef - r.dbg.range).toFixed(0);
     }
 
