@@ -55,7 +55,7 @@ daemon-stop: ## Stop the MIDI daemon
 visuals: ## Visuals: one process for sound analysis, TV pages and control (ARGS="--range 25")
 	node visuals/server.js $(ARGS)
 
-visual: ## Visuals: switch the TV to a visual from the terminal (make visual V=sunburst)
+visual: ## Visuals: switch the TV to a visual from the terminal (make visual V=terrain)
 	./visuals/switch $(V)
 
 visuals-lint-docker: ## Visuals: lint the Dockerfile with hadolint (Docker)

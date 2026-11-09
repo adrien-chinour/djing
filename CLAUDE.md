@@ -8,7 +8,7 @@ Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire 
 - Scripts Bash (`scripts/`), lintés par shellcheck. Configuration Mixxx dans `mixxx/`, fichier système dans
   `system/`. Côté platine, pas de dépendance autre que Mixxx (paquet Ubuntu) et les outils ALSA ; `make check`
   exige aussi `node` depuis l'arrivée des visuels.
-- Visuels Ambilight dans `visuals/` : HTML + Canvas 2D ou WebGL 1 (GLSL ES 1.0, helper `gl-visual.js`) en ES5
+- Visuels Ambilight dans `visuals/` : scènes WebGL 1 (GLSL ES 1.0, helper `gl-visual.js`) et pages en ES5
   (navigateur de TV ; `make check` le vérifie), serveur Node 24 (`ws`, `npm install` dans `visuals/`) : capture
   PipeWire par `pw-record` en local, ou sessions distantes (`--no-capture`, analyse `analysis.js` dans le navigateur
   du visiteur, liens signés) déployées sur Coolify par le `Dockerfile` de `visuals/`. Pages servies dans `visuals/public/`,

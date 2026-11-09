@@ -210,7 +210,7 @@ de son ordinateur et obtient un lien d'écran et un lien de contrôle signé. To
 
 ```sh
 make visuals                 # serveur local (Ctrl-C pour arrêter)
-make visual V=sunburst       # bascule la TV depuis le terminal
+make visual V=terrain       # bascule la TV depuis le terminal
 ```
 
 ## Utilisation

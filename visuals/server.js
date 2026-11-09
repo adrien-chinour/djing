@@ -39,7 +39,7 @@ const CHANNELS = 2;
 let PORT       = Number(process.env.PORT) || 8765;
 const PUBLIC   = path.join(__dirname, 'public');          // everything served over HTTP
 const SCENES   = path.join(PUBLIC, 'scenes');             // one .html per visual
-const DEFAULT_VISUAL = 'corridor';
+const DEFAULT_VISUAL = 'tunnel3d';
 const TOOLS    = new Set(['webgl-check']);                // pages of public/ that can be shown on the screen like a visual
 
 const LOCAL_ID       = 'local';

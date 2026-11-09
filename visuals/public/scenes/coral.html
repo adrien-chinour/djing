@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CORAL</title>
+<style>
+  * { margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="../audio-client.js?v=5"></script>
+<script src="../gl-visual.js?v=2"></script>
+<script type="x-shader/x-fragment" id="fs">
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform float uTime, uLevel, uLow, uMid, uHigh, uPunch, uHit, uTone, uDist, uHitDist;
+uniform vec2 uRes;
+
+// Kaleidoscopic IFS coral: space is folded and scaled five times around a turning frame, which
+// grows a bubbly fractal cluster; the bass opens the folds, the mids turn it, the kicks flash its edges.
+#define STEPS 56
+#define ITER 5
+#define TAU 6.2831853
+
+// Column-major constructor: this is the rotation by +a (the other order made the attractor fly apart).
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
+
+// Fold parameters travel as a struct: globals written in main() were not seen by this function
+// on at least one GLSL compiler (ANGLE on SwiftShader rendered nothing).
+struct Fold { float scale; vec3 offset; mat2 rotA; mat2 rotB; };
+
+float de(vec3 p, Fold f) {
+  float s = 1.0;
+  for (int i = 0; i < ITER; i++) {
+    p = abs(p);
+    if (p.x < p.y) p.xy = p.yx;
+    if (p.x < p.z) p.xz = p.zx;
+    if (p.y < p.z) p.yz = p.zy;
+    p.xy = f.rotA * p.xy;
+    p = p * f.scale - f.offset * (f.scale - 1.0);
+    p.yz = f.rotB * p.yz;
+    s *= f.scale;
+  }
+  // Box at the end of the chain (Euclidean distance): large enough for the folded copies to join
+  // into a solid, like a Menger sponge; a small sphere here gives dust instead.
+  return length(max(abs(p) - vec3(1.0, 1.0, 0.9), 0.0)) / s;
+}
+
+vec3 normal(vec3 p, Fold f) {
+  vec2 e = vec2(0.002, 0.0);
+  return normalize(vec3(de(p + e.xyy, f) - de(p - e.xyy, f), de(p + e.yxy, f) - de(p - e.yxy, f), de(p + e.yyx, f) - de(p - e.yyx, f)));
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+  // The second fold rotation turns with the mids; the first one must stay within ±30° or the
+  // attractor scatters into dust (scanned numerically), so it only sways with the tone.
+  // The bass opens the folds (bigger scale → lacier).
+  float turn = uTime * (0.08 + 0.25 * uMid);
+  Fold f;
+  f.scale = 1.9 + 0.35 * uLow;
+  f.offset = vec3(1.0, 1.0 + 0.25 * sin(uTime * 0.21), 0.9);
+  f.rotA = rot(0.3 * sin(uTime * 0.07 + uTone * 2.0));
+  f.rotB = rot(turn);
+
+  // Orbiting camera, breathing in on the bass.
+  float orbit = uTime * 0.12;
+  float radius = 5.2 - 0.6 * uLow + 0.4 * sin(uTime * 0.17);
+  vec3 ro = vec3(sin(orbit) * radius, 1.4 + 1.2 * sin(uTime * 0.09), cos(orbit) * radius);
+  vec3 target = vec3(0.3, 0.3, 0.3);   // the attractor sits around the fold offset side of the origin
+  vec3 fwd = normalize(target - ro), right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd)), up = cross(fwd, right);
+  vec3 rd = normalize(fwd * 1.3 + right * uv.x + up * uv.y);
+
+  float t = 0.0, d = 0.0, glow = 0.0;
+  bool hit = false;
+  for (int i = 0; i < STEPS; i++) {
+    vec3 p = ro + rd * t;
+    d = de(p, f);
+    glow += exp(-d * 14.0) * 0.02;      // edges shine even when the ray misses
+    if (d < 0.0015 * t) { hit = true; break; }
+    t += d * 0.8;
+    if (t > 16.0) break;
+  }
+
+  vec3 tint = thermo(uTone);
+  vec3 col = tint * 0.04 * (1.0 - length(uv) * 0.6);   // vignetted backdrop
+  if (hit) {
+    vec3 p = ro + rd * t;
+    vec3 n = normal(p, f);
+    vec3 l1 = normalize(vec3(0.6, 0.9, -0.4)), l2 = normalize(vec3(-0.7, 0.2, 0.6));
+    float diff = max(dot(n, l1), 0.0) * 0.8 + max(dot(n, l2), 0.0) * 0.4;
+    float spec = pow(max(dot(reflect(rd, n), l1), 0.0), 28.0);
+    float fres = pow(1.0 - max(dot(-rd, n), 0.0), 3.0);
+    // Facet colour drifts along the surface with the tone palette; highs sharpen the glints.
+    vec3 facet = thermo(fract(uTone + 0.15 * sin(p.x * 2.0 + p.y * 1.3 + p.z * 1.7)));
+    col = facet * (0.12 + 0.55 * diff) + vec3(1.0) * spec * (0.5 + 0.8 * uHigh) + tint * fres * 0.5;
+    col *= exp(-t * 0.08);
+  }
+  col += tint * glow * (0.6 + 0.6 * uMid);
+  // Kick: the edges flash white, then the flash decays with uPunch.
+  col += vec3(1.0, 0.97, 0.9) * glow * 3.0 * uPunch;
+  col += tint * 0.08 * uPunch;
+  col = 1.0 - exp(-col * 1.4);
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+<script>
+(function () {
+  GLVisual.start({
+    canvas: document.getElementById('c'),
+    scale: 0.5,
+    period: 64,
+    fragment: document.getElementById('fs').textContent.replace('uniform vec2 uRes;', 'uniform vec2 uRes;\n' + GLVisual.THERMO)
+  });
+}());
+</script>
+</body>
+</html>

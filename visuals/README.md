@@ -21,7 +21,7 @@ visuals/
     deck.js            vue régie DJ (VU-mètres, LED de kick, BPM, bande défilante, statistiques) pour start et control
     gl-visual.js       moteur WebGL 1 commun aux scènes en shader
     analysis.js        analyse du son, le même code dans Node et dans le navigateur
-    scenes/            une page par visuel : corridor, sunburst, tunnel3d, terrain (+ privés, voir .gitignore)
+    scenes/            une page par visuel, toutes en WebGL 1 : tunnel3d, terrain, nebula, coral, city (+ privés, voir .gitignore)
   reports.jsonl        rapports de la sonde WebGL (mode local seulement, ignoré par git)
 ```
 
@@ -41,7 +41,7 @@ visuals/
 ```sh
 npm install                            # une fois, dans visuals/
 make visuals                           # local ; Ctrl-C pour arrêter (ARGS="--range 25")
-make visual V=sunburst                 # bascule depuis le terminal
+make visual V=terrain                 # bascule depuis le terminal
 node visuals/server.js --no-capture    # mode distant en local, pour tester start.html
 ```
 
@@ -95,14 +95,24 @@ en `wss:` derrière HTTPS, lisse les bandes, calcule `punch` (≥ 0,7 à chaque 
 par kick) et se replie sur une simulation à 160 BPM sans son. Le navigateur de la TV met les `.js` en cache : incrémenter
 `?v=` dans les pages à chaque modification.
 
-Scènes Canvas 2D : `corridor` (couloir de carrés en flux vers l'écran, onde de choc par kick), `sunburst` (12 rayons
-tournants, étoile par kick). Scènes WebGL 1 (GLSL ES 1.0, sans bibliothèque) : `tunnel3d` (tunnel raymarché, rayon sur
-les basses, anneau par kick), `terrain` (grille filaire, relief basses / médiums / aigus, vague par kick). Elles passent
-par `gl-visual.js` : contexte, quad plein écran, uniforms `uLevel`, `uLow`, `uMid`, `uHigh`, `uPunch`, `uHit`, `uTone`,
-`uDist` (distance parcourue, bouclée tous les 64 pour la précision `mediump` des GPU de TV), `uHitDist` ; une erreur de
-shader s'affiche sur la page ; option `scale: 0.5` pour rendre à moitié de résolution. Une scène privée reste dans
-`scenes/` et se liste comme les autres, mais son fichier est inscrit dans `.gitignore` (section « Visuels privés »).
-Les anciennes scènes (tunnel, rain, lava, aurora, tide, orbit, solar, geo) sont dans l'historique git.
+Scènes, toutes en WebGL 1 (GLSL ES 1.0, sans bibliothèque) via `gl-visual.js` : contexte, quad plein écran, uniforms
+`uLevel`, `uLow`, `uMid`, `uHigh`, `uPunch`, `uHit`, `uTone`, `uDist` (distance parcourue, bouclée tous les 64 pour la
+précision `mediump` des GPU de TV) et `uHitDist` (distance au dernier kick) ; une erreur de shader s'affiche sur la page ;
+option `scale: 0.5` pour rendre à moitié de résolution, obligatoire pour les scènes raymarchées sur la TV.
+
+- `tunnel3d` : tunnel infini en perspective analytique, rayon sur les basses, anneau de choc par kick (pleine résolution).
+- `terrain` : grille filaire en perspective, relief basses / médiums / aigus selon la profondeur, vague par kick (pleine résolution).
+- `nebula` : brouillard volumétrique (bruit fractal périodique, 32 pas), densité gonflée par les basses, détail creusé par
+  les médiums, sphère de lumière laissée derrière chaque kick, étoiles scintillant avec les aigus.
+- `coral` : amas fractal bulleux (IFS kaléidoscopique, 5 plis, 56 pas) vu en orbite, plis ouverts par les basses, rotation
+  au rythme des médiums, contours qui luisent et flashent sur les kicks, surface colorée par la palette. La première
+  rotation des plis reste sous 30°, au-delà l'attracteur se disperse en poussière (vérifié numériquement).
+- `city` : survol nocturne d'une ville procédurale infinie (grille de blocs, 64 pas), fenêtres allumées selon les médiums
+  et scintillant avec les aigus, vague de lumière qui balaie les rues à chaque kick, brume épaissie par les basses.
+
+Les anciennes scènes Canvas 2D (`corridor`, `sunburst`) et les plus anciennes encore (tunnel, rain, lava, aurora, tide,
+orbit, solar, geo) sont dans l'historique git. Une scène privée reste dans `scenes/` et se liste comme les autres, mais
+son fichier est inscrit dans `.gitignore` (section « Visuels privés »).
 
 Avant une scène WebGL sur la TV, ouvrir `http://<ip>:8765/webgl-check.html` dessus : support, renderer, précision `highp`,
 cadence en pleine et demi-résolution, envoyés au serveur (`POST /report`, `reports.jsonl`).
