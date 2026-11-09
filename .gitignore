@@ -9,4 +9,4 @@ visuals/node_modules/
 visuals/reports.jsonl
 
 # Visuels privés : présents dans visuals/, servis à la TV, jamais publiés (une ligne par fichier)
-visuals/pickaxe.html
+visuals/public/scenes/pickaxe.html

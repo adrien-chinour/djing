@@ -1,5 +1,5 @@
 // audio-client.js — shared by the visuals.
-// Connects to audio-server.js (session taken from ?s=<id>, from /s/<id> or /c/<id>/..., else local)
+// Connects to server.js (session taken from ?s=<id>, from /s/<id> or /c/<id>/..., else local)
 // and exposes smoothed, ready-to-use values.
 // Falls back to a 160 BPM simulation when no audio arrives.
 //
@@ -11,7 +11,7 @@
 //   state.hit             0.7-1 on the frame an attack arrives, 0 otherwise (to trigger one-off effects)
 //   state.raw             last raw message (debug)
 //   AudioFeed.session     session id
-//   AudioFeed.onHello(msg) / onActive(visual) / onSource(on)   optional callbacks for the screen and control pages
+//   AudioFeed.onHello(msg) / onActive(visual, msg) / onSource(on)   optional callbacks for the screen and control pages
 (function (global) {
   var SIM_BPS = 160 / 60;
 
@@ -29,7 +29,7 @@
 
   function connect() {
     var ws;
-    // Served by audio-server.js itself: same host and port. Fallback for a file:// open.
+    // Served by server.js itself: same host and port. Fallback for a file:// open.
     var host = location.protocol === 'file:' || !location.host ? 'localhost:8765' : location.host;
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     try { ws = new WebSocket(proto + host + '/ws?s=' + session + '&r=screen'); }
@@ -42,7 +42,7 @@
         // Latch onsets: the source sends ≈47 msg/s, a frame may see several or none
         if (raw.onset > pendingOnset) pendingOnset = raw.onset;
       } else if (msg.t === 'active') {
-        if (feed.onActive) feed.onActive(msg.visual);
+        if (feed.onActive) feed.onActive(msg.visual, msg);
       } else if (msg.t === 'hello') {
         if (feed.onHello) feed.onHello(msg);
       } else if (msg.t === 'source') {

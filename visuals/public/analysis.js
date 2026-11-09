@@ -1,4 +1,4 @@
-// analysis.js — sound analysis shared by audio-server.js (Node, PipeWire capture)
+// analysis.js — sound analysis shared by server.js (Node, PipeWire capture)
 // and start.html (browser, Web Audio capture). ES5 on purpose: it must run in
 // both without a build step, and make check enforces ES5 on this folder.
 //

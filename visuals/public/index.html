@@ -20,15 +20,15 @@
   var iframe = document.getElementById('v');
   var current = null;
 
-  function show(visual) {
-    if (!visual || visual === current) return;
-    current = visual;
+  function show(path) {
+    if (!path || path === current) return;
+    current = path;
     // Swap the src without reloading the parent page: no flash, no browser bar
-    iframe.src = '/' + visual + '.html?s=' + AudioFeed.session + '&_=' + Date.now();
+    iframe.src = path + '?s=' + AudioFeed.session + '&_=' + Date.now();
   }
 
-  AudioFeed.onHello = function (msg) { show(msg.active); };
-  AudioFeed.onActive = show;
+  AudioFeed.onHello = function (msg) { show(msg.activePath); };
+  AudioFeed.onActive = function (visual, msg) { show(msg.path); };
 }();
 </script>
 </body>

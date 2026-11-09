@@ -25,7 +25,7 @@
 </head>
 <body>
 <h1>AUDIO DEBUG</h1>
-<div id="status">connexion à audio-server…</div>
+<div id="status">connexion au serveur…</div>
 
 <div id="meters"></div>
 <div class="row"><div>onset</div><div><span id="onsetLamp"></span> <span id="onsetCount" class="num"></span></div><div class="num" id="fluxNum"></div></div>
@@ -76,7 +76,7 @@
     var a = AudioFeed.update(dt);
     var r = a.raw;
 
-    status.textContent = a.live ? 'LIVE — audio-server connecté' : 'SIMULATION — aucun son reçu du serveur (session ' + AudioFeed.session + ')';
+    status.textContent = a.live ? 'LIVE — serveur connecté' : 'SIMULATION — aucun son reçu du serveur (session ' + AudioFeed.session + ')';
     status.className = a.live ? 'live' : '';
 
     var bandDb = { level: 'full', low: 'low', mid: 'mid', high: 'high' };
