@@ -40,6 +40,12 @@
   .library tr.unreadable { color: var(--dim); opacity: 0.5; }
   .library td button { padding: 1px 8px; margin-left: 4px; }
   .drop { outline: 2px dashed var(--accent); }
+  .meters { display: flex; gap: 6px; align-items: flex-end; }
+  .vu { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--dim); }
+  .vu i { position: relative; width: 12px; height: 80px; background: #0c0e11; border-radius: 3px; overflow: hidden; }
+  .vu i::after { content: ''; position: absolute; inset: auto 0 0; height: calc(var(--level, 0) * 100%); background: linear-gradient(to top, var(--ok) 70%, var(--warn) 90%, #ff4d4d); background-size: 100% 80px; background-position: bottom; }
+  #limit { align-self: center; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; color: var(--dim); }
+  #limit.on { background: #ff4d4d; border-color: #ff4d4d; color: #fff; }
 </style>
 </head>
 <body>
@@ -63,6 +69,13 @@
     <label>Casque <input id="cueVol" type="range" min="0" max="1" step="0.01" value="1"></label>
     <label>Master <input id="mainVol" type="range" min="0" max="1" step="0.01" value="1"></label>
     <label><input id="rateInvert" type="checkbox" checked> pitch inversé</label>
+    <div class="meters" title="Niveaux crête, −48 à 0 dBFS">
+      <span class="vu" data-meter="vu" data-deck="0"><i></i>A</span>
+      <span class="vu" data-meter="vu" data-deck="1"><i></i>B</span>
+      <span class="vu" data-meter="vu.mainLeft"><i></i>L</span>
+      <span class="vu" data-meter="vu.mainRight"><i></i>R</span>
+      <span id="limit">LIMIT</span>
+    </div>
   </section>
   <section class="deck" data-deck="1"></section>
 </main>

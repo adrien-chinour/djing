@@ -1,6 +1,6 @@
 // Header: audio start, output devices, test tones, MIDI status.
 import { Engine } from '../engine.js';
-import { dispatch, onLed, refreshLeds } from '../actions.js';
+import { dispatch, onLed, onMeter, refreshLeds } from '../actions.js';
 import { connectController } from '../midi.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -90,6 +90,7 @@ export function createHeader(ctx, { onStart }) {
         connection: () => updateMidi(),
       });
       onLed((name, deck, on) => controller.setLed(name, deck, on));
+      onMeter((name, deck, value) => controller.setMeter(name, deck, value));
     } catch (err) {
       log(`Accès MIDI refusé : ${err.message}`);
     }

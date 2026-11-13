@@ -21,13 +21,16 @@ carte son, sans Mixxx.
 - Les messages MIDI s'affichent dans le journal en bas quand on touche la platine.
 - PLAY, CUE, PFL, volumes, EQ, gain, filtre, pitch, crossfader et jogs agissent sur les decks ; les LED PLAY, CUE
   et PFL suivent.
+- Les VU-mètres de l'écran (A, B pré-fader, master L et R) et les LED VU de la platine suivent le son ; le voyant
+  LIMIT s'allume quand le limiteur du MAIN réduit le gain de plus de 3 dB.
 
 ## Tester sans la platine
 
 - `make web-test` : test de bout en bout, sans matériel ni Mixxx. Il crée une platine simulée (port MIDI virtuel
   au nom de la platine), une sortie PipeWire 4 canaux qui tient lieu de carte son, la découpe avec
   `split-outputs.sh`, pilote Chrome headless, joue un titre depuis la platine simulée et mesure avec `pw-record`
-  le son de chaque canal (MAIN, PFL, fader, crossfader), les LED reçues, le pitch et le jog. Tout ce qu'il crée
+  le son de chaque canal (MAIN, PFL, fader, crossfader), les LED reçues, le pitch et le jog. Le scénario
+  `vu-limiter.mjs` vérifie les VU-mètres, les LED VU et leur débit, et la crête du MAIN limité. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
 - Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `library.mjs` : la
@@ -58,7 +61,12 @@ que ne reçoit rien.
 - `actions.js` : registre d'actions (`register(nom, fn)`, `dispatch(nom, deck, valeur)`) et de LED
   (`led(nom, deck, () => état)`), recalculées après chaque action et envoyées seulement si elles changent.
 - `engine.js` : Web Audio, deux decks (gain, EQ 3 bandes, filtre, fader, PFL), crossfader à puissance constante,
-  sortie en deux flux stéréo ou en 4 canaux discrets.
+  limiteur sur le MAIN, analyseurs de niveau (decks pré-fader, MAIN L/R après le limiteur), sortie en deux flux
+  stéréo ou en 4 canaux discrets.
+- `worklets/limiter.js` : AudioWorklet, limiteur crête à anticipation (5 ms) sur le MAIN, plafond −1 dBFS ; le casque n'est
+  pas limité.
+- `ui/meters.js` : VU-mètres (crête, échelle −48..0 dBFS), voyant LIMIT et LED VU de la platine (`METERS` de
+  `mapping.js`, 0..125, toutes les 34 ms au plus, seulement quand la valeur change).
 - `worklets/deck-player.js` : lecteur d'un deck dans un `AudioWorklet` : vitesse signée de −4 à +4, interpolation
   linéaire, saut en lecture avec fondu croisé de 5 ms, arrêt en fin de titre (ou à 0 en marche arrière), position
   remontée environ 120 fois par seconde. Le scénario `test/scenarios/deck-player.mjs` le vérifie.
