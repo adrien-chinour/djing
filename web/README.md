@@ -136,6 +136,12 @@ que ne reçoit rien.
   repasse par la valeur synchronisée ; il reprend alors la main et la synchro s'arrête. Sans BPM sur l'un des deux
   titres : « Sync impossible » sous le deck. SHIFT + Q : plage du pitch 8, 16, 50 % (défaut 8 %), le fader garde sa
   position. BPM affiché = BPM analysé × vitesse. Le scénario `test/scenarios/sync.mjs` le vérifie.
+- Slip (`engine.js`, position fantôme dans le worklet) : SLIP (`0x91`/`0x92` `0x01`, LED, bouton SLIP à l'écran)
+  active ou coupe le slip. Slip actif, un scratch (pas la recherche SHIFT + jog), une boucle ou un hotcue maintenu
+  fait naître une position fantôme qui avance à la vitesse du deck hors scratch (pitch fader ou sync ; immobile deck arrêté) ; au relâchement
+  du jog, à la sortie de boucle ou au relâchement du pad, la lecture y reprend, avec le fondu de 5 ms d'un saut.
+  Slip actif, un hotcue n'agit que tant que le pad (ou le bouton à l'écran) est maintenu. Couper SLIP pendant un
+  maintien abandonne la position fantôme. Le scénario `test/scenarios/slip.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
