@@ -9,7 +9,7 @@ check: ## Lint scripts and validate the mapping files
 	shellcheck visuals/switch
 	bash -n visuals/switch
 	node --check visuals/server.js visuals/public/*.js
-	node --check web/*.js web/ui/*.js web/worklets/*.js web/test/*.mjs web/test/scenarios/*.mjs
+	node --check web/*.js web/ui/*.js web/fx/*.js web/worklets/*.js web/test/*.mjs web/test/scenarios/*.mjs
 	node --check web/analysis/*.js
 	python3 -I -m py_compile web/sim/controller.py
 	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)

@@ -6,6 +6,8 @@
 //   element, each sent to its own device. Chrome on Linux caps outputs at 2 channels, so there
 //   scripts/split-outputs.sh exposes the card as two stereo sinks, "Inpulse MAIN" and "Inpulse Casque".
 
+import { FxUnit } from './fx/unit.js';
+
 const EQ_CUT_DB = -26;
 const EQ_BOOST_DB = 6;
 
@@ -138,6 +140,7 @@ class Deck {
     this.scratch = null; // { target, x, v, idle, timer } while the wheel drives playback
     this.cuePoint = 0;
     this.rateRange = 0.08;
+    this.bpm = null; // track BPM, null while unknown (effects then assume 120)
 
     this.trim = ctx.createGain();
     this.low = new BiquadFilterNode(ctx, { type: 'lowshelf', frequency: 250 });
@@ -149,10 +152,12 @@ class Deck {
     this.pfl = ctx.createGain();
     this.pfl.gain.value = 0;
     this.meter = ctx.createAnalyser(); // pre-fader level
-    this.trim.connect(this.low).connect(this.mid).connect(this.high).connect(this.filter);
-    this.filter.connect(this.fader).connect(this.xfade).connect(engine.master);
-    this.filter.connect(this.pfl).connect(engine.cue); // pre-fader listen
-    this.filter.connect(this.meter);
+    // Effect unit after the EQ and filter, before the fader (and heard on PFL and the meter).
+    this.fx = new FxUnit(ctx, { tempo: () => (this.bpm ? this.bpm * this.rate : null) });
+    this.trim.connect(this.low).connect(this.mid).connect(this.high).connect(this.filter).connect(this.fx.input);
+    this.fx.output.connect(this.fader).connect(this.xfade).connect(engine.master);
+    this.fx.output.connect(this.pfl).connect(engine.cue); // pre-fader listen
+    this.fx.output.connect(this.meter);
   }
 
   async load(file) {
@@ -265,6 +270,13 @@ class Deck {
   setRate(v) {
     this.rate = 1 + v * this.rateRange;
     this.applySpeed();
+    this.fx.retime();
+  }
+
+  /** Track BPM (null when unknown); tempo-synced effects follow it, scaled by the pitch. */
+  setBpm(bpm) {
+    this.bpm = bpm;
+    this.fx.retime();
   }
 
   /** Jog wheel: nudge while playing, search while stopped or touched. */
