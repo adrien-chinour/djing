@@ -190,6 +190,13 @@ que ne reçoit rien.
   transposition posée par toneplay est en place : une autre commande de transposition y met fin. LED : le pad de
   la transposition courante, bornée à −4..+3 et arrondie, avec et sans SHIFT, quelle qu'en soit l'origine. Le
   scénario `test/scenarios/toneplay.mjs` le vérifie.
+- AutoDJ (`ui/autodj.js`) : AUTODJ (`0x90` `0x03`, LED) ou le bouton « AutoDJ » du panneau Playlists enchaîne la
+  playlist affichée. Aucun deck en lecture : premier titre sur A, crossfader sur A ; sinon la playlist reprend
+  après le titre du deck en lecture (du début s'il n'y figure pas). Le titre suivant se charge sur le deck libre ;
+  à 10 s de la fin du titre en cours (temps réel, vitesse comprise), il démarre, synchronisé d'abord si les deux
+  titres ont un BPM, et le crossfader glisse en 10 s vers lui. Titre sortant fini : synchro relâchée, titre suivant
+  chargé sur ce deck. Un titre introuvable ou illisible est sauté. Arrêt après le dernier titre ; re-appui :
+  arrêt immédiat, crossfader et decks laissés tels quels. Le scénario `test/scenarios/autodj.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module

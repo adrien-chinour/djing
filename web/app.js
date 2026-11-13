@@ -11,6 +11,7 @@ import { createRolls } from './ui/rolls.js';
 import { createToneplay } from './ui/toneplay.js';
 import { createLibrary } from './ui/library.js';
 import { createPlaylists } from './ui/playlists.js';
+import { createAutoDj } from './ui/autodj.js';
 import { createMeters } from './ui/meters.js';
 import { createFx } from './ui/fx.js';
 import { createWaveforms } from './ui/waveform.js';
@@ -31,7 +32,8 @@ createToneplay(ctx, decks.panels);
 createFx(ctx, decks.panels);
 createMixer(ctx);
 createLibrary(ctx, decks.load);
-createPlaylists(ctx);
+const playlists = createPlaylists(ctx);
+createAutoDj(ctx, { load: decks.load, playlists });
 const meters = createMeters(ctx);
 createHeader(ctx, {
   onStart: () => {

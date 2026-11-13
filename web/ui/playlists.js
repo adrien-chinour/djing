@@ -185,4 +185,9 @@ export function createPlaylists(ctx) {
     playlists = all;
     show(playlists[0] ?? null);
   }).catch(fail);
+
+  return {
+    /** The playlist shown, null when there is none. */
+    get current() { return current; },
+  };
 }
