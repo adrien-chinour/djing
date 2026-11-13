@@ -79,7 +79,7 @@ que ne reçoit rien.
   prend 120 ms de latence (« latence » sous le deck), que `deck.position` retranche (`deck.playhead` reste la
   position de lecture). Le scénario `test/scenarios/keylock.mjs` le vérifie.
 - `library/` : base IndexedDB unique `djing` (`db.js`, une migration par version : magasins `tracks`, données par
-  titre, et `settings`, dont le dossier de musique) et liste des titres d'un `FileSystemDirectoryHandle` (`scan.js`).
+  titre, `settings`, dont le dossier de musique, `cues` et `playlists`) et liste des titres d'un `FileSystemDirectoryHandle` (`scan.js`).
   Identifiant d'un titre : `<chemin relatif>|<taille>|<lastModified>`.
 - `analysis/` : BPM et grille de chaque titre, calculés une fois. `queue.js` décode les titres un par un
   (`OfflineAudioContext` à 22 050 Hz, mono) et les passe au Web Worker `worker.js`, qui appelle `beat.js` :
@@ -159,6 +159,14 @@ que ne reçoit rien.
   mode beatjump (`0x70` à `0x77`) = −1, +1, −2, +2, −4, +4, −8, +8 temps, en lecture ou à l'arrêt. Les deux
   exigent une grille ; sans grille, rien ne bouge et « … impossible : pas de grille » s'affiche sous les pads.
   Boutons Roll (maintenus) et Beatjump à l'écran. Le scénario `test/scenarios/roll-beatjump.mjs` le vérifie.
+- Playlists (`ui/playlists.js`, `library/playlists.js`) : panneau sous la bibliothèque. « Nouvelle », « Renommer »
+  (nom saisi dans le panneau), « Supprimer » (confirmation dans le panneau). On y glisse les lignes de la
+  bibliothèque (insertion à l'endroit du dépôt, un titre peut y figurer plusieurs fois), on réordonne en glissant
+  ses lignes, « Retirer » enlève une ligne. Sauvegardées dans le magasin IndexedDB `playlists`
+  (`{ id, name, items: [identifiant de titre…] }`) ; un titre absent du dernier listage du dossier reste listé,
+  grisé « introuvable ». « Exporter M3U8 » : `#EXTM3U`, puis `#EXTINF:-1,Artiste - Titre` et le chemin relatif au
+  dossier de la bibliothèque pour chaque titre, en UTF-8 sans BOM (fichier à poser à la racine du dossier). Le
+  scénario `test/scenarios/playlists.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
