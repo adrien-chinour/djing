@@ -9,7 +9,7 @@ import { check, sleep, tmp, writeTone } from '../lib.mjs';
 
 const GRID = 'Grid - 120.wav';
 const NO_GRID = 'NoGrid - Tone.wav';
-const ANALYSIS = { [GRID]: { bpm: 120, firstBeat: 0.1 }, [NO_GRID]: { bpm: null, firstBeat: null } };
+const ANALYSIS = { [GRID]: { bpm: 120, firstBeat: 0.1, key: null }, [NO_GRID]: { bpm: null, firstBeat: null, key: null } };
 const near = (a, b, tol = 0.002) => typeof a === 'number' && Math.abs(a - b) <= tol;
 
 export default async function ({ page, sim }) {
