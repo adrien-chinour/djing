@@ -40,6 +40,16 @@ export function createDecks(ctx) {
 
   register('vinyl', onPress((deck) => deck.setVinyl(!deck.vinyl)));
   register('quantize', onPress((deck) => { deck.quantize = !deck.quantize; }));
+
+  // Sync (sync.js): SYNC on the follower, SHIFT + SYNC chooses the master, SHIFT + Q the pitch range.
+  register('sync', (d, v) => {
+    if (!deckOf(d) || v <= 0) return;
+    const error = ctx.engine.sync.toggle(d);
+    panels[d].syncError = error && { text: error, until: performance.now() + 4000 };
+    if (error) ctx.log(error);
+  });
+  register('shift.sync', (d, v) => v > 0 && ctx.engine?.sync.toggleLeader(d));
+  register('shift.quantize', onPress((deck) => deck.cycleRateRange()));
   register('wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('shift.wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('jog', (d, ticks) => deckOf(d)?.jog(ticks, false));
@@ -82,7 +92,7 @@ export function createDecks(ctx) {
     ui.track = track;
     setGrid(d);
     showBpm(ui);
-    ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null); // tempo of the deck effects
+    ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null, track?.analysis?.firstBeat); // effects and sync
     document.dispatchEvent(new CustomEvent('djing:load', { detail: { deck: d, track } }));
     refreshLeds();
     return true;
@@ -106,7 +116,7 @@ export function createDecks(ctx) {
       if (ui.track !== track) return;
       setGrid(d);
       showBpm(ui);
-      deckOf(d)?.setBpm(track.analysis?.bpm ?? null);
+      deckOf(d)?.setBpm(track.analysis?.bpm ?? null, track.analysis?.firstBeat);
     });
   });
   /** Beat grid of deck d (auto loops, loop lengths in beats), from the analysis of its track. */
@@ -123,20 +133,28 @@ export function createDecks(ctx) {
     led('keylock', d, () => deckOf(d)?.keylock);
     led('quantize', d, () => deckOf(d)?.quantize);
     led('loopIn', d, () => !!deckOf(d)?.loop);
+    led('sync', d, () => ctx.engine?.sync.follower === d);
   });
   // Mirrors the LEDs on the screen controls that declare data-led.
   onLed((name, d, on) => {
     if (d !== null) $(`[data-led="${name}"]`, panels[d].section)?.classList.toggle('on', on);
   });
 
-  return { panels, load, draw: () => ctx.engine.decks.forEach((deck, d) => drawDeck(deck, panels[d])) };
+  return {
+    panels,
+    load,
+    draw: () => {
+      refreshLeds(); // the sync can end without an action (fader taken over, track loaded)
+      ctx.engine.decks.forEach((deck, d) => drawDeck(deck, panels[d], ctx.engine.sync));
+    },
+  };
 }
 
 function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section) };
+  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -168,7 +186,7 @@ function showBpm(ui) {
   ui.key.textContent = ui.track ? formatKey(analysis) : '—';
 }
 
-function drawDeck(deck, ui) {
+function drawDeck(deck, ui, sync) {
   const g = ui.canvas.getContext('2d');
   const { width: w, height: h } = ui.canvas;
   g.clearRect(0, 0, w, h);
@@ -188,4 +206,10 @@ function drawDeck(deck, ui) {
   ui.rate.textContent = `${deck.rate >= 1 ? '+' : '−'}${(Math.abs(deck.rate - 1) * 100).toFixed(2)} %`;
   ui.transpose.textContent = `${deck.transpose > 0 ? '+' : deck.transpose < 0 ? '−' : '±'}${Math.abs(deck.transpose)} dt`;
   ui.latency.textContent = `latence ${Math.round(deck.delay * 1000)} ms`;
+  ui.range.textContent = `±${Math.round(deck.rateRange * 100)} %`;
+  // Tempo heard: analysed BPM × pitch.
+  if (deck.bpm) ui.bpm.textContent = `${(deck.bpm * deck.rate).toFixed(2)} BPM · 1er temps ${deck.firstBeat.toFixed(3)} s`;
+  if (ui.syncError && performance.now() > ui.syncError.until) ui.syncError = null;
+  ui.master.textContent = ui.syncError?.text
+    ?? (sync.shownMaster === deck.index ? 'MAÎTRE' : sync.follower === deck.index ? `SYNC → ${'AB'[sync.master]}` : '');
 }

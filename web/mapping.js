@@ -39,6 +39,7 @@ export const INPUTS = [
   ...hotcuePads(true),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
+  { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
   ...PAD_MODES.map((mode, i) => ({ status: NOTE, number: PAD_MODE_FIRST + i, type: 'note', action: `padMode.${mode}` })),
 
   { status: CC, number: 0x00, type: 'cc', action: 'volume' },
@@ -75,6 +76,7 @@ export const LEDS = {
   quantize: { status: NOTE, number: 0x02 },
   ...Object.fromEntries(Array.from({ length: HOTCUES }, (_, n) => [`hotcue.${n}`, { status: PAD, number: n }])),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
+  sync: { status: NOTE, number: 0x05 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
 

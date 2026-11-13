@@ -118,6 +118,9 @@
     <button data-act="grid.earlier" title="Grille 10 ms plus tôt">−10 ms</button>
     <button data-act="grid.later" title="Grille 10 ms plus tard">+10 ms</button>
     <button data-act="quantize" data-led="quantize" title="Calage des repères sur le temps le plus proche">Q</button>
+    <button data-act="sync" data-led="sync" title="Caler tempo et phase sur le deck maître">SYNC</button>
+    <button data-act="shift.sync" title="Choisir ce deck comme maître (SHIFT + SYNC)">MAÎTRE</button>
+    <span class="time master"></span>
   </div>
   <div class="row loops">
     <button data-act="loopIn" data-led="loopIn" title="Début de boucle (allumé : boucle active)">IN</button>
@@ -141,6 +144,8 @@
   <div class="row">
     <label>Volume <input data-knob="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
     <label>Pitch <input data-knob="rate" type="range" min="-1" max="1" step="0.001" value="0"></label>
+    <button data-act="shift.quantize" title="Plage du pitch : 8, 16, 50 % (SHIFT + Q)">plage</button>
+    <span class="time range">±8 %</span>
   </div>
   <div class="row">
     <button data-act="keylock" data-led="keylock">KEYLOCK</button>
