@@ -130,7 +130,7 @@ export function createDecks(ctx) {
     led('cue', d, () => deckOf(d)?.buffer && !deckOf(d).playing);
     led('pfl', d, () => deckOf(d)?.pflOn);
     led('vinyl', d, () => deckOf(d)?.vinyl);
-    led('keylock', d, () => deckOf(d)?.keylock);
+    led('keylock', d, () => deckOf(d)?.keylocked); // forced by toneplay too
     led('quantize', d, () => deckOf(d)?.quantize);
     led('slip', d, () => deckOf(d)?.slip);
     led('loopIn', d, () => !!deckOf(d)?.loop);
