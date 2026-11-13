@@ -2,6 +2,7 @@
 // Messages in (all but `load` carry `gen`, echoed back so the deck can drop stale reports):
 //   { type: 'load', channels: Float32Array[] }   track samples, at the context sample rate
 //   { type: 'play' } | { type: 'stop', position } | { type: 'seek', position } | { type: 'speed', speed }
+//   { type: 'loop', start, end }                  loop between start and end (s); start null: no loop
 // Messages out:
 //   { type: 'position', position, time, playing, gen }   at least 60 times per second
 //   { type: 'ended', position, gen }                      end of track (or 0 in reverse)
@@ -23,6 +24,7 @@ class DeckPlayer extends AudioWorkletProcessor {
     this.fadeFrames = Math.round(FADE_SECONDS * sampleRate);
     this.fadeLeft = 0; // frames left in the crossfade after a seek
     this.fadePos = 0; // read position of the outgoing audio during the crossfade
+    this.loop = null; // { start, end } in frames while a loop is active
     this.reportEvery = Math.max(1, Math.floor(sampleRate / REPORTS_PER_SECOND / 128));
     this.blocks = 0;
     this.port.onmessage = (e) => this.onMessage(e.data);
@@ -37,6 +39,7 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.pos = 0;
         this.playing = false;
         this.fadeLeft = 0;
+        this.loop = null;
         break;
       case 'play':
         if (this.length) this.playing = true;
@@ -58,6 +61,9 @@ class DeckPlayer extends AudioWorkletProcessor {
       case 'speed':
         this.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, msg.speed));
         break;
+      case 'loop':
+        this.loop = msg.start === null ? null : { start: msg.start * sampleRate, end: msg.end * sampleRate };
+        break;
     }
     this.report();
   }
@@ -77,6 +83,22 @@ class DeckPlayer extends AudioWorkletProcessor {
   }
 
   /**
+   * Back to the other end of the loop when the read position leaves it: by exactly the loop length
+   * (the fractional part is kept), with the seek crossfade from the audio past the boundary.
+   */
+  wrapLoop() {
+    const { start, end } = this.loop;
+    const length = end - start;
+    let pos = this.pos;
+    if (this.speed > 0 && pos >= end) pos = start + ((pos - start) % length);
+    else if (this.speed < 0 && pos < start && pos >= start + this.speed) pos += length; // crossed the start just now
+    else return;
+    this.fadePos = this.pos;
+    this.fadeLeft = this.fadeFrames;
+    this.pos = pos;
+  }
+
+  /**
    * Fills `out` (one Float32Array per output channel) from the track at the current speed and
    * returns false once the track boundary is reached. A time-stretch stage (#39) goes here, between
    * the read position and the output.
@@ -84,6 +106,7 @@ class DeckPlayer extends AudioWorkletProcessor {
   render(out) {
     const n = out[0].length;
     for (let f = 0; f < n; f++) {
+      if (this.loop) this.wrapLoop();
       if (this.speed > 0 ? this.pos >= this.length : this.speed < 0 && this.pos <= 0) {
         this.pos = this.speed > 0 ? this.length : 0;
         for (const ch of out) ch.fill(0, f);

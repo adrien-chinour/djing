@@ -113,6 +113,12 @@ que ne reçoit rien.
   quand le hotcue existe. Sauvegardés par identifiant de titre dans le magasin IndexedDB `cues` (`{ id, hotcues }`)
   et relus au chargement depuis la bibliothèque ; un fichier glissé sur le deck n'est pas sauvegardé. Le scénario
   `test/scenarios/hotcues.mjs` le vérifie.
+- Boucles (`engine.js`, bornes dans le worklet) : LOOP IN (`0x09`) pose le début, LOOP OUT (`0x0A`) la fin et active
+  la boucle, ou la quitte si elle est active (la lecture continue) ; LED LOOP IN allumée tant qu'une boucle est
+  active. SHIFT + LOOP IN / OUT : longueur ÷2 / ×2 depuis le début, entre 1/32 et 64 temps (en secondes sans
+  grille). Boutons à l'écran de 1/2 à 16 temps, qui exigent une grille : début au temps courant si QUANTIZE
+  (`0x02`, bouton Q) est actif, sinon à la position. Le worklet recule de la longueur exacte de la boucle, avec le
+  fondu de 5 ms d'un saut. Le scénario `test/scenarios/loops.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -124,6 +130,6 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
-- Pas de sync ni de boucles. Grille à tempo constant seulement ; précision du BPM sur de la vraie
+- Pas de sync ; boucles non sauvegardées, pas de roll. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
 - Pas de pilotage des effets par la platine.

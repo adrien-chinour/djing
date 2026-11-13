@@ -4,6 +4,8 @@ import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
 import { patch } from '../library/db.js';
 import { announce, formatBpm } from '../analysis/queue.js';
 
+const AUTO_LOOPS = [0.5, 1, 2, 4, 8, 16]; // beats, buttons of index.html
+
 const $ = (sel, root) => root.querySelector(sel);
 const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 
@@ -44,6 +46,13 @@ export function createDecks(ctx) {
   register('jogTouched', (d, ticks) => deckOf(d)?.touchedJog(ticks));
   register('shift.jog', (d, ticks) => deckOf(d)?.seekJog(ticks));
 
+  // Loops: LOOP IN / LOOP OUT, SHIFT + LOOP IN / OUT halve / double, auto loops of n beats (Q: from the current beat).
+  register('loopIn', onPress((deck) => deck.loopIn()));
+  register('loopOut', onPress((deck) => deck.loopOut()));
+  register('shift.loopIn', onPress((deck) => deck.scaleLoop(0.5)));
+  register('shift.loopOut', onPress((deck) => deck.scaleLoop(2)));
+  for (const beats of AUTO_LOOPS) register(`autoLoop.${beats}`, onPress((deck) => deck.autoLoop(beats)));
+
   register('seek', (d, fraction) => {
     const deck = deckOf(d);
     if (deck?.buffer) deck.seek(fraction * deck.duration);
@@ -71,6 +80,7 @@ export function createDecks(ctx) {
     ui.name.textContent = file.name;
     ui.peaks = ctx.engine.decks[d].peaks(ui.canvas.width);
     ui.track = track;
+    setGrid(d);
     showBpm(ui);
     ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null); // tempo of the deck effects
     document.dispatchEvent(new CustomEvent('djing:load', { detail: { deck: d, track } }));
@@ -94,10 +104,16 @@ export function createDecks(ctx) {
   document.addEventListener('djing:analysis', ({ detail: track }) => {
     panels.forEach((ui, d) => {
       if (ui.track !== track) return;
+      setGrid(d);
       showBpm(ui);
       deckOf(d)?.setBpm(track.analysis?.bpm ?? null);
     });
   });
+  /** Beat grid of deck d (auto loops, loop lengths in beats), from the analysis of its track. */
+  function setGrid(d) {
+    const analysis = panels[d].track?.analysis;
+    if (deckOf(d)) deckOf(d).grid = analysis?.bpm ? { bpm: analysis.bpm, firstBeat: analysis.firstBeat } : null;
+  }
 
   panels.forEach((_, d) => {
     led('play', d, () => deckOf(d)?.playing);
@@ -106,6 +122,7 @@ export function createDecks(ctx) {
     led('vinyl', d, () => deckOf(d)?.vinyl);
     led('keylock', d, () => deckOf(d)?.keylock);
     led('quantize', d, () => deckOf(d)?.quantize);
+    led('loopIn', d, () => !!deckOf(d)?.loop);
   });
   // Mirrors the LEDs on the screen controls that declare data-led.
   onLed((name, d, on) => {
