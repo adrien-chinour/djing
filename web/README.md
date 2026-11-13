@@ -48,7 +48,8 @@ que ne reçoit rien.
 
 ## Contenu
 
-- `sim/controller.py` : platine simulée (MIDI). `test/e2e.mjs` : test de bout en bout.
+- `sim/controller.py` : platine simulée (MIDI). `test/e2e.mjs` : lanceur des scénarios de `test/scenarios/`,
+  outils communs dans `test/lib.mjs`.
 - `midi.js` : lecture des messages et LED ; numéros MIDI tirés de
   `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`.
 - `engine.js` : Web Audio, deux decks (gain, EQ 3 bandes, filtre, fader, PFL), crossfader à puissance constante,

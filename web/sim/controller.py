@@ -12,6 +12,10 @@ Commands (deck is A or B, values in 0..1 unless stated):
   rate A -1..1                pitch fader, sent as 14-bit MSB + LSB
   jog A <ticks> [touched]     ticks signed, one message per tick
   xfader 0.2                  crossfader
+  note 91 07 7f               note message: hex status, number, value
+  cc b1 00 40                 control change: hex status, number, value
+  pad A hotcue 1 [shift]      performance pad down then up; modes: hotcue, roll, slicer,
+                              sampler, toneplay, fx, slicerloop, beatjump; pads 1..8
   raw 91 07 7f                any message, hex bytes
   leds                        print the last value of every LED received
   quit
@@ -31,6 +35,19 @@ NOTE_STATUS = {"A": 0x91, "B": 0x92}
 CC_STATUS = {"A": 0xB1, "B": 0xB2}
 NOTES = {"play": 0x07, "cue": 0x06, "pfl": 0x0C, "touch": 0x08}
 KNOBS = {"volume": 0x00, "filter": 0x01, "low": 0x02, "mid": 0x03, "high": 0x04, "gain": 0x05}
+# Performance pads (mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml): one status per
+# deck, a base number per pad mode, pads 1..8 from there, +8 with SHIFT.
+PAD_STATUS = {"A": 0x96, "B": 0x97}
+PAD_MODES = {
+    "hotcue": 0x00,
+    "roll": 0x10,
+    "slicer": 0x20,
+    "sampler": 0x30,
+    "toneplay": 0x40,
+    "fx": 0x50,
+    "slicerloop": 0x60,
+    "beatjump": 0x70,
+}
 
 
 def to7(value: float) -> int:
@@ -61,6 +78,14 @@ class SimController:
         self.hold(deck, button, True)
         time.sleep(0.02)
         self.hold(deck, button, False)
+
+    def pad(self, deck: str, mode: str, pad: int, shift: bool = False) -> None:
+        if not 1 <= pad <= 8:
+            raise ValueError(f"pad must be 1..8, got {pad}")
+        number = PAD_MODES[mode] + pad - 1 + (8 if shift else 0)
+        self.send(PAD_STATUS[deck], number, 0x7F)
+        time.sleep(0.02)
+        self.send(PAD_STATUS[deck], number, 0x00)
 
     def knob(self, deck: str, name: str, value: float) -> None:
         self.send(CC_STATUS[deck], KNOBS[name], to7(value))
@@ -101,6 +126,17 @@ class SimController:
             self.jog(args[0], int(args[1]), len(args) > 2 and args[2] == "touched")
         elif cmd == "xfader":
             self.xfader(float(args[0]))
+        elif cmd in ("note", "cc"):
+            if len(args) != 3:
+                raise ValueError(f"{cmd} takes status, number and value")
+            status = int(args[0], 16)
+            if status >> 4 != (0x9 if cmd == "note" else 0xB):
+                raise ValueError(f"status {args[0]} is not a {cmd} status")
+            self.send(status, int(args[1], 16), int(args[2], 16))
+        elif cmd == "pad":
+            if len(args) > 3 and args[3] != "shift":
+                raise ValueError(f"unexpected argument: {args[3]}")
+            self.pad(args[0], args[1], int(args[2]), len(args) > 3)
         elif cmd == "raw":
             self.send(*(int(b, 16) for b in args))
         elif cmd == "leds":
