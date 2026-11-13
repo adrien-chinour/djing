@@ -1,6 +1,7 @@
 // Hotcues: 8 cue points per deck on the performance pads (hotcue page) and on the screen. A pad sets
 // its cue point when empty, else jumps to it (playing or stopped, unchanged); SHIFT + pad clears it.
-// With Q on and a beat grid, a new cue point snaps to the nearest beat. Saved per track id in the
+// With SLIP on, a jump lasts while the pad is held: on release, playback goes back to where it would
+// have been. With Q on and a beat grid, a new cue point snaps to the nearest beat. Saved per track id in the
 // IndexedDB store `cues` and read back when the track is loaded from the library.
 import { register, dispatch, led, refreshLeds } from '../actions.js';
 import { HOTCUES } from '../mapping.js';
@@ -40,11 +41,15 @@ export function createHotcues(ctx, panels) {
   for (let n = 0; n < HOTCUES; n++) {
     register(`hotcue.${n}`, (d, v) => {
       const deck = deckOf(d);
-      if (!deck || v <= 0) return;
+      if (!deck) return;
+      if (v <= 0) return deck.releaseSlip('hotcue');
       const at = ctx.hotcues[d][n];
       // Set at the position heard (deck.position, behind the playhead by the keylock latency); jumping
       // moves the playhead, so the audio heard next starts at the cue point.
-      if (at !== null) return deck.seek(at);
+      if (at !== null) {
+        deck.holdSlip('hotcue');
+        return deck.seek(at);
+      }
       const position = deck.quantize ? snapToBeat(deck.position, panels[d].track?.analysis) : deck.position;
       ctx.hotcues[d][n] = Math.min(Math.max(0, position), deck.duration);
       show(d);
@@ -81,9 +86,27 @@ export function createHotcues(ctx, panels) {
       const btn = document.createElement('button');
       btn.textContent = String(n + 1);
       btn.dataset.led = `hotcue.${n}`; // no data-act: SHIFT + click clears instead
+      // Pressed and released like a pad (SLIP: the jump lasts while held); a click without a pointer
+      // (keyboard, script) is a press and a release.
+      const action = (e) => `${e.shiftKey ? 'shift.' : ''}hotcue.${n}`;
+      let held = null;
+      const release = () => {
+        if (held) dispatch(held, d, 0);
+        held = null;
+      };
+      btn.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        held = action(e);
+        dispatch(held, d, 1);
+      });
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('pointercancel', release);
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        dispatch(`${e.shiftKey ? 'shift.' : ''}hotcue.${n}`, d, 1);
+        if (e.detail !== 0) return; // pointer clicks went through pointerdown / pointerup
+        dispatch(action(e), d, 1);
+        dispatch(action(e), d, 0);
       });
       row.append(btn);
       buttons[d].push(btn);

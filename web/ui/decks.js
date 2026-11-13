@@ -50,6 +50,7 @@ export function createDecks(ctx) {
   });
   register('shift.sync', (d, v) => v > 0 && ctx.engine?.sync.toggleLeader(d));
   register('shift.quantize', onPress((deck) => deck.cycleRateRange()));
+  register('slip', onPress((deck) => deck.setSlip(!deck.slip)));
   register('wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('shift.wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('jog', (d, ticks) => deckOf(d)?.jog(ticks, false));
@@ -132,6 +133,7 @@ export function createDecks(ctx) {
     led('vinyl', d, () => deckOf(d)?.vinyl);
     led('keylock', d, () => deckOf(d)?.keylock);
     led('quantize', d, () => deckOf(d)?.quantize);
+    led('slip', d, () => deckOf(d)?.slip);
     led('loopIn', d, () => !!deckOf(d)?.loop);
     led('sync', d, () => ctx.engine?.sync.follower === d);
   });

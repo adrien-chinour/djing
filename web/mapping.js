@@ -35,6 +35,7 @@ export const INPUTS = [
   { status: NOTE, number: 0x0d, type: 'note', action: 'loadSelected' },
   { status: NOTE, number: 0x03, type: 'note', action: 'vinyl' },
   { status: NOTE, number: 0x02, type: 'note', action: 'quantize' },
+  { status: NOTE, number: 0x01, type: 'note', action: 'slip' },
   ...hotcuePads(false),
   ...hotcuePads(true),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
@@ -74,6 +75,7 @@ export const LEDS = {
   pfl: { status: NOTE, number: 0x0c },
   vinyl: { status: NOTE, number: 0x03 },
   quantize: { status: NOTE, number: 0x02 },
+  slip: { status: NOTE, number: 0x01 },
   ...Object.fromEntries(Array.from({ length: HOTCUES }, (_, n) => [`hotcue.${n}`, { status: PAD, number: n }])),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
   sync: { status: NOTE, number: 0x05 },
