@@ -1,4 +1,4 @@
-// Deck panels: transport, knobs, pitch, jog, track loading and waveform. Every control goes through
+// Deck panels: transport, knobs, pitch, jog and track loading (waveforms: waveform.js). Every control goes through
 // the action registry, so the controller and the screen share the same code.
 import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
 import { patch } from '../library/db.js';
@@ -89,7 +89,6 @@ export function createDecks(ctx) {
       return false;
     }
     ui.name.textContent = file.name;
-    ui.peaks = ctx.engine.decks[d].peaks(ui.canvas.width);
     ui.track = track;
     setGrid(d);
     showBpm(ui);
@@ -156,7 +155,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
+  const ui = { section, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -165,10 +164,6 @@ function createPanel(section) {
     e.preventDefault();
     section.classList.remove('drop');
     if (e.dataTransfer.files[0]) dispatch('load', index, e.dataTransfer.files[0]);
-  });
-  ui.canvas.addEventListener('click', (e) => {
-    const r = ui.canvas.getBoundingClientRect();
-    dispatch('seek', index, (e.clientX - r.left) / r.width);
   });
   for (const input of section.querySelectorAll('[data-knob]')) {
     input.addEventListener('input', () => dispatch(input.dataset.knob, index, Number(input.value)));
@@ -189,21 +184,6 @@ function showBpm(ui) {
 }
 
 function drawDeck(deck, ui, sync) {
-  const g = ui.canvas.getContext('2d');
-  const { width: w, height: h } = ui.canvas;
-  g.clearRect(0, 0, w, h);
-  if (!ui.peaks) return;
-  const accent = getComputedStyle(ui.section).getPropertyValue('--accent');
-  const head = Math.floor((deck.position / deck.duration) * w);
-  for (let x = 0; x < w; x++) {
-    const p = ui.peaks[x] * h * 0.48;
-    g.fillStyle = x < head ? '#555b66' : accent;
-    g.fillRect(x, h / 2 - p, 1, p * 2);
-  }
-  g.fillStyle = '#fff';
-  g.fillRect(head, 0, 2, h);
-  g.fillStyle = '#ffcc4d';
-  g.fillRect(Math.floor((deck.cuePoint / deck.duration) * w), 0, 2, h);
   ui.time.textContent = `${fmt(deck.position)} / ${fmt(deck.duration)}`;
   ui.rate.textContent = `${deck.rate >= 1 ? '+' : '−'}${(Math.abs(deck.rate - 1) * 100).toFixed(2)} %`;
   ui.transpose.textContent = `${deck.transpose > 0 ? '+' : deck.transpose < 0 ? '−' : '±'}${Math.abs(deck.transpose)} dt`;

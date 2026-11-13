@@ -686,17 +686,4 @@ class Deck {
     this.pflOn = on;
     this.pfl.gain.value = on ? 1 : 0;
   }
-
-  /** Peak overview for the waveform, `bins` values in 0..1. */
-  peaks(bins) {
-    const data = this.buffer.getChannelData(0);
-    const step = Math.floor(data.length / bins);
-    const out = new Float32Array(bins);
-    for (let i = 0; i < bins; i++) {
-      let max = 0;
-      for (let j = i * step; j < (i + 1) * step; j += 16) max = Math.max(max, Math.abs(data[j]));
-      out[i] = max;
-    }
-    return out;
-  }
 }
