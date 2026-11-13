@@ -12,6 +12,7 @@ import { createLibrary } from './ui/library.js';
 import { createPlaylists } from './ui/playlists.js';
 import { createMeters } from './ui/meters.js';
 import { createFx } from './ui/fx.js';
+import { createWaveforms } from './ui/waveform.js';
 
 const ctx = {
   engine: null, // created by the "Démarrer l'audio" button
@@ -24,6 +25,7 @@ createPads(ctx, decks.panels);
 createHotcues(ctx, decks.panels);
 createSlicer(ctx, decks.panels);
 createRolls(ctx, decks.panels);
+const waveforms = createWaveforms(ctx, decks.panels);
 createFx(ctx, decks.panels);
 createMixer(ctx);
 createLibrary(ctx, decks.load);
@@ -32,6 +34,7 @@ const meters = createMeters(ctx);
 createHeader(ctx, {
   onStart: () => {
     setInterval(decks.draw, 50);
+    waveforms.start();
     meters.start();
   },
 });

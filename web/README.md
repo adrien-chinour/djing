@@ -167,6 +167,14 @@ que ne reçoit rien.
   grisé « introuvable ». « Exporter M3U8 » : `#EXTM3U`, puis `#EXTINF:-1,Artiste - Titre` et le chemin relatif au
   dossier de la bibliothèque pour chaque titre, en UTF-8 sans BOM (fichier à poser à la racine du dossier). Le
   scénario `test/scenarios/playlists.mjs` le vérifie.
+- Waveforms (`ui/waveform.js`) : par deck, une vue d'ensemble du titre entier (clic : saut) et une vue défilante
+  centrée sur la position entendue (`deck.position`), de 2 à 32 temps visibles (défaut 8, boutons − et +, 120 BPM
+  supposés sans grille). Pics de trois bandes (graves < 250 Hz en rouge, médiums en orange, aigus > 4 kHz en bleu)
+  calculés une fois au chargement (`OfflineAudioContext` à 22 050 Hz, filtres 24 dB/octave, un pic toutes les
+  128 trames) ; chaque image ne dessine que la fenêtre visible, en `requestAnimationFrame`. Lignes de temps de la
+  grille, premier temps de chaque mesure (tous les 4 temps depuis `firstBeat`) plus marqué ; repères du point CUE,
+  des hotcues, de la boucle active (zone) ou du dernier LOOP IN. Le scénario `test/scenarios/waveform.mjs` le
+  vérifie en lisant les pixels des canvas.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
