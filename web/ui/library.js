@@ -1,6 +1,7 @@
 // Library panel: one music directory, chosen once and kept in IndexedDB, listed as a table whose
 // tracks load on deck A or B from the screen or from the controller (browser encoder + LOAD).
-// Tracks are analysed (BPM, beat grid, key) in the background once listed.
+// Tracks are analysed (BPM, beat grid, key) in the background once listed. Each listing is
+// announced by a `djing:library` event ({ tracks }); rows can be dragged onto a playlist.
 import { register } from '../actions.js';
 import { get, getAll, patch, put } from '../library/db.js';
 import { scanDirectory } from '../library/scan.js';
@@ -8,6 +9,8 @@ import { analyzeTracks, announce, formatBpm, formatKey } from '../analysis/queue
 
 const $ = (sel) => document.querySelector(sel);
 const DIR_KEY = 'libraryDir';
+/** Drag data type of a library row: its track id. */
+export const TRACK_TYPE = 'application/x-djing-track';
 
 /** `loadOnDeck(deck, file)` resolves to true when the deck took the file (createDecks().load). */
 export function createLibrary(ctx, loadOnDeck) {
@@ -47,6 +50,11 @@ export function createLibrary(ctx, loadOnDeck) {
     rows = tracks.map((t, i) => {
       const tr = document.createElement('tr');
       tr.dataset.id = t.id;
+      tr.draggable = true; // onto a playlist (ui/playlists.js)
+      tr.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData(TRACK_TYPE, t.id);
+        e.dataTransfer.effectAllowed = 'copy';
+      });
       for (const text of [t.artist, t.title, t.path]) {
         const td = document.createElement('td');
         td.textContent = text;
@@ -95,6 +103,7 @@ export function createLibrary(ctx, loadOnDeck) {
     reopen.hidden = true;
     status.textContent = `« ${dir.name || 'dossier'} » : ${tracks.length} titre(s)`;
     render();
+    document.dispatchEvent(new CustomEvent('djing:library', { detail: { tracks } }));
     analyzeTracks(tracks.filter((t) => !t.unreadable), {
       onProgress: (done, total) => { progress.textContent = `analyse BPM : ${done} / ${total}`; },
       onResult: announce,

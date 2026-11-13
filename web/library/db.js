@@ -13,6 +13,10 @@ export const MIGRATIONS = [
   (db) => {
     db.createObjectStore('cues', { keyPath: 'id' });
   },
+  // 2 -> 3: playlists, { id (generated), name, items: [track id, …] } (library/playlists.js).
+  (db) => {
+    db.createObjectStore('playlists', { keyPath: 'id', autoIncrement: true });
+  },
 ];
 
 const request = (req) => new Promise((resolve, reject) => {
@@ -59,4 +63,10 @@ export async function patch(store, key, fields) {
   const objects = db.transaction(store, 'readwrite').objectStore(store);
   const current = await request(objects.get(key));
   return request(objects.put({ ...current, id: key, ...fields }));
+}
+
+/** Deletes the record of `key` from `store`. */
+export async function remove(store, key) {
+  const db = await openDb();
+  return request(db.transaction(store, 'readwrite').objectStore(store).delete(key));
 }
