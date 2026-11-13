@@ -50,7 +50,17 @@ export class Engine {
       this.master.disconnect();
       this.master.connect(limiter).connect(this.main);
     });
-    this.cue = this.ctx.createGain();
+    this.cue = this.ctx.createGain(); // PFL bus
+    // Headphone mix (see mixPhones()): cue/master blend or split cue, then the headphone volume.
+    this.phones = this.ctx.createGain();
+    this.masterTap = this.ctx.createGain(); // limited MAIN, fed by route()
+    this.cueMix = this.ctx.createGain();
+    this.masterMix = this.ctx.createGain();
+    const mono = () => this.ctx.createGain({ channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' });
+    this.cueMono = mono();
+    this.masterMono = mono();
+    this.phonesMerger = this.ctx.createChannelMerger(2);
+    this.splitCue = false;
     this.cueStream = this.ctx.createMediaStreamDestination();
     this.cueElement = new Audio();
     this.cueElement.srcObject = this.cueStream.stream;
@@ -60,7 +70,34 @@ export class Engine {
     this.sync = new Sync(this);
     this.crossfader = 0.5;
     this.mode = null;
+    this.setCueMix(0);
+    this.mixPhones();
     this.route('split');
+  }
+
+  /** Headphone cue/master knob: 0 = cue only, 1 = master only, constant-power curve. */
+  setCueMix(v) {
+    this.cueMix.gain.value = Math.cos((v * Math.PI) / 2);
+    this.masterMix.gain.value = Math.sin((v * Math.PI) / 2);
+  }
+
+  /** Split cue: cue in mono on the left headphone channel, master in mono on the right (knob ignored). */
+  setSplitCue(on) {
+    this.splitCue = on;
+    this.mixPhones();
+  }
+
+  /** Wires the cue bus and the limited MAIN into the headphone volume, blended or split. */
+  mixPhones() {
+    [this.cue, this.masterTap, this.cueMix, this.masterMix, this.cueMono, this.masterMono, this.phonesMerger].forEach((n) => n.disconnect());
+    if (this.splitCue) {
+      this.cue.connect(this.cueMono).connect(this.phonesMerger, 0, 0);
+      this.masterTap.connect(this.masterMono).connect(this.phonesMerger, 0, 1);
+      this.phonesMerger.connect(this.phones);
+    } else {
+      this.cue.connect(this.cueMix).connect(this.phones);
+      this.masterTap.connect(this.masterMix).connect(this.phones);
+    }
   }
 
   /** Rewires MAIN and cue for "4ch" (one device) or "split" (two stereo devices). */
@@ -68,14 +105,15 @@ export class Engine {
     if (mode === '4ch' && this.ctx.destination.maxChannelCount < 4) mode = 'split';
     this.main.disconnect();
     this.main.connect(this.mainSplit);
-    this.cue.disconnect();
+    this.main.connect(this.masterTap);
+    this.phones.disconnect();
     this.merger?.disconnect();
     const dest = this.ctx.destination;
     dest.channelCountMode = 'explicit';
     dest.channelInterpretation = 'discrete';
     if (mode === '4ch') {
       this.merger = this.ctx.createChannelMerger(4);
-      [[this.main, 0], [this.cue, 2]].forEach(([bus, first]) => {
+      [[this.main, 0], [this.phones, 2]].forEach(([bus, first]) => {
         const split = this.ctx.createChannelSplitter(2);
         bus.connect(split);
         split.connect(this.merger, 0, first);
@@ -87,7 +125,7 @@ export class Engine {
     } else {
       dest.channelCount = 2;
       this.main.connect(dest);
-      this.cue.connect(this.cueStream);
+      this.phones.connect(this.cueStream);
       this.cueElement.play().catch(() => {});
     }
     this.mode = mode;
@@ -121,7 +159,7 @@ export class Engine {
     osc.frequency.value = target === 0 ? 440 : 880;
     g.gain.setValueAtTime(0.2, this.ctx.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1);
-    osc.connect(g).connect(target === 0 ? this.master : this.cue);
+    osc.connect(g).connect(target === 0 ? this.master : this.phones);
     osc.start();
     osc.stop(this.ctx.currentTime + 1);
   }

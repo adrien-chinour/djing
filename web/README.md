@@ -21,6 +21,9 @@ carte son, sans Mixxx.
 - Les messages MIDI s'affichent dans le journal en bas quand on touche la platine.
 - PLAY, CUE, PFL, volumes, EQ, gain, filtre, pitch, crossfader et jogs agissent sur les decks ; les LED PLAY, CUE
   et PFL suivent.
+- Casque : le potentiomètre « Cue/Master » du mixer dose ce qu'on entend (0 = cue seul, par défaut ; 1 = master
+  seul ; courbe à puissance constante). « split casque » met le cue en mono à gauche et le master en mono à droite
+  (le potentiomètre n'agit plus). Le master du casque est pris après le limiteur. Pas de commande sur la platine.
 - Les VU-mètres de l'écran (A, B pré-fader, master L et R) et les LED VU de la platine suivent le son ; le voyant
   LIMIT s'allume quand le limiteur du MAIN réduit le gain de plus de 3 dB.
 
@@ -33,7 +36,7 @@ carte son, sans Mixxx.
   `vu-limiter.mjs` vérifie les VU-mètres, les LED VU et leur débit, et la crête du MAIN limité. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
-- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `beatgrid.mjs` : l'analyse du BPM ; `key.mjs` : la tonalité ; `library.mjs` : la
+- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `beatgrid.mjs` : l'analyse du BPM ; `key.mjs` : la tonalité ; `cue-mix.mjs` : le mélange cue/master et le mode split du casque, mesurés sur les canaux 3-4 ; `library.mjs` : la
   bibliothèque, sur un dossier de l'OPFS que `showDirectoryPicker` rend à la place du sélecteur). `make web-test` les lance
   tous, `make web-test SCENARIO=poc` un seul ; le code de sortie est non nul si un scénario échoue. Le sink et les
   sorties découpées sont partagés ; chaque scénario part d'une page rechargée et d'une platine simulée neuve. Un
