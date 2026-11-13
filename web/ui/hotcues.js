@@ -42,6 +42,8 @@ export function createHotcues(ctx, panels) {
       const deck = deckOf(d);
       if (!deck || v <= 0) return;
       const at = ctx.hotcues[d][n];
+      // Set at the position heard (deck.position, behind the playhead by the keylock latency); jumping
+      // moves the playhead, so the audio heard next starts at the cue point.
       if (at !== null) return deck.seek(at);
       const position = deck.quantize ? snapToBeat(deck.position, panels[d].track?.analysis) : deck.position;
       ctx.hotcues[d][n] = Math.min(Math.max(0, position), deck.duration);
