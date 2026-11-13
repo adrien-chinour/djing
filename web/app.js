@@ -16,6 +16,7 @@ import { createAutoDj } from './ui/autodj.js';
 import { createMeters } from './ui/meters.js';
 import { createFx } from './ui/fx.js';
 import { createWaveforms } from './ui/waveform.js';
+import { createRecorder } from './ui/recorder.js';
 
 const ctx = {
   engine: null, // created by the "Démarrer l'audio" button
@@ -37,6 +38,7 @@ createLibrary(ctx, decks.load);
 const playlists = createPlaylists(ctx);
 createAutoDj(ctx, { load: decks.load, playlists });
 const meters = createMeters(ctx);
+createRecorder(ctx);
 createHeader(ctx, {
   onStart: () => {
     setInterval(decks.draw, 50);

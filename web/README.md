@@ -205,6 +205,10 @@ que ne reçoit rien.
   (identifiants de titre, clé `sampler` du magasin `settings`) et rechargés au listage de la bibliothèque. Volume du
   sampler à l'écran, puis MAIN (limiteur compris) et casque si le PFL du sampler est actif. Le scénario
   `test/scenarios/sampler.mjs` le vérifie.
+- Enregistrement (`ui/recorder.js`) : REC dans l'en-tête enregistre le MAIN après le limiteur (`engine.main`) en
+  WebM Opus à 256 kb/s par `MediaRecorder` (morceaux reçus toutes les secondes), chronomètre à côté ; un second
+  appui arrête et propose le fichier `mix-AAAA-MM-JJ-HHMM.webm` (heure locale du début) au téléchargement, lien
+  laissé dans l'en-tête. L'enregistrement continue onglet caché. Le scénario `test/scenarios/recorder.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module

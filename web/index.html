@@ -14,6 +14,8 @@
   .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
   button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
   button.on { border-color: var(--ok); color: var(--ok); }
+  #rec.rec { background: #ff4d4d; border-color: #ff4d4d; color: #fff; }
+  #recTime { font-variant-numeric: tabular-nums; }
   main { display: grid; grid-template-columns: 1fr 180px 1fr; gap: 12px; padding: 16px; }
   @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
   .deck, .mixer { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
@@ -67,6 +69,9 @@
   <span id="midi" class="pill">MIDI : —</span>
   <button id="toneMain">Bip MAIN (1-2)</button>
   <button id="toneCue">Bip casque (3-4)</button>
+  <button id="rec" title="Enregistre le MAIN en WebM Opus ; un second appui arrête">REC</button>
+  <span id="recTime" class="pill" hidden>0:00</span>
+  <a id="recFile" hidden></a>
 </header>
 
 <main>
