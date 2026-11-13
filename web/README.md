@@ -30,8 +30,14 @@ carte son, sans Mixxx.
   le son de chaque canal (MAIN, PFL, fader, crossfader), les LED reçues, le pitch et le jog. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
+- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus). `make web-test` les lance
+  tous, `make web-test SCENARIO=poc` un seul ; le code de sortie est non nul si un scénario échoue. Le sink et les
+  sorties découpées sont partagés ; chaque scénario part d'une page rechargée et d'une platine simulée neuve. Un
+  scénario exporte par défaut `async ({ page, sim, url }) => …` et vérifie avec `check()` ; les outils (sink,
+  découpage, platine simulée, Chrome, mesure RMS par canal) sont dans `test/lib.mjs`.
 - `make web-sim` : la platine simulée seule, pour jouer à la main avec la page. Une commande par ligne :
-  `press A play`, `knob A volume 0.5`, `xfader 0`, `rate B 0.3`, `jog A 20 touched`, `leds`… (liste en tête de
+  `press A play`, `knob A volume 0.5`, `xfader 0`, `rate B 0.3`, `jog A 20 touched`, `pad A hotcue 1 shift`,
+  `note 91 07 7f`, `cc b1 00 40`, `leds`… (liste en tête de
   `sim/controller.py`). Les LED que la page allume s'affichent en JSON.
 
 que ne reçoit rien.
