@@ -2,7 +2,7 @@
 // the action registry, so the controller and the screen share the same code.
 import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
 import { patch } from '../library/db.js';
-import { announce, formatBpm } from '../analysis/queue.js';
+import { announce, formatBpm, formatKey } from '../analysis/queue.js';
 
 const AUTO_LOOPS = [0.5, 1, 2, 4, 8, 16]; // beats, buttons of index.html
 
@@ -136,7 +136,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section) };
+  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section) };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -165,6 +165,7 @@ function showBpm(ui) {
   const analysis = ui.track?.analysis;
   ui.bpm.textContent = !ui.track ? 'BPM —'
     : analysis?.bpm ? `${formatBpm(analysis)} BPM · 1er temps ${analysis.firstBeat.toFixed(3)} s` : formatBpm(analysis);
+  ui.key.textContent = ui.track ? formatKey(analysis) : '—';
 }
 
 function drawDeck(deck, ui) {
