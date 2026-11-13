@@ -30,7 +30,8 @@ carte son, sans Mixxx.
   le son de chaque canal (MAIN, PFL, fader, crossfader), les LED reçues, le pitch et le jog. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
-- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus). `make web-test` les lance
+- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `library.mjs` : la
+  bibliothèque, sur un dossier de l'OPFS que `showDirectoryPicker` rend à la place du sélecteur). `make web-test` les lance
   tous, `make web-test SCENARIO=poc` un seul ; le code de sortie est non nul si un scénario échoue. Le sink et les
   sorties découpées sont partagés ; chaque scénario part d'une page rechargée et d'une platine simulée neuve. Un
   scénario exporte par défaut `async ({ page, sim, url }) => …` et vérifie avec `check()` ; les outils (sink,
@@ -61,6 +62,13 @@ que ne reçoit rien.
 - `worklets/deck-player.js` : lecteur d'un deck dans un `AudioWorklet` : vitesse signée de −4 à +4, interpolation
   linéaire, saut en lecture avec fondu croisé de 5 ms, arrêt en fin de titre (ou à 0 en marche arrière), position
   remontée environ 120 fois par seconde. Le scénario `test/scenarios/deck-player.mjs` le vérifie.
+- `library/` : base IndexedDB unique `djing` (`db.js`, une migration par version : magasins `tracks`, données par
+  titre, et `settings`, dont le dossier de musique) et liste des titres d'un `FileSystemDirectoryHandle` (`scan.js`).
+  Identifiant d'un titre : `<chemin relatif>|<taille>|<lastModified>`.
+- `ui/library.js` : « Choisir le dossier » (`showDirectoryPicker`, handle gardé en IndexedDB, « Rouvrir » au
+  rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
+  l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse
+  est grisé « illisible », et l'état est gardé.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module

@@ -5,6 +5,7 @@ import { createHeader } from './ui/header.js';
 import { createMixer } from './ui/mixer.js';
 import { createDecks } from './ui/decks.js';
 import { createPads } from './ui/pads.js';
+import { createLibrary } from './ui/library.js';
 
 const ctx = {
   engine: null, // created by the "Démarrer l'audio" button
@@ -15,5 +16,6 @@ const ctx = {
 const decks = createDecks(ctx);
 createPads(ctx, decks.panels);
 createMixer(ctx);
+createLibrary(ctx, decks.load);
 createHeader(ctx, { onStart: () => setInterval(decks.draw, 50) });
 refreshLeds();

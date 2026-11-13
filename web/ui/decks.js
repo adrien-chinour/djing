@@ -5,7 +5,7 @@ import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
 const $ = (sel, root) => root.querySelector(sel);
 const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
 
-/** Builds both deck panels and registers their actions and LEDs. Returns { panels, draw() }. */
+/** Builds both deck panels and registers their actions and LEDs. Returns { panels, draw(), load(deck, file) }. */
 export function createDecks(ctx) {
   const panels = [...document.querySelectorAll('.deck')].map((section) => createPanel(section));
   const deckOf = (d) => ctx.engine?.decks[d];
@@ -40,15 +40,28 @@ export function createDecks(ctx) {
     const deck = deckOf(d);
     if (deck?.buffer) deck.seek(fraction * deck.duration);
   });
-  register('load', async (d, file) => {
-    if (!ctx.engine) return ctx.log('Démarrer l\'audio avant de charger un titre');
+  // Resolves to true once `file` plays on deck d, false when the audio is off or the file does not decode.
+  async function load(d, file) {
+    if (!ctx.engine) {
+      ctx.log('Démarrer l\'audio avant de charger un titre');
+      return false;
+    }
     const ui = panels[d];
     ui.name.textContent = `chargement de ${file.name}…`;
-    await ctx.engine.decks[d].load(file);
+    try {
+      await ctx.engine.decks[d].load(file);
+    } catch (err) {
+      ui.name.textContent = `${file.name} : illisible`;
+      ctx.log(`${file.name} illisible : ${err.message}`);
+      refreshLeds();
+      return false;
+    }
     ui.name.textContent = file.name;
     ui.peaks = ctx.engine.decks[d].peaks(ui.canvas.width);
     refreshLeds();
-  });
+    return true;
+  }
+  register('load', load);
 
   panels.forEach((_, d) => {
     led('play', d, () => deckOf(d)?.playing);
@@ -60,7 +73,7 @@ export function createDecks(ctx) {
     if (d !== null) $(`[data-led="${name}"]`, panels[d].section)?.classList.toggle('on', on);
   });
 
-  return { panels, draw: () => ctx.engine.decks.forEach((deck, d) => drawDeck(deck, panels[d])) };
+  return { panels, load, draw: () => ctx.engine.decks.forEach((deck, d) => drawDeck(deck, panels[d])) };
 }
 
 function createPanel(section) {
