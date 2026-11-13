@@ -9,7 +9,7 @@ check: ## Lint scripts and validate the mapping files
 	shellcheck visuals/switch
 	bash -n visuals/switch
 	node --check visuals/server.js visuals/public/*.js
-	node --check web/*.js web/test/*.mjs
+	node --check web/*.js web/test/*.mjs web/test/scenarios/*.mjs
 	python3 -I -m py_compile web/sim/controller.py
 	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)
 	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/public/*.html visuals/public/scenes/*.html visuals/public/*.js || { echo 'ES5 only in TV files'; exit 1; }
@@ -76,5 +76,5 @@ web-split: ## Split the controller card into two stereo sinks, Inpulse MAIN (1-2
 web-sim: ## Simulated controller on a virtual MIDI port, commands on stdin (see web/sim/controller.py)
 	uv run python -I web/sim/controller.py
 
-web-test: ## End-to-end test of web/ without hardware: simulated controller, 4-channel sink, headless Chrome
-	node web/test/e2e.mjs
+web-test: ## End-to-end test of web/ without hardware, every scenario of web/test/scenarios/ (SCENARIO=poc for one)
+	node web/test/e2e.mjs $(SCENARIO)
