@@ -50,11 +50,19 @@ que ne reçoit rien.
 
 - `sim/controller.py` : platine simulée (MIDI). `test/e2e.mjs` : lanceur des scénarios de `test/scenarios/`,
   outils communs dans `test/lib.mjs`.
-- `midi.js` : lecture des messages et LED ; numéros MIDI tirés de
-  `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`.
+- `mapping.js` : table déclarative de chaque entrée MIDI (statut, numéro, type note/cc/14 bits/jog, action) et de
+  chaque LED ; numéros tirés de `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`. Les messages
+  SHIFT (`0x93` maître, `0x94`/`0x95` decks) ont leurs propres actions `shift.*`.
+- `midi.js` : décodeur générique piloté par `mapping.js`, envoi des LED.
+- `actions.js` : registre d'actions (`register(nom, fn)`, `dispatch(nom, deck, valeur)`) et de LED
+  (`led(nom, deck, () => état)`), recalculées après chaque action et envoyées seulement si elles changent.
 - `engine.js` : Web Audio, deux decks (gain, EQ 3 bandes, filtre, fader, PFL), crossfader à puissance constante,
   sortie en deux flux stéréo ou en 4 canaux discrets.
-- `app.js`, `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
+- `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
+
+Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
+`ui/` concerné ; une LED : une ligne dans `LEDS` et un `led()`. Une action non enregistrée ne fait rien mais
+apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 
 ## Limites connues
 
