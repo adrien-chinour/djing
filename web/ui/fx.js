@@ -1,6 +1,7 @@
 // Effect units on screen: in each deck panel, a dry/wet slider and three slots (effect, on/off,
 // main parameter). Every control goes through the action registry (fx.mix, fx.<slot>.effect,
-// fx.<slot>.on, fx.<slot>.param), so the controller can drive them later.
+// fx.<slot>.on, fx.<slot>.param, fx.<slot>.next, fx.unit), also mapped on the controller (mapping.js):
+// FX button, FX knobs and the FX pad page, with their LEDs.
 import { register, dispatch, led } from '../actions.js';
 import { EFFECTS } from '../fx/effects.js';
 import { DEFAULT_EFFECTS, SLOTS } from '../fx/unit.js';
@@ -16,7 +17,21 @@ export function createFx(ctx, panels) {
     unit.setMix(v);
     blocks[d].mix.value = v;
   });
+  register('fx.unit', (d, v) => {
+    const unit = unitOf(d);
+    if (unit && v > 0) unit.setEnabled(!unit.enabled);
+  });
+  panels.forEach((_, d) => {
+    led('fx.unit', d, () => unitOf(d)?.enabled);
+    led(`fxPad.${SLOTS}`, d, () => unitOf(d)?.enabled);
+    led('fx.button', d, () => unitOf(d)?.slots[SLOTS - 1].on);
+  });
+  const types = Object.keys(EFFECTS);
   for (let i = 0; i < SLOTS; i++) {
+    register(`fx.${i}.next`, (d, v) => {
+      const unit = unitOf(d);
+      if (unit && v > 0) dispatch(`fx.${i}.effect`, d, types[(types.indexOf(unit.slots[i].type) + 1) % types.length]);
+    });
     register(`fx.${i}.effect`, (d, type) => {
       const unit = unitOf(d);
       if (!unit || !EFFECTS[type]) return;
@@ -33,7 +48,10 @@ export function createFx(ctx, panels) {
       unit.slots[i].setParam(v);
       blocks[d].slots[i].param.value = v;
     });
-    panels.forEach((_, d) => led(`fx.${i}.on`, d, () => unitOf(d)?.slots[i].on));
+    panels.forEach((_, d) => {
+      led(`fx.${i}.on`, d, () => unitOf(d)?.slots[i].on);
+      led(`fxPad.${i}`, d, () => unitOf(d)?.slots[i].on);
+    });
   }
 }
 
@@ -45,7 +63,10 @@ function buildBlock(section, d) {
   mix.addEventListener('input', () => dispatch('fx.mix', d, Number(mix.value)));
   const label = el('label', { textContent: 'FX dry/wet' });
   label.append(mix);
-  head.append(label);
+  // Clicks on [data-act] are dispatched by the deck panel (ui/decks.js); its LED lights the button.
+  const unit = el('button', { textContent: 'FX sur le deck' });
+  unit.dataset.act = unit.dataset.led = 'fx.unit';
+  head.append(label, unit);
   section.append(head);
 
   const slots = [];

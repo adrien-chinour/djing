@@ -59,6 +59,7 @@ export class FxUnit {
     this.dry = new GainNode(ctx, { gain: 0 });
     this.wet = new GainNode(ctx, { gain: 1 });
     this.mix = 1;
+    this.enabled = true;
     this.slots = DEFAULT_EFFECTS.map((type) => new Slot(this, type));
     this.input.connect(this.dry).connect(this.output);
     const last = this.slots.reduce((prev, slot) => (prev.connect(slot.input), slot.output), this.input);
@@ -68,8 +69,19 @@ export class FxUnit {
   /** Dry/wet, 0 (dry only) .. 1 (wet only). */
   setMix(v) {
     this.mix = v;
-    glide(this.dry.gain, 1 - v, this.ctx);
-    glide(this.wet.gain, v, this.ctx);
+    this.applyMix();
+  }
+
+  /** Applies the unit to its deck or not; a unit not applied passes the signal dry, whatever the mix. */
+  setEnabled(on) {
+    this.enabled = on;
+    this.applyMix();
+  }
+
+  applyMix() {
+    const wet = this.enabled ? this.mix : 0;
+    glide(this.dry.gain, 1 - wet, this.ctx);
+    glide(this.wet.gain, wet, this.ctx);
   }
 
   /** Recomputes tempo-synced parameters (the BPM or the pitch changed). */
