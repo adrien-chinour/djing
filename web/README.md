@@ -90,6 +90,14 @@ que ne reçoit rien.
   vitesse lissée par un filtre alpha-bêta (alpha 1/8, bêta alpha/32, pas de 1 ms) ; au relâchement, retour à la
   vitesse du pitch fader si le deck jouait. Tranche du jog ou mode vinyle coupé : nudge du POC. SHIFT + jog :
   recherche 4 fois plus rapide qu'un scratch. Le scénario `test/scenarios/scratch.mjs` le vérifie.
+- `fx/` : une unité d'effets par deck (`fx/unit.js`), entre le filtre (après l'EQ) et le fader, entendue aussi en
+  PFL : 3 emplacements en série (effet, activation, paramètre principal 0..1) et un dosage dry/wet. Un emplacement
+  coupé laisse passer le signal tel quel. Effets (`fx/effects.js`, nœuds Web Audio natifs) : écho (1/4, 1/2, 1 ou
+  2 temps, temps = 60 / (BPM × pitch), 500 ms sans BPM ; BPM de l'analyse du titre chargé, via `deck.setBpm()`), réverbe (convolution sur une réponse
+  générée, paramètre = niveau), flanger (paramètre = profondeur), filtre résonant (passe-bas sous le centre,
+  passe-haut au-dessus), bitcrusher (16 à 2 bits, sans réduction de fréquence). À l'écran : bloc FX de chaque deck
+  (`ui/fx.js`, actions `fx.mix`, `fx.<n>.effect`, `fx.<n>.on`, `fx.<n>.param`). Le scénario `test/scenarios/fx.mjs`
+  le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -104,3 +112,4 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
 - Pas de sync, de hotcues ni de boucles. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
+- Pas de pilotage des effets par la platine.
