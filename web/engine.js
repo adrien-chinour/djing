@@ -164,7 +164,8 @@ class Deck {
     this.loop = null; // { start, end } (s) while a loop is active
     this.loopStart = null; // last LOOP IN position
     this.slip = false; // SLIP: scratch, loops and held hotcues return to where playback would have been
-    this.slipHolds = new Set(); // what holds the ghost position: 'scratch', 'loop', 'hotcue'
+    this.slipHolds = new Set(); // what holds the ghost position: 'scratch', 'loop', 'hotcue', 'roll'
+    this.roll = null; // beats of the loop roll while a roll pad is held
     this.ghost = null; // { position, time, speed } of the worklet's ghost position while held
 
     this.trim = ctx.createGain();
@@ -206,6 +207,7 @@ class Deck {
     this.loop = null;
     this.loopStart = null;
     this.grid = null;
+    this.roll = null;
     this.slipHolds.clear(); // the worklet drops its ghost on load
     this.ghost = null;
     this.send({ type: 'speed', speed: this.speed });
@@ -396,6 +398,10 @@ class Deck {
   setSlip(on) {
     this.slip = on;
     if (on || !this.slipHolds.size) return;
+    if (this.slipHolds.has('roll')) { // a roll forces slip: its ghost stays
+      this.slipHolds = new Set(['roll']);
+      return;
+    }
     this.slipHolds.clear();
     this.ghost = null;
     this.send({ type: 'ghost', speed: null });
@@ -413,9 +419,9 @@ class Deck {
     return Math.min(Math.max(0, g.position + (this.engine.ctx.currentTime - g.time) * g.speed), this.duration);
   }
 
-  /** With SLIP on, `reason` (scratch, loop, hotcue) starts holding the ghost position at the playhead. */
-  holdSlip(reason) {
-    if (!this.slip || !this.buffer || this.slipHolds.has(reason)) return;
+  /** With SLIP on (or `force`), `reason` (scratch, loop, hotcue, roll) starts holding the ghost position at the playhead. */
+  holdSlip(reason, { force = false } = {}) {
+    if (!(this.slip || force) || !this.buffer || this.slipHolds.has(reason)) return;
     if (!this.slipHolds.size) {
       this.ghost = { position: this.playhead, time: this.engine.ctx.currentTime, speed: this.ghostSpeed };
       this.send({ type: 'ghost', speed: this.ghostSpeed });
@@ -477,6 +483,34 @@ class Deck {
     const end = Math.min(this.duration, start + beats * beat);
     this.loopStart = start;
     this.setLoop({ start, end });
+  }
+
+  /**
+   * Loop roll of `beats` beats while a pad is held (needs a beat grid): slip is forced, so ending the
+   * roll sends playback back to where it would have been. Another length while rolling replaces the loop.
+   */
+  startRoll(beats) {
+    if (!this.buffer || !this.beatLength) return false;
+    this.holdSlip('roll', { force: true });
+    this.roll = beats;
+    this.autoLoop(beats);
+    return true;
+  }
+
+  /** The roll pad is released: the loop ends and playback goes back to the ghost position. */
+  endRoll() {
+    if (this.roll === null) return;
+    this.roll = null;
+    this.setLoop(null);
+    this.releaseSlip('roll');
+  }
+
+  /** Moves playback by `beats` beats (negative: backwards), playing or stopped; needs a beat grid. */
+  beatJump(beats) {
+    const beat = this.beatLength;
+    if (!this.buffer || !beat) return false;
+    this.seek(this.playhead + beats * beat);
+    return true;
   }
 
   applySpeed() {
