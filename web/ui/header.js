@@ -75,6 +75,7 @@ export function createHeader(ctx, { onStart }) {
   $('#start').addEventListener('click', async () => {
     if (ctx.engine) return;
     ctx.engine = new Engine();
+    window.djing = { engine: ctx.engine }; // for web/test and the devtools console
     await ctx.engine.ctx.resume();
     ctx.engine.setCrossfader(0.5);
     $('#start').classList.add('on');

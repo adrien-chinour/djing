@@ -49,7 +49,7 @@ que ne reçoit rien.
 ## Contenu
 
 - `sim/controller.py` : platine simulée (MIDI). `test/e2e.mjs` : lanceur des scénarios de `test/scenarios/`,
-  outils communs dans `test/lib.mjs`.
+  outils communs dans `test/lib.mjs`. `window.djing.engine` donne accès au moteur depuis la console.
 - `mapping.js` : table déclarative de chaque entrée MIDI (statut, numéro, type note/cc/14 bits/jog, action) et de
   chaque LED ; numéros tirés de `mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml`. Les messages
   SHIFT (`0x93` maître, `0x94`/`0x95` decks) ont leurs propres actions `shift.*`.
@@ -58,6 +58,9 @@ que ne reçoit rien.
   (`led(nom, deck, () => état)`), recalculées après chaque action et envoyées seulement si elles changent.
 - `engine.js` : Web Audio, deux decks (gain, EQ 3 bandes, filtre, fader, PFL), crossfader à puissance constante,
   sortie en deux flux stéréo ou en 4 canaux discrets.
+- `worklets/deck-player.js` : lecteur d'un deck dans un `AudioWorklet` : vitesse signée de −4 à +4, interpolation
+  linéaire, saut en lecture avec fondu croisé de 5 ms, arrêt en fin de titre (ou à 0 en marche arrière), position
+  remontée environ 120 fois par seconde. Le scénario `test/scenarios/deck-player.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
