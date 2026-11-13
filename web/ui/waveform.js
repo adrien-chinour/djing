@@ -184,6 +184,28 @@ function drawOverview(view, deck, marks) {
   line(g, xOf(position), h, 2, COLORS.playhead);
 }
 
+/**
+ * Bands of the scrolling view, drawn on a strip three views wide whose columns sit on a fixed grid of
+ * the track (column k covers [k, k + 1) × secondsPerPixel), redrawn only when the view leaves it or
+ * the scale changes. Returns the drawImage() arguments that put the strip under the view at `start`.
+ */
+function strip(view, start, secondsPerPixel, w, h) {
+  const first = Math.floor(start / secondsPerPixel);
+  let s = view.strip;
+  if (!s || s.peaks !== view.peaks || s.secondsPerPixel !== secondsPerPixel || first < s.first || first + w > s.first + s.canvas.width) {
+    s = view.strip ??= { canvas: document.createElement('canvas') };
+    s.canvas.width = 3 * w;
+    s.canvas.height = h;
+    s.first = first - w;
+    s.peaks = view.peaks;
+    s.secondsPerPixel = secondsPerPixel;
+    const { bands, perSecond } = view.peaks;
+    const step = secondsPerPixel * perSecond;
+    drawBands(s.canvas.getContext('2d'), bands, s.canvas.width, h, (x) => [(s.first + x) * step, (s.first + x + 1) * step]);
+  }
+  return [s.canvas, Math.round(s.first - start / secondsPerPixel), 0];
+}
+
 function drawScroll(view, deck, marks, analysis) {
   const canvas = view.scrollCanvas;
   const g = canvas.getContext('2d');
@@ -195,8 +217,7 @@ function drawScroll(view, deck, marks, analysis) {
   const secondsPerPixel = (view.zoom * beat) / w;
   const start = position - (w / 2) * secondsPerPixel;
   const xOf = (t) => (t - start) / secondsPerPixel;
-  const { bands, perSecond } = view.peaks;
-  drawBands(g, bands, w, h, (x) => [(start + x * secondsPerPixel) * perSecond, (start + (x + 1) * secondsPerPixel) * perSecond]);
+  g.drawImage(...strip(view, start, secondsPerPixel, w, h));
 
   if (analysis?.bpm) {
     const first = Math.ceil((start - analysis.firstBeat) / beat);
