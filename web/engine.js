@@ -22,6 +22,8 @@ export class Engine {
     this.cueStream = this.ctx.createMediaStreamDestination();
     this.cueElement = new Audio();
     this.cueElement.srcObject = this.cueStream.stream;
+    // Deck players run in an AudioWorklet (worklets/deck-player.js); decks wait for it in load().
+    this.ready = this.ctx.audioWorklet.addModule(new URL('./worklets/deck-player.js', import.meta.url));
     this.decks = [new Deck(this, 0), new Deck(this, 1)];
     this.crossfader = 0.5;
     this.mode = null;
@@ -97,10 +99,11 @@ class Deck {
     this.engine = engine;
     this.index = index;
     this.buffer = null;
-    this.source = null;
+    this.player = null; // AudioWorkletNode, created on the first load
     this.playing = false;
-    this.offset = 0; // track position (s) at `anchor`
-    this.anchor = 0; // ctx.currentTime of the last rebase
+    this.offset = 0; // track position (s) while stopped
+    this.report = { position: 0, time: 0 }; // last position reported by the worklet
+    this.gen = 0; // bumped on every command, so reports sent before it are ignored
     this.rate = 1; // pitch fader
     this.bend = 0; // temporary nudge from the jog wheel
     this.cuePoint = 0;
@@ -122,19 +125,48 @@ class Deck {
 
   async load(file) {
     this.stop();
-    this.buffer = await this.engine.ctx.decodeAudioData(await file.arrayBuffer());
+    const buffer = await this.engine.ctx.decodeAudioData(await file.arrayBuffer());
+    await this.engine.ready;
+    if (!this.player) {
+      this.player = new AudioWorkletNode(this.engine.ctx, 'deck-player', { numberOfInputs: 0, outputChannelCount: [2] });
+      this.player.port.onmessage = (e) => this.onReport(e.data);
+      this.player.connect(this.trim);
+    }
+    // Copies, so the AudioBuffer stays usable for the waveform; sent once, by transfer.
+    const channels = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c).slice());
+    this.player.port.postMessage({ type: 'load', channels }, channels.map((ch) => ch.buffer));
+    this.buffer = buffer;
     this.name = file.name;
     this.offset = 0;
     this.cuePoint = 0;
+    this.send({ type: 'speed', speed: this.speed });
+  }
+
+  /** Sends a command to the worklet; reports sent before it are now stale. */
+  send(msg) {
+    this.player?.port.postMessage({ ...msg, gen: ++this.gen });
+  }
+
+  onReport(msg) {
+    if (msg.gen !== this.gen || !this.playing) return;
+    if (msg.type === 'ended') {
+      this.playing = false;
+      this.offset = msg.position;
+    } else {
+      this.report = { position: msg.position, time: msg.time };
+    }
   }
 
   get speed() {
     return this.rate + this.bend;
   }
 
+  /** Extrapolated from the last worklet report while playing. */
   get position() {
     if (!this.playing) return this.offset;
-    return this.offset + (this.engine.ctx.currentTime - this.anchor) * this.speed;
+    const p = this.report.position + (this.engine.ctx.currentTime - this.report.time) * this.speed;
+    return Math.min(Math.max(0, p), this.duration);
   }
 
   get duration() {
@@ -142,36 +174,21 @@ class Deck {
   }
 
   rebase() {
-    this.offset = this.position;
-    this.anchor = this.engine.ctx.currentTime;
+    this.report = { position: this.position, time: this.engine.ctx.currentTime };
   }
 
   play() {
     if (!this.buffer || this.playing) return;
-    const src = this.engine.ctx.createBufferSource();
-    src.buffer = this.buffer;
-    src.playbackRate.value = this.speed;
-    src.connect(this.trim);
-    src.onended = () => {
-      if (this.source === src) {
-        this.rebase();
-        this.playing = false;
-        this.source = null;
-      }
-    };
-    src.start(0, Math.max(0, this.offset));
-    this.source = src;
-    this.anchor = this.engine.ctx.currentTime;
+    this.report = { position: this.offset, time: this.engine.ctx.currentTime };
     this.playing = true;
+    this.send({ type: 'play' });
   }
 
   stop() {
     if (!this.playing) return;
-    this.rebase();
+    this.offset = this.position;
     this.playing = false;
-    const src = this.source;
-    this.source = null;
-    src.stop();
+    this.send({ type: 'stop', position: this.offset });
   }
 
   toggle() {
@@ -179,17 +196,17 @@ class Deck {
   }
 
   seek(seconds) {
-    const wasPlaying = this.playing;
-    this.stop();
-    this.offset = Math.min(Math.max(0, seconds), this.duration);
-    if (wasPlaying) this.play();
+    const position = Math.min(Math.max(0, seconds), this.duration);
+    if (this.playing) this.report = { position, time: this.engine.ctx.currentTime };
+    else this.offset = position;
+    this.send({ type: 'seek', position });
   }
 
   /** CDJ-style cue: when stopped, set the cue point; when playing, jump back to it and stop. */
   cuePress() {
     if (this.playing) {
       this.stop();
-      this.offset = this.cuePoint;
+      this.seek(this.cuePoint);
     } else {
       this.cuePoint = this.offset;
     }
@@ -197,7 +214,7 @@ class Deck {
 
   applySpeed() {
     if (this.playing) this.rebase();
-    if (this.source) this.source.playbackRate.value = this.speed;
+    this.send({ type: 'speed', speed: this.speed });
   }
 
   /** Pitch fader -1..1 -> ±rateRange. */
