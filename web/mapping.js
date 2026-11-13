@@ -14,6 +14,7 @@ export const DEFAULT_PAD_MODE = 'hotcue';
 const PAD_MODE_FIRST = 0x0f;
 
 const MASTER_CC = 0xb0;
+const MASTER_NOTE = 0x90;
 const NOTE = [0x91, 0x92];
 const CC = [0xb1, 0xb2];
 const MASTER_SHIFT_NOTE = 0x93;
@@ -50,6 +51,7 @@ const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
 export const INPUTS = [
   { status: MASTER_CC, number: 0x00, type: 'cc', action: 'crossfader' },
   { status: MASTER_CC, number: 0x01, type: 'jog', action: 'browse' }, // browser encoder, relative
+  { status: MASTER_NOTE, number: 0x03, type: 'note', action: 'autoDj' },
 
   { status: NOTE, number: 0x07, type: 'note', action: 'play' },
   { status: NOTE, number: 0x06, type: 'note', action: 'cue' },
@@ -122,6 +124,7 @@ export const LEDS = {
   // fxPad.<n>: FX page pads 1..4 (slots 1..3 on, unit applied to the deck).
   ...Object.fromEntries(FX_PADS.slice(0, 4).map((_, n) => [`fxPad.${n}`, { status: PAD, number: FX_PAD_FIRST + n }])),
   sync: { status: NOTE, number: 0x05 },
+  autoDj: { status: MASTER_NOTE, number: 0x03 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
 
