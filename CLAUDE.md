@@ -26,6 +26,8 @@ Tout ce qui est vrai du matériel et du logiciel est dans `README.md` : le lire 
 ## Workflow agent
 
 - **Mode** : poc.
-- **Vérification** : `make check` (shellcheck + `bash -n`), puis `make hardware` si la platine est branchée.
+- **Vérification** : `make check` (shellcheck + `bash -n`), puis `make web-test` (bout en bout de `web/` sans
+  matériel : sink PipeWire temporaire, platine simulée, Chrome headless) ; `make hardware` en plus si la platine est
+  branchée.
 - **Branches** : `issue/<n>-<slug>` sur `main`.
 - **Fusion** : le mainteneur.
