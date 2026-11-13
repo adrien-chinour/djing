@@ -1,6 +1,8 @@
 // Deck panels: transport, knobs, pitch, jog, track loading and waveform. Every control goes through
 // the action registry, so the controller and the screen share the same code.
 import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
+import { patch } from '../library/db.js';
+import { announce, formatBpm } from '../analysis/queue.js';
 
 const $ = (sel, root) => root.querySelector(sel);
 const fmt = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
@@ -44,13 +46,16 @@ export function createDecks(ctx) {
     if (deck?.buffer) deck.seek(fraction * deck.duration);
   });
   // Resolves to true once `file` plays on deck d, false when the audio is off or the file does not decode.
-  async function load(d, file) {
+  // `track` is the library entry of the file (id, analysis), absent for a file dropped or picked on the deck.
+  async function load(d, file, track = null) {
     if (!ctx.engine) {
       ctx.log('Démarrer l\'audio avant de charger un titre');
       return false;
     }
     const ui = panels[d];
     ui.name.textContent = `chargement de ${file.name}…`;
+    ui.track = null;
+    showBpm(ui);
     try {
       await ctx.engine.decks[d].load(file);
     } catch (err) {
@@ -61,10 +66,28 @@ export function createDecks(ctx) {
     }
     ui.name.textContent = file.name;
     ui.peaks = ctx.engine.decks[d].peaks(ui.canvas.width);
+    ui.track = track;
+    showBpm(ui);
     refreshLeds();
     return true;
   }
   register('load', load);
+
+  // Beat grid of the loaded track: ×2, ÷2 and ±10 ms, saved with the track.
+  const editGrid = (name, edit) => register(name, (d, v) => {
+    const track = panels[d].track;
+    if (v <= 0 || !track?.analysis?.bpm) return;
+    track.analysis = edit(track.analysis);
+    patch('tracks', track.id, { analysis: track.analysis }).catch((err) => ctx.log(`Grille non sauvegardée : ${err.message}`));
+    announce(track);
+  });
+  editGrid('grid.double', (a) => ({ ...a, bpm: a.bpm * 2 }));
+  editGrid('grid.half', (a) => ({ ...a, bpm: a.bpm / 2 }));
+  editGrid('grid.earlier', (a) => ({ ...a, firstBeat: a.firstBeat - 0.01 }));
+  editGrid('grid.later', (a) => ({ ...a, firstBeat: a.firstBeat + 0.01 }));
+  document.addEventListener('djing:analysis', ({ detail: track }) => {
+    for (const ui of panels) if (ui.track === track) showBpm(ui);
+  });
 
   panels.forEach((_, d) => {
     led('play', d, () => deckOf(d)?.playing);
@@ -84,7 +107,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section) };
+  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), track: null };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -107,6 +130,12 @@ function createPanel(section) {
     if (btn) dispatch(btn.dataset.act, index, 1);
   });
   return ui;
+}
+
+function showBpm(ui) {
+  const analysis = ui.track?.analysis;
+  ui.bpm.textContent = !ui.track ? 'BPM —'
+    : analysis?.bpm ? `${formatBpm(analysis)} BPM · 1er temps ${analysis.firstBeat.toFixed(3)} s` : formatBpm(analysis);
 }
 
 function drawDeck(deck, ui) {

@@ -48,3 +48,11 @@ export async function put(store, value, key) {
   const db = await openDb();
   return request(db.transaction(store, 'readwrite').objectStore(store).put(value, key));
 }
+
+/** Merges `fields` into the record of `key` in `store` (key path "id"), creating it if needed. */
+export async function patch(store, key, fields) {
+  const db = await openDb();
+  const objects = db.transaction(store, 'readwrite').objectStore(store);
+  const current = await request(objects.get(key));
+  return request(objects.put({ ...current, id: key, ...fields }));
+}
