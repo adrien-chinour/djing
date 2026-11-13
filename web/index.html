@@ -118,6 +118,18 @@
     <button data-act="grid.later" title="Grille 10 ms plus tard">+10 ms</button>
     <button data-act="quantize" data-led="quantize" title="Calage des repères sur le temps le plus proche">Q</button>
   </div>
+  <div class="row loops">
+    <button data-act="loopIn" data-led="loopIn" title="Début de boucle (allumé : boucle active)">IN</button>
+    <button data-act="loopOut" title="Fin de boucle et activation, ou sortie de boucle">OUT</button>
+    <button data-act="shift.loopIn" title="Boucle deux fois plus courte">½</button>
+    <button data-act="shift.loopOut" title="Boucle deux fois plus longue">×2</button>
+    <button data-act="autoLoop.0.5" title="Boucle de 1/2 temps">1/2</button>
+    <button data-act="autoLoop.1" title="Boucle de 1 temps">1</button>
+    <button data-act="autoLoop.2" title="Boucle de 2 temps">2</button>
+    <button data-act="autoLoop.4" title="Boucle de 4 temps">4</button>
+    <button data-act="autoLoop.8" title="Boucle de 8 temps">8</button>
+    <button data-act="autoLoop.16" title="Boucle de 16 temps">16</button>
+  </div>
   <div class="knobs">
     <label>Gain<input data-knob="gain" type="range" min="0" max="1" step="0.01" value="0.5"></label>
     <label>High<input data-knob="high" type="range" min="0" max="1" step="0.01" value="0.5"></label>

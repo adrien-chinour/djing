@@ -25,6 +25,11 @@ const TIMER_MS = 5;
 const IDLE_S = 0.05; // no tick for this long and a slow filter: the wheel has stopped
 const KEYLOCK_MAX_DEVIATION = 0.5; // keylock is bypassed beyond ±50 % of speed, and in reverse
 
+// Loops: length bounds in beats with a beat grid, shortest loop in seconds without one.
+export const LOOP_MIN_BEATS = 1 / 32;
+export const LOOP_MAX_BEATS = 64;
+const LOOP_MIN_SECONDS = 0.01;
+
 /** Knob 0..1 with a centre detent at 0.5 -> dB (kill at 0, +6 dB at 1). */
 export function knobToDb(v) {
   return v < 0.5 ? EQ_CUT_DB * (1 - v / 0.5) : EQ_BOOST_DB * ((v - 0.5) / 0.5);
@@ -138,7 +143,7 @@ class Deck {
     this.rate = 1; // pitch fader
     this.bend = 0; // temporary nudge from the jog wheel
     this.vinyl = true; // vinyl mode: touching the wheel scratches
-    this.quantize = false; // Q: new cue points snap to the nearest beat of the grid
+    this.quantize = false; // Q: new cue points snap to the nearest beat, auto loops start on the current beat
     this.touched = false; // wheel top surface held
     this.scratch = null; // { target, x, v, idle, timer } while the wheel drives playback
     this.cuePoint = 0;
@@ -150,6 +155,9 @@ class Deck {
     this.latency = 0; // seconds added by the stretch node
     this.stretched = false; // audio goes through the stretch node (keylock on or transposed)
     this.semitones = 0; // pitch shift last sent to the stretch node
+    this.grid = null; // { bpm, firstBeat } of the loaded track, null without a beat grid
+    this.loop = null; // { start, end } (s) while a loop is active
+    this.loopStart = null; // last LOOP IN position
 
     this.trim = ctx.createGain();
     // Player -> dry -> trim, or player -> stretch -> wet -> trim (see retune()).
@@ -187,6 +195,9 @@ class Deck {
     this.name = file.name;
     this.offset = 0;
     this.cuePoint = 0;
+    this.loop = null;
+    this.loopStart = null;
+    this.grid = null;
     this.send({ type: 'speed', speed: this.speed });
   }
 
@@ -275,14 +286,21 @@ class Deck {
   /** Read position of the player, extrapolated from the last worklet report while playing. */
   get playhead() {
     if (!this.running) return this.offset;
-    const p = this.report.position + (this.engine.ctx.currentTime - this.report.time) * this.speed;
+    let p = this.report.position + (this.engine.ctx.currentTime - this.report.time) * this.speed;
+    // The worklet goes back to the loop start at its end (worklets/deck-player.js, wrapLoop()).
+    if (this.loop && this.speed > 0 && p >= this.loop.end) p = this.loop.start + ((p - this.loop.start) % (this.loop.end - this.loop.start));
     return Math.min(Math.max(0, p), this.duration);
   }
 
   /** Position heard: the playhead, minus what the stretch node still holds. */
   get position() {
     if (!this.running || !this.delay) return this.playhead;
-    return Math.min(Math.max(0, this.playhead - this.delay * this.speed), this.duration);
+    const playhead = this.playhead;
+    let p = playhead - this.delay * this.speed;
+    // Playhead just back at the loop start: the audio heard is still the end of the previous pass.
+    const loop = this.loop;
+    if (loop && this.speed > 0 && p < loop.start && playhead >= loop.start) p += loop.end - loop.start;
+    return Math.min(Math.max(0, p), this.duration);
   }
 
   get duration() {
@@ -328,6 +346,61 @@ class Deck {
     } else {
       this.cuePoint = this.offset;
     }
+  }
+
+  /** Seconds per beat of the beat grid, null without one. */
+  get beatLength() {
+    return this.grid?.bpm ? 60 / this.grid.bpm : null;
+  }
+
+  /** Loop length bounds (s): 1/32 to 64 beats with a grid, else the shortest loop to the track length. */
+  loopBounds() {
+    const beat = this.beatLength;
+    return beat ? [beat * LOOP_MIN_BEATS, beat * LOOP_MAX_BEATS] : [LOOP_MIN_SECONDS, this.duration];
+  }
+
+  setLoop(loop) {
+    this.loop = loop;
+    this.send(loop ? { type: 'loop', start: loop.start, end: loop.end } : { type: 'loop', start: null });
+  }
+
+  /** LOOP IN: sets the loop start (moves it when a loop is active). */
+  loopIn() {
+    if (!this.buffer) return;
+    const position = this.position;
+    this.loopStart = position;
+    if (this.loop && position < this.loop.end - LOOP_MIN_SECONDS) this.setLoop({ start: position, end: this.loop.end });
+  }
+
+  /** LOOP OUT: sets the loop end and activates the loop; on an active loop, leaves it (playback goes on). */
+  loopOut() {
+    if (!this.buffer) return;
+    if (this.loop) return this.setLoop(null);
+    const position = this.position;
+    if (this.loopStart === null || position - this.loopStart < LOOP_MIN_SECONDS) return;
+    this.setLoop({ start: this.loopStart, end: position });
+  }
+
+  /** Halves (0.5) or doubles (2) the active loop from its start, within loopBounds(). */
+  scaleLoop(factor) {
+    if (!this.loop) return;
+    const length = (this.loop.end - this.loop.start) * factor;
+    const [min, max] = this.loopBounds();
+    const eps = 1e-9;
+    if (length < min - eps || length > max + eps || this.loop.start + length > this.duration) return;
+    this.setLoop({ start: this.loop.start, end: this.loop.start + length });
+  }
+
+  /** Loop of `beats` beats from the current beat (quantize) or the current position; needs a beat grid. */
+  autoLoop(beats) {
+    const beat = this.beatLength;
+    if (!this.buffer || !beat) return;
+    let start = this.position;
+    if (this.quantize) start = this.grid.firstBeat + Math.floor((start - this.grid.firstBeat) / beat + 1e-6) * beat;
+    start = Math.max(0, start);
+    const end = Math.min(this.duration, start + beats * beat);
+    this.loopStart = start;
+    this.setLoop({ start, end });
   }
 
   applySpeed() {
