@@ -3,9 +3,10 @@
 // headphone channel, master in mono on the right), measured on channels 3-4 of the card against
 // MAIN on channels 1-2.
 
-import { writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, recordRms, sleep, tmp } from '../lib.mjs';
+import { check, RATE, SINK, sleep, tmp } from '../lib.mjs';
 
 /** 60 s stereo 16-bit WAV, 220 Hz sine at -12 dBFS (writeTone() of lib.mjs lasts 10 s, too short here). */
 function writeLongTone(path) {
@@ -22,6 +23,29 @@ function writeLongTone(path) {
   writeFileSync(path, buf);
 }
 
+/**
+ * Records `ms` of the sink monitor and returns, per channel (4 values), the median RMS of 50 ms
+ * windows (11 periods of the 220 Hz tone): unlike recordRms() of lib.mjs, a short dropout of the
+ * headphone stream (an <audio> element in "split" mode) under machine load does not bias the level.
+ */
+async function recordLevel(ms) {
+  const file = join(tmp, `level-${Date.now()}.raw`);
+  const rec = spawn('pw-record', ['--target', SINK, '-P', 'stream.capture.sink=true', '--rate', String(RATE), '--channels', '4', '--format', 's16', '--raw', file], { stdio: 'ignore' });
+  await sleep(ms);
+  rec.kill('SIGINT');
+  await new Promise((r) => rec.on('exit', r));
+  const data = readFileSync(file);
+  const frames = Math.floor(data.length / 8);
+  const size = RATE / 20;
+  const windows = [[], [], [], []];
+  for (let start = Math.floor(frames / 4); start + size <= frames; start += size) {
+    const sums = [0, 0, 0, 0];
+    for (let f = start; f < start + size; f++) for (let c = 0; c < 4; c++) sums[c] += (data.readInt16LE(f * 8 + c * 2) / 32768) ** 2;
+    sums.forEach((sum, c) => windows[c].push(Math.sqrt(sum / size)));
+  }
+  return windows.map((w) => w.sort((a, b) => a - b)[Math.floor(w.length / 2)] ?? 0);
+}
+
 const show = (rms) => rms.map((v) => v.toFixed(4)).join(' ');
 const near = (a, b, tolerance) => Math.abs(a - b) <= tolerance * b;
 
@@ -31,7 +55,7 @@ export default async function ({ page, sim }) {
   const q = (sel) => `document.querySelector(${JSON.stringify(sel)})`;
   const setRange = (sel, v) => page.eval(`(() => { const e = ${q(sel)}; e.value = '${v}'; e.dispatchEvent(new Event('input')); })()`);
   const setSplit = (on) => page.eval(`(() => { const e = ${q('#splitCue')}; e.checked = ${on}; e.dispatchEvent(new Event('change')); })()`);
-  const measure = async () => { await sleep(300); return recordRms(1500); };
+  const measure = async () => { await sleep(300); return recordLevel(1500); };
 
   await page.eval(`${q('#start')}.click()`);
   await sleep(2000);
