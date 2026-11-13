@@ -126,6 +126,16 @@ que ne reçoit rien.
   grille). Boutons à l'écran de 1/2 à 16 temps, qui exigent une grille : début au temps courant si QUANTIZE
   (`0x02`, bouton Q) est actif, sinon à la position. Le worklet recule de la longueur exacte de la boucle, avec le
   fondu de 5 ms d'un saut. Le scénario `test/scenarios/loops.mjs` le vérifie.
+- Slicer (`ui/slicer.js`, comme `DJCi300.deck[n].slicerPad` du script Hercules de Mixxx) : modes SLICER
+  (`0x91`/`0x92` `0x11`, pads `0x96`/`0x97` `0x20` à `0x27`) et SLICER LOOP (`0x15`, pads `0x60` à `0x67`). Appui sur
+  le mode : fenêtre de 8 temps depuis le temps le plus proche de la position entendue, 8 tranches d'un temps ;
+  nouvel appui sur SLICER ou SLICER LOOP pendant que le slicer tourne : il s'arrête (comme le script) ; autre mode :
+  il s'arrête avec sa boucle. SLICER : pas de boucle, la fenêtre avance de 8 temps quand la lecture en sort ; SLICER
+  LOOP : la fenêtre boucle. Pads tenus : boucle de la première à la dernière tranche tenue, saut à son début ;
+  relâchés : retour à la fenêtre. LED : pads tenus, sinon la tranche en cours (suivie toutes les 20 ms). Un titre
+  chargé ou une boucle posée par une autre commande (LOOP IN / OUT, boucles auto) l'arrête. Sans grille : inactif,
+  « Slicer inactif : pas de grille » sous les pads. Taille de fenêtre fixe. Le scénario `test/scenarios/slicer.mjs`
+  le vérifie.
 - Sync (`sync.js`) : SYNC (`0x05`) cale le deck sur le maître, LED SYNC allumée tant que la synchro est active ;
   re-appui : elle s'arrête. Maître : celui choisi par SHIFT + SYNC (re-appui : plus de choix), sinon le seul deck en
   lecture, sinon l'autre deck ; « MAÎTRE » sous le deck. Tempo : vitesse du suiveur = BPM maître × vitesse maître ÷

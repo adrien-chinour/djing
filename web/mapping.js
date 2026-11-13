@@ -21,6 +21,12 @@ const SHIFT_NOTE = [0x94, 0x95];
 const SHIFT_CC = [0xb4, 0xb5];
 const PAD = [0x96, 0x97]; // performance pads; hotcue page 0x00..0x07, +8 with SHIFT
 export const HOTCUES = 8;
+// Slicer pads: the controller sends 0x20..0x27 in slicer mode and 0x60..0x67 in slicer loop mode;
+// both reach the same slicer.<n> action, as DJCi300.deck[n].slicerPad[n].input in Mixxx.
+export const SLICES = 8;
+const SLICER_FIRST = { slicer: 0x20, slicerloop: 0x60 };
+const slicerPads = () => Object.values(SLICER_FIRST).flatMap((first) => Array.from({ length: SLICES }, (_, n) =>
+  ({ status: PAD, number: first + n, type: 'note', action: `slicer.${n}` })));
 const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
   ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
@@ -38,6 +44,7 @@ export const INPUTS = [
   { status: NOTE, number: 0x01, type: 'note', action: 'slip' },
   ...hotcuePads(false),
   ...hotcuePads(true),
+  ...slicerPads(),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
   { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
@@ -77,6 +84,9 @@ export const LEDS = {
   quantize: { status: NOTE, number: 0x02 },
   slip: { status: NOTE, number: 0x01 },
   ...Object.fromEntries(Array.from({ length: HOTCUES }, (_, n) => [`hotcue.${n}`, { status: PAD, number: n }])),
+  // slicer.<n> and slicerloop.<n>: pad n of each slicer page.
+  ...Object.fromEntries(Object.entries(SLICER_FIRST).flatMap(([mode, first]) =>
+    Array.from({ length: SLICES }, (_, n) => [`${mode}.${n}`, { status: PAD, number: first + n }]))),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
   sync: { status: NOTE, number: 0x05 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),

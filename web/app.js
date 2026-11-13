@@ -6,6 +6,7 @@ import { createMixer } from './ui/mixer.js';
 import { createDecks } from './ui/decks.js';
 import { createPads } from './ui/pads.js';
 import { createHotcues } from './ui/hotcues.js';
+import { createSlicer } from './ui/slicer.js';
 import { createLibrary } from './ui/library.js';
 import { createMeters } from './ui/meters.js';
 import { createFx } from './ui/fx.js';
@@ -19,6 +20,7 @@ const ctx = {
 const decks = createDecks(ctx);
 createPads(ctx, decks.panels);
 createHotcues(ctx, decks.panels);
+createSlicer(ctx, decks.panels);
 createFx(ctx, decks.panels);
 createMixer(ctx);
 createLibrary(ctx, decks.load);
