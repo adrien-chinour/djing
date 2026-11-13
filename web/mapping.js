@@ -1,0 +1,63 @@
+// Declarative MIDI mapping of the Hercules DJControl Inpulse 300 MK2: every input the page reads
+// and every LED it drives. Adding a control means adding a line here and registering its action.
+// Numbers come from mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml; pad modes from
+// /usr/share/mixxx/controllers/Hercules-DJControl-Inpulse-300-script.js (15 to 22).
+//
+// Input entry: { status, number, type, action }.
+// - status: one byte for the master section (deck null), or [deck A, deck B].
+// - type: note (value 0..1, 0 on release), cc (value 0..1), 14bit (`number` is the MSB, `lsb` the
+//   LSB that carries the full value, value -1..1), jog (signed ticks, 0x01 clockwise, 0x7F counter).
+// - action: name registered in actions.js; an unregistered action does nothing.
+
+export const PAD_MODES = ['hotcue', 'roll', 'slicer', 'sampler', 'toneplay', 'fx', 'slicerloop', 'beatjump'];
+export const DEFAULT_PAD_MODE = 'hotcue';
+const PAD_MODE_FIRST = 0x0f;
+
+const MASTER_CC = 0xb0;
+const NOTE = [0x91, 0x92];
+const CC = [0xb1, 0xb2];
+const MASTER_SHIFT_NOTE = 0x93;
+const SHIFT_NOTE = [0x94, 0x95];
+const SHIFT_CC = [0xb4, 0xb5];
+
+export const INPUTS = [
+  { status: MASTER_CC, number: 0x00, type: 'cc', action: 'crossfader' },
+
+  { status: NOTE, number: 0x07, type: 'note', action: 'play' },
+  { status: NOTE, number: 0x06, type: 'note', action: 'cue' },
+  { status: NOTE, number: 0x0c, type: 'note', action: 'pfl' },
+  { status: NOTE, number: 0x08, type: 'note', action: 'wheelTouch' },
+  ...PAD_MODES.map((mode, i) => ({ status: NOTE, number: PAD_MODE_FIRST + i, type: 'note', action: `padMode.${mode}` })),
+
+  { status: CC, number: 0x00, type: 'cc', action: 'volume' },
+  { status: CC, number: 0x01, type: 'cc', action: 'filter' },
+  { status: CC, number: 0x02, type: 'cc', action: 'low' },
+  { status: CC, number: 0x03, type: 'cc', action: 'mid' },
+  { status: CC, number: 0x04, type: 'cc', action: 'high' },
+  { status: CC, number: 0x05, type: 'cc', action: 'gain' },
+  { status: CC, number: 0x08, lsb: 0x28, type: '14bit', action: 'pitchFader' },
+  { status: CC, number: 0x09, type: 'jog', action: 'jog' },
+  { status: CC, number: 0x0a, type: 'jog', action: 'jogTouched' },
+
+  // SHIFT held: the controller sends on its own channels.
+  { status: MASTER_SHIFT_NOTE, number: 0x00, type: 'note', action: 'shift.browser' },
+  { status: SHIFT_NOTE, number: 0x00, type: 'note', action: 'shift.fx' },
+  { status: SHIFT_NOTE, number: 0x01, type: 'note', action: 'shift.slip' },
+  { status: SHIFT_NOTE, number: 0x02, type: 'note', action: 'shift.quantize' },
+  { status: SHIFT_NOTE, number: 0x05, type: 'note', action: 'shift.sync' },
+  { status: SHIFT_NOTE, number: 0x06, type: 'note', action: 'shift.cue' },
+  { status: SHIFT_NOTE, number: 0x07, type: 'note', action: 'shift.play' },
+  { status: SHIFT_NOTE, number: 0x08, type: 'note', action: 'shift.wheelTouch' },
+  { status: SHIFT_NOTE, number: 0x09, type: 'note', action: 'shift.loopIn' },
+  { status: SHIFT_NOTE, number: 0x0a, type: 'note', action: 'shift.loopOut' },
+  { status: SHIFT_CC, number: 0x09, type: 'jog', action: 'shift.jog' },
+  { status: SHIFT_CC, number: 0x0a, type: 'jog', action: 'shift.jog' },
+];
+
+// LED name (as declared with led() in actions.js) -> MIDI address; on = 0x7F, off = 0x00.
+export const LEDS = {
+  play: { status: NOTE, number: 0x07 },
+  cue: { status: NOTE, number: 0x06 },
+  pfl: { status: NOTE, number: 0x0c },
+  ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
+};

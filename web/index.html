@@ -31,6 +31,7 @@
   .mixer { display: flex; flex-direction: column; gap: 10px; }
   .mixer h2 { margin: 0; font-size: 14px; }
   #log { margin: 0 16px 16px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; height: 120px; overflow: auto; font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre; }
+  .pads button { padding: 3px 6px; font-size: 11px; }
   .drop { outline: 2px dashed var(--accent); }
 </style>
 </head>
@@ -68,8 +69,8 @@
   <canvas width="1000" height="140"></canvas>
   <div class="row">
     <button data-act="cue">CUE</button>
-    <button data-act="play">PLAY</button>
-    <button data-act="pfl">🎧 PFL</button>
+    <button data-act="play" data-led="play">PLAY</button>
+    <button data-act="pfl" data-led="pfl">🎧 PFL</button>
     <span class="time">0:00.0 / 0:00</span>
     <span class="time rate">±0.00 %</span>
   </div>
