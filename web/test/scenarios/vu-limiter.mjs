@@ -7,8 +7,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { check, RATE, SINK, sleep, tmp } from '../lib.mjs';
 
-/** 30 s stereo 16-bit WAV at RATE, 220 Hz sine at full scale. */
-function writeFullScaleTone(path) {
+/** 30 s stereo 16-bit WAV at RATE, sine at full scale. */
+function writeFullScaleTone(path, hz) {
   const frames = RATE * 30;
   const buf = Buffer.alloc(44 + frames * 4);
   buf.write('RIFF', 0); buf.writeUInt32LE(36 + frames * 4, 4); buf.write('WAVEfmt ', 8);
@@ -16,7 +16,7 @@ function writeFullScaleTone(path) {
   buf.writeUInt32LE(RATE, 24); buf.writeUInt32LE(RATE * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34);
   buf.write('data', 36); buf.writeUInt32LE(frames * 4, 40);
   for (let i = 0; i < frames; i++) {
-    const s = Math.round(32767 * Math.sin((2 * Math.PI * 220 * i) / RATE));
+    const s = Math.round(32767 * Math.sin((2 * Math.PI * hz * i) / RATE));
     buf.writeInt16LE(s, 44 + i * 4); buf.writeInt16LE(s, 46 + i * 4);
   }
   writeFileSync(path, buf);
@@ -41,8 +41,12 @@ async function recordPeak(ms) {
 const dbfs = (v) => `${(20 * Math.log10(v)).toFixed(2)} dBFS`;
 
 export default async function ({ page, sim }) {
-  const wav = join(tmp, 'full-scale.wav');
-  writeFullScaleTone(wav);
+  // Two frequencies: the sum of the decks reaches its full peak whatever their phase.
+  const wavs = [220, 330].map((hz) => {
+    const wav = join(tmp, `full-scale-${hz}.wav`);
+    writeFullScaleTone(wav, hz);
+    return wav;
+  });
   const q = (sel) => `document.querySelector(${JSON.stringify(sel)})`;
   const level = async (sel) => Number(await page.eval(`${q(sel)}.dataset.level`));
   const levels = async () => Promise.all(['[data-meter=vu][data-deck="0"]', '[data-meter=vu][data-deck="1"]', '[data-meter="vu.mainLeft"]', '[data-meter="vu.mainRight"]'].map(level));
@@ -54,7 +58,7 @@ export default async function ({ page, sim }) {
   const doc = await page.send('DOM.getDocument');
   for (const d of [0, 1]) {
     const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: `.deck[data-deck="${d}"] input[type=file]` });
-    await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wav] });
+    await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wavs[d]] });
   }
   await sleep(1500);
 
