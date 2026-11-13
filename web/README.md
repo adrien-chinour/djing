@@ -112,7 +112,14 @@ que ne reçoit rien.
   chargé, via `deck.setBpm()`), réverbe (convolution sur une réponse générée, paramètre = niveau), flanger
   (paramètre = profondeur), filtre résonant (passe-bas sous le centre, passe-haut au-dessus), bitcrusher (16 à 2
   bits, sans réduction de fréquence). À l'écran : bloc FX de chaque deck (`ui/fx.js`, actions `fx.mix`,
-  `fx.<n>.effect`, `fx.<n>.on`, `fx.<n>.param`). Le scénario `test/scenarios/fx.mjs` le vérifie.
+  `fx.<n>.effect`, `fx.<n>.on`, `fx.<n>.param`, `fx.<n>.next`, `fx.unit`). Le scénario `test/scenarios/fx.mjs` le vérifie.
+- Effets à la platine (`mapping.js`, `ui/fx.js`, entrées `EffectRack1_EffectUnit*` de la table MIDI de Mixxx) : bouton
+  FX (`0x91`/`0x92` `0x00`, LED) = emplacement 3 actif ou coupé, SHIFT + FX = effet suivant de l'emplacement 3 ;
+  potentiomètres `0xB1`/`0xB2` `0x06` = paramètre de l'emplacement 3, `0x07` = dry/wet. Pads en mode FX
+  (`0x96`/`0x97`) : `0x50` à `0x52` = emplacements 1 à 3 (LED), `0x53` = unité appliquée au deck ou retirée
+  (signal sec ; LED, bouton « FX sur le deck » à l'écran), `0x54` à `0x56` = effet suivant des emplacements 1 à 3.
+  Une unité par deck : `0x57` (l'unité de l'autre deck) et la page SHIFT `0x58` à `0x5F` (unités 3 et 4 de Mixxx)
+  ne font rien. Le scénario `test/scenarios/fx-controller.mjs` le vérifie.
 - Hotcues (`ui/hotcues.js`) : 8 par deck, sur les pads en mode hotcue (`0x96`/`0x97`, `0x00` à `0x07`) et sur 8
   boutons à l'écran. Un pad vide pose le hotcue à la position courante, un pad posé y saute sans changer lecture ou
   arrêt ; SHIFT + pad (`0x08` à `0x0F`), ou Maj + clic, l'efface. Q (`0x91`/`0x92` `0x02`, LED, bouton Q à l'écran)
@@ -197,4 +204,4 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Boucles non sauvegardées ; un roll remplace la boucle active, qui n'est pas rétablie après. Beatjump : taille fixe, une boucle active ne suit pas le saut. Sync : un saut (boucle, hotcue), un scratch ou un nudge du maître est suivi
   par le suiveur ; un nudge du suiveur est annulé par la synchro. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
-- Pas de pilotage des effets par la platine.
+- Effets : pas d'affectation d'une unité à l'autre deck (pad FX `0x57`), pas d'unités 3 et 4.

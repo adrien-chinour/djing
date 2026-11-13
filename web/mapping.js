@@ -39,6 +39,11 @@ export const TONEPLAY_SEMITONES = [0, 1, 2, 3, -4, -3, -2, -1];
 const TONEPLAY_FIRST = 0x40;
 const toneplayPads = (shift) => TONEPLAY_SEMITONES.map((_, n) =>
   ({ status: PAD, number: TONEPLAY_FIRST + n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}toneplay.${n}` }));
+// FX page (0x50..0x57, EffectRack1_EffectUnit<deck> in the MIDI table): slots 1..3 on/off, unit
+// applied to the deck, next effect of slots 1..3. 0x57 (the other deck's unit) and the SHIFT page
+// 0x58..0x5F (units 3 and 4) have no counterpart here: one unit per deck.
+const FX_PAD_FIRST = 0x50;
+const FX_PADS = ['fx.0.on', 'fx.1.on', 'fx.2.on', 'fx.unit', 'fx.0.next', 'fx.1.next', 'fx.2.next'];
 const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
   ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
@@ -61,6 +66,8 @@ export const INPUTS = [
   ...BEATJUMP_BEATS.map((_, n) => ({ status: PAD, number: BEATJUMP_FIRST + n, type: 'note', action: `beatjump.${n}` })),
   ...toneplayPads(false),
   ...toneplayPads(true),
+  ...FX_PADS.map((action, n) => ({ status: PAD, number: FX_PAD_FIRST + n, type: 'note', action })),
+  { status: NOTE, number: 0x00, type: 'note', action: 'fx.2.on' }, // FX button: slot 3
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
   { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
@@ -73,12 +80,14 @@ export const INPUTS = [
   { status: CC, number: 0x04, type: 'cc', action: 'high' },
   { status: CC, number: 0x05, type: 'cc', action: 'gain' },
   { status: CC, number: 0x08, lsb: 0x28, type: '14bit', action: 'pitchFader' },
+  { status: CC, number: 0x06, type: 'cc', action: 'fx.2.param' }, // FX knob: slot 3 parameter (meta)
+  { status: CC, number: 0x07, type: 'cc', action: 'fx.mix' }, // dry/wet of the unit
   { status: CC, number: 0x09, type: 'jog', action: 'jog' },
   { status: CC, number: 0x0a, type: 'jog', action: 'jogTouched' },
 
   // SHIFT held: the controller sends on its own channels.
   { status: MASTER_SHIFT_NOTE, number: 0x00, type: 'note', action: 'shift.browser' },
-  { status: SHIFT_NOTE, number: 0x00, type: 'note', action: 'shift.fx' },
+  { status: SHIFT_NOTE, number: 0x00, type: 'note', action: 'fx.2.next' }, // SHIFT + FX: next effect of slot 3
   { status: SHIFT_NOTE, number: 0x01, type: 'note', action: 'shift.slip' },
   { status: SHIFT_NOTE, number: 0x02, type: 'note', action: 'shift.quantize' },
   { status: SHIFT_NOTE, number: 0x05, type: 'note', action: 'shift.sync' },
@@ -109,6 +118,9 @@ export const LEDS = {
     [`toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + n }],
     [`shift.toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + 8 + n }]])),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
+  'fx.button': { status: NOTE, number: 0x00 }, // slot 3 on
+  // fxPad.<n>: FX page pads 1..4 (slots 1..3 on, unit applied to the deck).
+  ...Object.fromEntries(FX_PADS.slice(0, 4).map((_, n) => [`fxPad.${n}`, { status: PAD, number: FX_PAD_FIRST + n }])),
   sync: { status: NOTE, number: 0x05 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
