@@ -22,11 +22,13 @@ const SHIFT_CC = [0xb4, 0xb5];
 
 export const INPUTS = [
   { status: MASTER_CC, number: 0x00, type: 'cc', action: 'crossfader' },
+  { status: MASTER_CC, number: 0x01, type: 'jog', action: 'browse' }, // browser encoder, relative
 
   { status: NOTE, number: 0x07, type: 'note', action: 'play' },
   { status: NOTE, number: 0x06, type: 'note', action: 'cue' },
   { status: NOTE, number: 0x0c, type: 'note', action: 'pfl' },
   { status: NOTE, number: 0x08, type: 'note', action: 'wheelTouch' },
+  { status: NOTE, number: 0x0d, type: 'note', action: 'loadSelected' },
   ...PAD_MODES.map((mode, i) => ({ status: NOTE, number: PAD_MODE_FIRST + i, type: 'note', action: `padMode.${mode}` })),
 
   { status: CC, number: 0x00, type: 'cc', action: 'volume' },

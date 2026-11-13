@@ -32,6 +32,13 @@
   .mixer h2 { margin: 0; font-size: 14px; }
   #log { margin: 0 16px 16px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; height: 120px; overflow: auto; font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre; }
   .pads button { padding: 3px 6px; font-size: 11px; }
+  .library { margin: 0 16px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .library .tracks { max-height: 320px; overflow: auto; }
+  .library table { width: 100%; border-collapse: collapse; }
+  .library th, .library td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); }
+  .library tr.selected { background: #263041; }
+  .library tr.unreadable { color: var(--dim); opacity: 0.5; }
+  .library td button { padding: 1px 8px; margin-left: 4px; }
   .drop { outline: 2px dashed var(--accent); }
 </style>
 </head>
@@ -59,6 +66,20 @@
   </section>
   <section class="deck" data-deck="1"></section>
 </main>
+
+<section id="library" class="library">
+  <div class="row">
+    <button id="libraryPick">Choisir le dossier</button>
+    <button id="libraryReopen" hidden>Rouvrir</button>
+    <span id="libraryStatus" class="time">aucun dossier</span>
+  </div>
+  <div class="tracks">
+    <table>
+      <thead><tr><th>Artiste</th><th>Titre</th><th>Chemin</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
 
 <div id="log"></div>
 
