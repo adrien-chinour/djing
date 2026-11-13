@@ -152,6 +152,13 @@ que ne reçoit rien.
   du jog, à la sortie de boucle ou au relâchement du pad, la lecture y reprend, avec le fondu de 5 ms d'un saut.
   Slip actif, un hotcue n'agit que tant que le pad (ou le bouton à l'écran) est maintenu. Couper SLIP pendant un
   maintien abandonne la position fantôme. Le scénario `test/scenarios/slip.mjs` le vérifie.
+- Roll et beatjump (`ui/rolls.js`, `engine.js`) : pads en mode roll (`0x96`/`0x97`, `0x10` à `0x17`) = boucle de
+  1/8, 1/4, 1/2, 1, 2, 4, 8, 16 temps tant que le pad est maintenu (début calé sur le temps si Q), slip forcé même
+  SLIP coupé : au relâchement, la lecture reprend à la position fantôme ; LED du pad allumée pendant le roll. Un
+  autre pad pendant un roll en change la longueur ; couper SLIP pendant un roll garde sa position fantôme. Pads en
+  mode beatjump (`0x70` à `0x77`) = −1, +1, −2, +2, −4, +4, −8, +8 temps, en lecture ou à l'arrêt. Les deux
+  exigent une grille ; sans grille, rien ne bouge et « … impossible : pas de grille » s'affiche sous les pads.
+  Boutons Roll (maintenus) et Beatjump à l'écran. Le scénario `test/scenarios/roll-beatjump.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -163,7 +170,7 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
-- Boucles non sauvegardées, pas de roll. Sync : un saut (boucle, hotcue), un scratch ou un nudge du maître est suivi
+- Boucles non sauvegardées ; un roll remplace la boucle active, qui n'est pas rétablie après. Beatjump : taille fixe, une boucle active ne suit pas le saut. Sync : un saut (boucle, hotcue), un scratch ou un nudge du maître est suivi
   par le suiveur ; un nudge du suiveur est annulé par la synchro. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
 - Pas de pilotage des effets par la platine.

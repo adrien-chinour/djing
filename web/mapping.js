@@ -27,6 +27,12 @@ export const SLICES = 8;
 const SLICER_FIRST = { slicer: 0x20, slicerloop: 0x60 };
 const slicerPads = () => Object.values(SLICER_FIRST).flatMap((first) => Array.from({ length: SLICES }, (_, n) =>
   ({ status: PAD, number: first + n, type: 'note', action: `slicer.${n}` })));
+// Roll page (0x10..0x17): loop roll lengths in beats; beatjump page (0x70..0x77): jumps in beats, in
+// the order of the MIDI table (beatjump_1_backward, beatjump_1_forward, ...).
+export const ROLL_BEATS = [1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16];
+export const BEATJUMP_BEATS = [-1, 1, -2, 2, -4, 4, -8, 8];
+const ROLL_FIRST = 0x10;
+const BEATJUMP_FIRST = 0x70;
 const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
   ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
@@ -45,6 +51,8 @@ export const INPUTS = [
   ...hotcuePads(false),
   ...hotcuePads(true),
   ...slicerPads(),
+  ...ROLL_BEATS.map((_, n) => ({ status: PAD, number: ROLL_FIRST + n, type: 'note', action: `roll.${n}` })),
+  ...BEATJUMP_BEATS.map((_, n) => ({ status: PAD, number: BEATJUMP_FIRST + n, type: 'note', action: `beatjump.${n}` })),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
   { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
@@ -87,6 +95,7 @@ export const LEDS = {
   // slicer.<n> and slicerloop.<n>: pad n of each slicer page.
   ...Object.fromEntries(Object.entries(SLICER_FIRST).flatMap(([mode, first]) =>
     Array.from({ length: SLICES }, (_, n) => [`${mode}.${n}`, { status: PAD, number: first + n }]))),
+  ...Object.fromEntries(ROLL_BEATS.map((_, n) => [`roll.${n}`, { status: PAD, number: ROLL_FIRST + n }])), // lit while rolling
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
   sync: { status: NOTE, number: 0x05 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
