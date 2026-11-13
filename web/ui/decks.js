@@ -31,6 +31,8 @@ export function createDecks(ctx) {
   knob('filter', (deck, v) => deck.setFilter(v));
   for (const band of ['low', 'mid', 'high']) knob(band, (deck, v) => deck.setEq(band, v));
   knob('rate', (deck, v) => deck.setRate(v));
+  knob('transpose', (deck, v) => deck.setTranspose(v));
+  register('keylock', onPress((deck) => deck.setKeylock(!deck.keylock)));
   // The pitch fader of the controller, whose direction depends on the "pitch inversé" box.
   register('pitchFader', (d, v) => dispatch('rate', d, ctx.rateInvert ? -v : v));
 
@@ -99,6 +101,7 @@ export function createDecks(ctx) {
     led('cue', d, () => deckOf(d)?.buffer && !deckOf(d).playing);
     led('pfl', d, () => deckOf(d)?.pflOn);
     led('vinyl', d, () => deckOf(d)?.vinyl);
+    led('keylock', d, () => deckOf(d)?.keylock);
   });
   // Mirrors the LEDs on the screen controls that declare data-led.
   onLed((name, d, on) => {
@@ -112,7 +115,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), track: null };
+  const ui = { section, canvas: $('canvas', section), peaks: null, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section) };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -161,4 +164,6 @@ function drawDeck(deck, ui) {
   g.fillRect(Math.floor((deck.cuePoint / deck.duration) * w), 0, 2, h);
   ui.time.textContent = `${fmt(deck.position)} / ${fmt(deck.duration)}`;
   ui.rate.textContent = `${deck.rate >= 1 ? '+' : '−'}${(Math.abs(deck.rate - 1) * 100).toFixed(2)} %`;
+  ui.transpose.textContent = `${deck.transpose > 0 ? '+' : deck.transpose < 0 ? '−' : '±'}${Math.abs(deck.transpose)} dt`;
+  ui.latency.textContent = `latence ${Math.round(deck.delay * 1000)} ms`;
 }

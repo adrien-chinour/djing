@@ -7,6 +7,7 @@
 //   scripts/split-outputs.sh exposes the card as two stereo sinks, "Inpulse MAIN" and "Inpulse Casque".
 
 import { FxUnit } from './fx/unit.js';
+import SignalsmithStretch from './vendor/signalsmith-stretch.js';
 
 const EQ_CUT_DB = -26;
 const EQ_BOOST_DB = 6;
@@ -22,6 +23,7 @@ const BETA = ALPHA / 32;
 const STEP_S = 0.001; // alpha-beta filter step, as in Mixxx
 const TIMER_MS = 5;
 const IDLE_S = 0.05; // no tick for this long and a slow filter: the wheel has stopped
+const KEYLOCK_MAX_DEVIATION = 0.5; // keylock is bypassed beyond ±50 % of speed, and in reverse
 
 /** Knob 0..1 with a centre detent at 0.5 -> dB (kill at 0, +6 dB at 1). */
 export function knobToDb(v) {
@@ -141,8 +143,20 @@ class Deck {
     this.cuePoint = 0;
     this.rateRange = 0.08;
     this.bpm = null; // track BPM, null while unknown (effects then assume 120)
+    this.keylock = false;
+    this.transpose = 0; // semitones, -12..12
+    this.stretch = null; // Signalsmith Stretch node, pitch shifter after the player
+    this.latency = 0; // seconds added by the stretch node
+    this.stretched = false; // audio goes through the stretch node (keylock on or transposed)
+    this.semitones = 0; // pitch shift last sent to the stretch node
 
     this.trim = ctx.createGain();
+    // Player -> dry -> trim, or player -> stretch -> wet -> trim (see retune()).
+    this.dry = ctx.createGain();
+    this.wet = ctx.createGain();
+    this.wet.gain.value = 0;
+    this.dry.connect(this.trim);
+    this.wet.connect(this.trim);
     this.low = new BiquadFilterNode(ctx, { type: 'lowshelf', frequency: 250 });
     this.mid = new BiquadFilterNode(ctx, { type: 'peaking', frequency: 1000, Q: 0.7 });
     this.high = new BiquadFilterNode(ctx, { type: 'highshelf', frequency: 4000 });
@@ -163,12 +177,7 @@ class Deck {
   async load(file) {
     this.stop();
     const buffer = await this.engine.ctx.decodeAudioData(await file.arrayBuffer());
-    await this.engine.ready;
-    if (!this.player) {
-      this.player = new AudioWorkletNode(this.engine.ctx, 'deck-player', { numberOfInputs: 0, outputChannelCount: [2] });
-      this.player.port.onmessage = (e) => this.onReport(e.data);
-      this.player.connect(this.trim);
-    }
+    await (this.nodes ??= this.createNodes());
     // Copies, so the AudioBuffer stays usable for the waveform; sent once, by transfer.
     const channels = [];
     for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c).slice());
@@ -180,9 +189,62 @@ class Deck {
     this.send({ type: 'speed', speed: this.speed });
   }
 
+  /** Player worklet, then the stretch node that keeps the key or transposes. */
+  async createNodes() {
+    const ctx = this.engine.ctx;
+    await this.engine.ready;
+    this.player = new AudioWorkletNode(ctx, 'deck-player', { numberOfInputs: 0, outputChannelCount: [2] });
+    this.player.port.onmessage = (e) => this.onReport(e.data);
+    this.player.connect(this.dry);
+    const stretch = await SignalsmithStretch(ctx, {
+      numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
+    });
+    this.latency = await stretch.latency();
+    stretch.start();
+    this.player.connect(stretch).connect(this.wet);
+    this.stretch = stretch;
+    this.retune();
+  }
+
   /** Sends a command to the worklet; reports sent before it are now stale. */
   send(msg) {
     this.player?.port.postMessage({ ...msg, gen: ++this.gen });
+    if (msg.type === 'speed') this.retune();
+  }
+
+  /**
+   * The player resamples (pitch follows speed); the stretch node then shifts the pitch by the
+   * transposition, minus the speed's own shift while keylock holds. Keylock is bypassed in reverse
+   * and beyond ±50 %. Neither keylock nor transposition: the direct path, without latency.
+   */
+  retune() {
+    const speed = this.speed;
+    const locked = this.keylock && speed > 0 && Math.abs(speed - 1) <= KEYLOCK_MAX_DEVIATION;
+    const semitones = this.transpose - (locked ? 12 * Math.log2(speed) : 0);
+    if (this.stretch && semitones !== this.semitones) this.stretch.schedule({ semitones });
+    this.semitones = semitones;
+    const stretched = !!this.stretch && (this.keylock || this.transpose !== 0);
+    if (stretched === this.stretched) return;
+    this.stretched = stretched;
+    const now = this.engine.ctx.currentTime;
+    this.dry.gain.setTargetAtTime(stretched ? 0 : 1, now, 0.003);
+    this.wet.gain.setTargetAtTime(stretched ? 1 : 0, now, 0.003);
+  }
+
+  setKeylock(on) {
+    this.keylock = on;
+    this.retune();
+  }
+
+  /** Transposition in semitones, -12..12. */
+  setTranspose(semitones) {
+    this.transpose = Math.max(-12, Math.min(12, Math.round(semitones)));
+    this.retune();
+  }
+
+  /** Latency of the audio heard: the stretch node's while audio goes through it. */
+  get delay() {
+    return this.stretched ? this.latency : 0;
   }
 
   /** True while the worklet plays: deck playing, or wheel scratching. */
@@ -209,11 +271,17 @@ class Deck {
     return this.scratch ? this.scratch.v : this.rate + this.bend;
   }
 
-  /** Extrapolated from the last worklet report while playing. */
-  get position() {
+  /** Read position of the player, extrapolated from the last worklet report while playing. */
+  get playhead() {
     if (!this.running) return this.offset;
     const p = this.report.position + (this.engine.ctx.currentTime - this.report.time) * this.speed;
     return Math.min(Math.max(0, p), this.duration);
+  }
+
+  /** Position heard: the playhead, minus what the stretch node still holds. */
+  get position() {
+    if (!this.running || !this.delay) return this.playhead;
+    return Math.min(Math.max(0, this.playhead - this.delay * this.speed), this.duration);
   }
 
   get duration() {
@@ -221,7 +289,7 @@ class Deck {
   }
 
   rebase() {
-    this.report = { position: this.position, time: this.engine.ctx.currentTime };
+    this.report = { position: this.playhead, time: this.engine.ctx.currentTime };
   }
 
   play() {
@@ -235,7 +303,7 @@ class Deck {
 
   stop() {
     if (!this.playing) return;
-    this.offset = this.position;
+    this.offset = this.playhead;
     this.playing = false;
     if (!this.scratch) this.send({ type: 'stop', position: this.offset });
   }
@@ -291,7 +359,7 @@ class Deck {
         this.applySpeed();
       }, 80);
     } else {
-      this.seek(this.position + ticks * 0.02);
+      this.seek(this.playhead + ticks * 0.02);
     }
   }
 
