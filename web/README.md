@@ -33,7 +33,7 @@ carte son, sans Mixxx.
   `vu-limiter.mjs` vérifie les VU-mètres, les LED VU et leur débit, et la crête du MAIN limité. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
-- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `library.mjs` : la
+- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `beatgrid.mjs` : l'analyse du BPM ; `library.mjs` : la
   bibliothèque, sur un dossier de l'OPFS que `showDirectoryPicker` rend à la place du sélecteur). `make web-test` les lance
   tous, `make web-test SCENARIO=poc` un seul ; le code de sortie est non nul si un scénario échoue. Le sink et les
   sorties découpées sont partagés ; chaque scénario part d'une page rechargée et d'une platine simulée neuve. Un
@@ -73,6 +73,14 @@ que ne reçoit rien.
 - `library/` : base IndexedDB unique `djing` (`db.js`, une migration par version : magasins `tracks`, données par
   titre, et `settings`, dont le dossier de musique) et liste des titres d'un `FileSystemDirectoryHandle` (`scan.js`).
   Identifiant d'un titre : `<chemin relatif>|<taille>|<lastModified>`.
+- `analysis/` : BPM et grille de chaque titre, calculés une fois. `queue.js` décode les titres un par un
+  (`OfflineAudioContext` à 22 050 Hz, mono) et les passe au Web Worker `worker.js`, qui appelle `beat.js` :
+  montée d'énergie log par fenêtres de 20 ms toutes les 1,5 ms, autocorrélation sur les tempos 70–180 BPM (le
+  plus rapide l'emporte quand un multiple est aussi fort), affinage de la période, puis régression linéaire sur
+  les pics d'onset de chaque temps. Résultat sous `analysis: { bpm, firstBeat }` dans `tracks` (`bpm: null` :
+  « BPM inconnu », pas de grille) ; un titre qui l'a n'est plus analysé. Le deck affiche BPM et premier temps,
+  corrigés par ÷2, ×2, −10 ms, +10 ms (actions `grid.*`). Le scénario `test/scenarios/beatgrid.mjs` le vérifie
+  sur des pistes de clics et du bruit blanc.
 - `ui/library.js` : « Choisir le dossier » (`showDirectoryPicker`, handle gardé en IndexedDB, « Rouvrir » au
   rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
   l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse
@@ -94,4 +102,5 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
-- Pas de BPM, de sync, de hotcues ni de boucles.
+- Pas de sync, de hotcues ni de boucles. Grille à tempo constant seulement ; précision du BPM sur de la vraie
+  musique non mesurée par le test (clics synthétiques).

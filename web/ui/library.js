@@ -1,8 +1,10 @@
 // Library panel: one music directory, chosen once and kept in IndexedDB, listed as a table whose
 // tracks load on deck A or B from the screen or from the controller (browser encoder + LOAD).
+// Tracks are analysed (BPM, beat grid) in the background once listed.
 import { register } from '../actions.js';
-import { get, getAll, put } from '../library/db.js';
+import { get, getAll, patch, put } from '../library/db.js';
 import { scanDirectory } from '../library/scan.js';
+import { analyzeTracks, announce, formatBpm } from '../analysis/queue.js';
 
 const $ = (sel) => document.querySelector(sel);
 const DIR_KEY = 'libraryDir';
@@ -12,6 +14,7 @@ export function createLibrary(ctx, loadOnDeck) {
   const body = $('#library tbody');
   const status = $('#libraryStatus');
   const reopen = $('#libraryReopen');
+  const progress = $('#analysisProgress');
   let tracks = [];
   let rows = [];
   let selected = -1;
@@ -33,10 +36,10 @@ export function createLibrary(ctx, loadOnDeck) {
   async function load(i, deck) {
     const track = tracks[i];
     if (!track || track.unreadable) return;
-    if (await loadOnDeck(deck, track.file)) return;
+    if (await loadOnDeck(deck, track.file, track)) return;
     if (!ctx.engine) return; // audio not started: not the file's fault
     markUnreadable(i);
-    await put('tracks', { id: track.id, path: track.path, unreadable: true });
+    await patch('tracks', track.id, { path: track.path, unreadable: true });
   }
 
   function render() {
@@ -49,6 +52,10 @@ export function createLibrary(ctx, loadOnDeck) {
         td.textContent = text;
         tr.append(td);
       }
+      const bpm = document.createElement('td');
+      bpm.className = 'bpm';
+      bpm.textContent = formatBpm(t.analysis);
+      tr.append(bpm);
       const actions = document.createElement('td');
       const state = document.createElement('span');
       state.className = 'state';
@@ -78,13 +85,24 @@ export function createLibrary(ctx, loadOnDeck) {
   async function open(dir) {
     status.textContent = `lecture de « ${dir.name || 'dossier'} »…`;
     const [found, known] = await Promise.all([scanDirectory(dir), getAll('tracks')]);
-    const unreadable = new Set(known.filter((t) => t.unreadable).map((t) => t.id));
-    tracks = found.map((t) => ({ ...t, unreadable: unreadable.has(t.id) }));
+    const records = new Map(known.map((t) => [t.id, t]));
+    tracks = found.map((t) => ({ ...t, unreadable: !!records.get(t.id)?.unreadable, analysis: records.get(t.id)?.analysis }));
     await put('settings', dir, DIR_KEY);
     reopen.hidden = true;
     status.textContent = `« ${dir.name || 'dossier'} » : ${tracks.length} titre(s)`;
     render();
+    analyzeTracks(tracks.filter((t) => !t.unreadable), {
+      onProgress: (done, total) => { progress.textContent = `analyse BPM : ${done} / ${total}`; },
+      onResult: announce,
+      onError: (t, err) => ctx.log(`${t.path} : analyse impossible (${err.message})`),
+    });
   }
+
+  // Analysis results and grid edits from the decks (same track objects).
+  document.addEventListener('djing:analysis', ({ detail: track }) => {
+    const i = tracks.indexOf(track);
+    if (i >= 0) rows[i].querySelector('.bpm').textContent = formatBpm(track.analysis);
+  });
 
   $('#libraryPick').addEventListener('click', async () => {
     if (!window.showDirectoryPicker) return ctx.log('Choix de dossier indisponible (utiliser Chrome ou Edge)');
