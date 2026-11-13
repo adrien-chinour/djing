@@ -1,4 +1,4 @@
-.PHONY: check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-image visuals-lint-docker
+.PHONY: web web-split web-sim web-test check test hardware apply apply-pc setup mapping agent-mapping demo analyze mix rate daemon daemon-stop visuals visual visuals-image visuals-lint-docker
 
 check: ## Lint scripts and validate the mapping files
 	shellcheck scripts/*.sh
@@ -9,6 +9,8 @@ check: ## Lint scripts and validate the mapping files
 	shellcheck visuals/switch
 	bash -n visuals/switch
 	node --check visuals/server.js visuals/public/*.js
+	node --check web/*.js web/test/*.mjs
+	python3 -I -m py_compile web/sim/controller.py
 	@# TV pages must stay ES5 (no let/const/class/arrow functions/template strings)
 	@! grep -nE '\b(let|const|class)[[:space:]]+[A-Za-z_$$]|=>|`' visuals/public/*.html visuals/public/scenes/*.html visuals/public/*.js || { echo 'ES5 only in TV files'; exit 1; }
 
@@ -64,3 +66,15 @@ visuals-lint-docker: ## Visuals: lint the Dockerfile with hadolint (Docker)
 visuals-image: ## Visuals: build the remote image and run it on port 8765 (SECRET=... for stable links)
 	docker build -t djing-visuals visuals
 	docker run --rm -p 8765:8765 -e SESSION_SECRET="$(SECRET)" djing-visuals
+
+web: ## Web DJ proof of concept on http://localhost:8800 (open in Chrome; localhost is needed for Web MIDI)
+	python3 -m http.server 8800 --bind 127.0.0.1 --directory web
+
+web-split: ## Split the controller card into two stereo sinks, Inpulse MAIN (1-2) and Inpulse Casque (3-4), for web/
+	./scripts/split-outputs.sh
+
+web-sim: ## Simulated controller on a virtual MIDI port, commands on stdin (see web/sim/controller.py)
+	uv run python -I web/sim/controller.py
+
+web-test: ## End-to-end test of web/ without hardware: simulated controller, 4-channel sink, headless Chrome
+	node web/test/e2e.mjs
