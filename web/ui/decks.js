@@ -68,6 +68,7 @@ export function createDecks(ctx) {
     ui.peaks = ctx.engine.decks[d].peaks(ui.canvas.width);
     ui.track = track;
     showBpm(ui);
+    ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null); // tempo of the deck effects
     refreshLeds();
     return true;
   }
@@ -86,7 +87,11 @@ export function createDecks(ctx) {
   editGrid('grid.earlier', (a) => ({ ...a, firstBeat: a.firstBeat - 0.01 }));
   editGrid('grid.later', (a) => ({ ...a, firstBeat: a.firstBeat + 0.01 }));
   document.addEventListener('djing:analysis', ({ detail: track }) => {
-    for (const ui of panels) if (ui.track === track) showBpm(ui);
+    panels.forEach((ui, d) => {
+      if (ui.track !== track) return;
+      showBpm(ui);
+      deckOf(d)?.setBpm(track.analysis?.bpm ?? null);
+    });
   });
 
   panels.forEach((_, d) => {

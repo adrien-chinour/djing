@@ -129,6 +129,8 @@ export default async function ({ page }) {
   await press(0, 'grid.half');
   await press(0, 'grid.half');
   check('÷2 deux fois après ×2 : BPM divisé par 2', (await deckBpm(0)).startsWith('62.00 BPM'), await deckBpm(0));
+  const fxTempo = await page.eval(`window.djing.engine.decks.map((deck) => deck.fx.tempo())`);
+  check('tempo des effets (#45) : BPM corrigé sur le deck A, aucun sur le deck B', Math.abs(fxTempo[0] - 62) < 0.05 && fxTempo[1] === null, JSON.stringify(fxTempo));
   await press(0, 'grid.later');
   await press(0, 'grid.later');
   await press(0, 'grid.earlier');
