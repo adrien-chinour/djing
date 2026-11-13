@@ -1,10 +1,10 @@
 // Library panel: one music directory, chosen once and kept in IndexedDB, listed as a table whose
 // tracks load on deck A or B from the screen or from the controller (browser encoder + LOAD).
-// Tracks are analysed (BPM, beat grid) in the background once listed.
+// Tracks are analysed (BPM, beat grid, key) in the background once listed.
 import { register } from '../actions.js';
 import { get, getAll, patch, put } from '../library/db.js';
 import { scanDirectory } from '../library/scan.js';
-import { analyzeTracks, announce, formatBpm } from '../analysis/queue.js';
+import { analyzeTracks, announce, formatBpm, formatKey } from '../analysis/queue.js';
 
 const $ = (sel) => document.querySelector(sel);
 const DIR_KEY = 'libraryDir';
@@ -56,6 +56,10 @@ export function createLibrary(ctx, loadOnDeck) {
       bpm.className = 'bpm';
       bpm.textContent = formatBpm(t.analysis);
       tr.append(bpm);
+      const key = document.createElement('td');
+      key.className = 'key';
+      key.textContent = formatKey(t.analysis);
+      tr.append(key);
       const actions = document.createElement('td');
       const state = document.createElement('span');
       state.className = 'state';
@@ -101,7 +105,9 @@ export function createLibrary(ctx, loadOnDeck) {
   // Analysis results and grid edits from the decks (same track objects).
   document.addEventListener('djing:analysis', ({ detail: track }) => {
     const i = tracks.indexOf(track);
-    if (i >= 0) rows[i].querySelector('.bpm').textContent = formatBpm(track.analysis);
+    if (i < 0) return;
+    rows[i].querySelector('.bpm').textContent = formatBpm(track.analysis);
+    rows[i].querySelector('.key').textContent = formatKey(track.analysis);
   });
 
   $('#libraryPick').addEventListener('click', async () => {

@@ -33,7 +33,7 @@ carte son, sans Mixxx.
   `vu-limiter.mjs` vérifie les VU-mètres, les LED VU et leur débit, et la crête du MAIN limité. Tout ce qu'il crée
   est supprimé à la fin. Prérequis : `google-chrome`, PipeWire (`pw-cli`, `pw-dump`, `pw-record`,
   `pw-loopback`, `pw-link`), `uv`.
-- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `beatgrid.mjs` : l'analyse du BPM ; `library.mjs` : la
+- Un scénario par fichier dans `test/scenarios/` (`poc.mjs` : le scénario ci-dessus ; `beatgrid.mjs` : l'analyse du BPM ; `key.mjs` : la tonalité ; `library.mjs` : la
   bibliothèque, sur un dossier de l'OPFS que `showDirectoryPicker` rend à la place du sélecteur). `make web-test` les lance
   tous, `make web-test SCENARIO=poc` un seul ; le code de sortie est non nul si un scénario échoue. Le sink et les
   sorties découpées sont partagés ; chaque scénario part d'une page rechargée et d'une platine simulée neuve. Un
@@ -89,6 +89,13 @@ que ne reçoit rien.
   « BPM inconnu », pas de grille) ; un titre qui l'a n'est plus analysé. Le deck affiche BPM et premier temps,
   corrigés par ÷2, ×2, −10 ms, +10 ms (actions `grid.*`). Le scénario `test/scenarios/beatgrid.mjs` le vérifie
   sur des pistes de clics et du bruit blanc.
+- Tonalité (`analysis/key.js`, dans le même worker que le BPM) : chromagramme (trames de 8192 échantillons,
+  fenêtre de Hann, 55 à 1760 Hz, magnitude moyenne par classe de hauteur), corrélé aux 24 profils de
+  Krumhansl-Schmuckler (majeur et mineur), converti en notation Camelot (`8A` = la mineur, `8B` = do majeur).
+  Sauvegardée sous `analysis.key` (`null` : chromagramme trop plat ou corrélation trop faible, affiché « ? ») ; un
+  titre analysé avant la tonalité ne reçoit que sa tonalité, BPM et grille gardés. Une seule tonalité par titre.
+  Affichée dans la colonne « Tonalité » de la bibliothèque et sous le deck. Le scénario `test/scenarios/key.mjs`
+  le vérifie sur des suites d'accords synthétiques (la mineur, do majeur, fa dièse mineur) et du bruit blanc.
 - `ui/library.js` : « Choisir le dossier » (`showDirectoryPicker`, handle gardé en IndexedDB, « Rouvrir » au
   rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
   l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse
