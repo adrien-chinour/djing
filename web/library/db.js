@@ -9,6 +9,10 @@ export const MIGRATIONS = [
     db.createObjectStore('tracks', { keyPath: 'id' });
     db.createObjectStore('settings');
   },
+  // 1 -> 2: cue points of a track, { id: track id, hotcues: [8 × seconds or null] }.
+  (db) => {
+    db.createObjectStore('cues', { keyPath: 'id' });
+  },
 ];
 
 const request = (req) => new Promise((resolve, reject) => {

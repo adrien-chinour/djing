@@ -138,6 +138,7 @@ class Deck {
     this.rate = 1; // pitch fader
     this.bend = 0; // temporary nudge from the jog wheel
     this.vinyl = true; // vinyl mode: touching the wheel scratches
+    this.quantize = false; // Q: new cue points snap to the nearest beat of the grid
     this.touched = false; // wheel top surface held
     this.scratch = null; // { target, x, v, idle, timer } while the wheel drives playback
     this.cuePoint = 0;

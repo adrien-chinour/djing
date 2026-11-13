@@ -106,6 +106,13 @@ que ne reçoit rien.
   (paramètre = profondeur), filtre résonant (passe-bas sous le centre, passe-haut au-dessus), bitcrusher (16 à 2
   bits, sans réduction de fréquence). À l'écran : bloc FX de chaque deck (`ui/fx.js`, actions `fx.mix`,
   `fx.<n>.effect`, `fx.<n>.on`, `fx.<n>.param`). Le scénario `test/scenarios/fx.mjs` le vérifie.
+- Hotcues (`ui/hotcues.js`) : 8 par deck, sur les pads en mode hotcue (`0x96`/`0x97`, `0x00` à `0x07`) et sur 8
+  boutons à l'écran. Un pad vide pose le hotcue à la position courante, un pad posé y saute sans changer lecture ou
+  arrêt ; SHIFT + pad (`0x08` à `0x0F`), ou Maj + clic, l'efface. Q (`0x91`/`0x92` `0x02`, LED, bouton Q à l'écran)
+  cale la pose sur le temps le plus proche de la grille du titre ; sans grille, pas de calage. LED du pad allumée
+  quand le hotcue existe. Sauvegardés par identifiant de titre dans le magasin IndexedDB `cues` (`{ id, hotcues }`)
+  et relus au chargement depuis la bibliothèque ; un fichier glissé sur le deck n'est pas sauvegardé. Le scénario
+  `test/scenarios/hotcues.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -117,6 +124,6 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
-- Pas de sync, de hotcues ni de boucles. Grille à tempo constant seulement ; précision du BPM sur de la vraie
+- Pas de sync ni de boucles. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
 - Pas de pilotage des effets par la platine.

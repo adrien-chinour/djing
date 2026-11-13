@@ -19,6 +19,10 @@ const CC = [0xb1, 0xb2];
 const MASTER_SHIFT_NOTE = 0x93;
 const SHIFT_NOTE = [0x94, 0x95];
 const SHIFT_CC = [0xb4, 0xb5];
+const PAD = [0x96, 0x97]; // performance pads; hotcue page 0x00..0x07, +8 with SHIFT
+export const HOTCUES = 8;
+const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
+  ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
 export const INPUTS = [
   { status: MASTER_CC, number: 0x00, type: 'cc', action: 'crossfader' },
@@ -30,6 +34,9 @@ export const INPUTS = [
   { status: NOTE, number: 0x08, type: 'note', action: 'wheelTouch' },
   { status: NOTE, number: 0x0d, type: 'note', action: 'loadSelected' },
   { status: NOTE, number: 0x03, type: 'note', action: 'vinyl' },
+  { status: NOTE, number: 0x02, type: 'note', action: 'quantize' },
+  ...hotcuePads(false),
+  ...hotcuePads(true),
   ...PAD_MODES.map((mode, i) => ({ status: NOTE, number: PAD_MODE_FIRST + i, type: 'note', action: `padMode.${mode}` })),
 
   { status: CC, number: 0x00, type: 'cc', action: 'volume' },
@@ -63,6 +70,8 @@ export const LEDS = {
   cue: { status: NOTE, number: 0x06 },
   pfl: { status: NOTE, number: 0x0c },
   vinyl: { status: NOTE, number: 0x03 },
+  quantize: { status: NOTE, number: 0x02 },
+  ...Object.fromEntries(Array.from({ length: HOTCUES }, (_, n) => [`hotcue.${n}`, { status: PAD, number: n }])),
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
 
