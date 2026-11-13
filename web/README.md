@@ -197,6 +197,14 @@ que ne reçoit rien.
   titres ont un BPM, et le crossfader glisse en 10 s vers lui. Titre sortant fini : synchro relâchée, titre suivant
   chargé sur ce deck. Un titre introuvable ou illisible est sauté. Arrêt après le dernier titre ; re-appui :
   arrêt immédiat, crossfader et decks laissés tels quels. Le scénario `test/scenarios/autodj.mjs` le vérifie.
+- Sampler (`ui/sampler.js`) : 16 emplacements, 1 à 8 sur les pads du deck A, 9 à 16 sur ceux du deck B, en mode
+  sampler (`0x96`/`0x97`, `0x30` à `0x37`). Un pad lance son emplacement depuis le début (relance s'il joue) ;
+  SHIFT + pad (`0x38` à `0x3F`), ou Maj + clic sur l'emplacement à l'écran, l'arrête ; emplacement vide : rien. LED du
+  pad allumée pendant la lecture. Panneau « Sampler » : on y glisse les lignes de la bibliothèque, décodées au dépôt
+  (jamais sur un message MIDI) et lues par `AudioBufferSourceNode`, sans pitch ni synchro. Emplacements sauvegardés
+  (identifiants de titre, clé `sampler` du magasin `settings`) et rechargés au listage de la bibliothèque. Volume du
+  sampler à l'écran, puis MAIN (limiteur compris) et casque si le PFL du sampler est actif. Le scénario
+  `test/scenarios/sampler.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
