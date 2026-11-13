@@ -44,6 +44,10 @@
   .library td button { padding: 1px 8px; margin-left: 4px; }
   .drop { outline: 2px dashed var(--accent); }
   #playlistDrop { --accent: var(--ok); min-height: 60px; }
+  .slots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .slots button { --accent: var(--ok); padding: 4px 6px; font-size: 11px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .slots button.empty { color: var(--dim); }
+  @media (max-width: 800px) { .slots { grid-template-columns: repeat(4, 1fr); } }
   .meters { display: flex; gap: 6px; align-items: flex-end; }
   .vu { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--dim); }
   .vu i { position: relative; width: 12px; height: 80px; background: #0c0e11; border-radius: 3px; overflow: hidden; }
@@ -83,6 +87,16 @@
   </section>
   <section class="deck" data-deck="1"></section>
 </main>
+
+<section id="sampler" class="library">
+  <div class="row">
+    <strong>Sampler</strong>
+    <label>Volume <input id="samplerVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <button id="samplerPfl" title="Sampler dans le casque">🎧 PFL</button>
+    <span class="time">1 à 8 : pads du deck A, 9 à 16 : deck B (mode sampler) ; glisser un titre de la bibliothèque sur un emplacement</span>
+  </div>
+  <div id="samplerSlots" class="slots"></div>
+</section>
 
 <section id="library" class="library">
   <div class="row">

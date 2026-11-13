@@ -45,6 +45,11 @@ const toneplayPads = (shift) => TONEPLAY_SEMITONES.map((_, n) =>
 // 0x58..0x5F (units 3 and 4) have no counterpart here: one unit per deck.
 const FX_PAD_FIRST = 0x50;
 const FX_PADS = ['fx.0.on', 'fx.1.on', 'fx.2.on', 'fx.unit', 'fx.0.next', 'fx.1.next', 'fx.2.next'];
+// Sampler page (0x30..0x37, +8 with SHIFT): pad n of deck A is slot n, of deck B slot 8 + n (ui/sampler.js).
+export const SAMPLER_PADS = 8;
+const SAMPLER_FIRST = 0x30;
+const samplerPads = (shift) => Array.from({ length: SAMPLER_PADS }, (_, n) =>
+  ({ status: PAD, number: SAMPLER_FIRST + n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}sampler.${n}` }));
 const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
   ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
@@ -70,6 +75,8 @@ export const INPUTS = [
   ...toneplayPads(true),
   ...FX_PADS.map((action, n) => ({ status: PAD, number: FX_PAD_FIRST + n, type: 'note', action })),
   { status: NOTE, number: 0x00, type: 'note', action: 'fx.2.on' }, // FX button: slot 3
+  ...samplerPads(false),
+  ...samplerPads(true),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
   { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
@@ -119,6 +126,10 @@ export const LEDS = {
   ...Object.fromEntries(TONEPLAY_SEMITONES.flatMap((_, n) => [
     [`toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + n }],
     [`shift.toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + 8 + n }]])),
+  // sampler.<n> and shift.sampler.<n>: lit while the slot of the pad plays, with and without SHIFT.
+  ...Object.fromEntries(Array.from({ length: SAMPLER_PADS }).flatMap((_, n) => [
+    [`sampler.${n}`, { status: PAD, number: SAMPLER_FIRST + n }],
+    [`shift.sampler.${n}`, { status: PAD, number: SAMPLER_FIRST + 8 + n }]])),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
   'fx.button': { status: NOTE, number: 0x00 }, // slot 3 on
   // fxPad.<n>: FX page pads 1..4 (slots 1..3 on, unit applied to the deck).
