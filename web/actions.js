@@ -5,6 +5,7 @@
 const actions = new Map();
 const leds = [];
 const ledListeners = [];
+const meterListeners = [];
 
 /** Registers `fn(deck, value)` under `name` (deck is 0, 1 or null for the master section). */
 export function register(name, fn) {
@@ -28,6 +29,16 @@ export function led(name, deck, state) {
 /** Calls `fn(name, deck, on)` for every LED change. */
 export function onLed(fn) {
   ledListeners.push(fn);
+}
+
+/** Calls `fn(name, deck, value)` for every meter reading (see meter()). */
+export function onMeter(fn) {
+  meterListeners.push(fn);
+}
+
+/** Reports the meter `name` of `deck` (null for the master section), `value` in 0..1. */
+export function meter(name, deck, value) {
+  for (const fn of meterListeners) fn(name, deck, value);
 }
 
 /** Recomputes every LED; `force` reports them all, changed or not (e.g. a controller just connected). */

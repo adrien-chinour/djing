@@ -65,3 +65,12 @@ export const LEDS = {
   vinyl: { status: NOTE, number: 0x03 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
+
+// Meter name (as reported with meter() in actions.js) -> MIDI address; value 0..125, as sent by
+// DJCi300.vuMeterUpdateDeck / vuMeterUpdateMain in the Hercules script shipped with Mixxx.
+export const METERS = {
+  vu: { status: CC, number: 0x40 }, // deck, pre-fader
+  'vu.mainLeft': { status: MASTER_CC, number: 0x40 },
+  'vu.mainRight': { status: MASTER_CC, number: 0x41 },
+};
+export const METER_MAX = 125;

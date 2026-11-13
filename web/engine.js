@@ -29,7 +29,21 @@ export function knobToDb(v) {
 export class Engine {
   constructor() {
     this.ctx = new AudioContext({ latencyHint: 'interactive' });
-    this.master = this.ctx.createGain();
+    this.master = this.ctx.createGain(); // master volume, then the limiter (worklets/limiter.js)
+    this.main = this.ctx.createGain(); // limited MAIN, sent to the outputs by route()
+    this.master.connect(this.main); // until the limiter module is loaded
+    this.mainMeters = [this.ctx.createAnalyser(), this.ctx.createAnalyser()]; // left, right
+    this.mainSplit = this.ctx.createChannelSplitter(2);
+    this.mainMeters.forEach((meter, i) => this.mainSplit.connect(meter, i));
+    this.reductionDb = 0; // gain reduction of the limiter, worst over the last ~33 ms
+    this.ctx.audioWorklet.addModule(new URL('./worklets/limiter.js', import.meta.url)).then(() => {
+      const limiter = new AudioWorkletNode(this.ctx, 'limiter', {
+        outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
+      });
+      limiter.port.onmessage = (e) => { this.reductionDb = e.data; };
+      this.master.disconnect();
+      this.master.connect(limiter).connect(this.main);
+    });
     this.cue = this.ctx.createGain();
     this.cueStream = this.ctx.createMediaStreamDestination();
     this.cueElement = new Audio();
@@ -45,7 +59,8 @@ export class Engine {
   /** Rewires MAIN and cue for "4ch" (one device) or "split" (two stereo devices). */
   route(mode) {
     if (mode === '4ch' && this.ctx.destination.maxChannelCount < 4) mode = 'split';
-    this.master.disconnect();
+    this.main.disconnect();
+    this.main.connect(this.mainSplit);
     this.cue.disconnect();
     this.merger?.disconnect();
     const dest = this.ctx.destination;
@@ -53,7 +68,7 @@ export class Engine {
     dest.channelInterpretation = 'discrete';
     if (mode === '4ch') {
       this.merger = this.ctx.createChannelMerger(4);
-      [[this.master, 0], [this.cue, 2]].forEach(([bus, first]) => {
+      [[this.main, 0], [this.cue, 2]].forEach(([bus, first]) => {
         const split = this.ctx.createChannelSplitter(2);
         bus.connect(split);
         split.connect(this.merger, 0, first);
@@ -64,7 +79,7 @@ export class Engine {
       this.cueElement.pause();
     } else {
       dest.channelCount = 2;
-      this.master.connect(dest);
+      this.main.connect(dest);
       this.cue.connect(this.cueStream);
       this.cueElement.play().catch(() => {});
     }
@@ -133,9 +148,11 @@ class Deck {
     this.xfade = ctx.createGain();
     this.pfl = ctx.createGain();
     this.pfl.gain.value = 0;
+    this.meter = ctx.createAnalyser(); // pre-fader level
     this.trim.connect(this.low).connect(this.mid).connect(this.high).connect(this.filter);
     this.filter.connect(this.fader).connect(this.xfade).connect(engine.master);
     this.filter.connect(this.pfl).connect(engine.cue); // pre-fader listen
+    this.filter.connect(this.meter);
   }
 
   async load(file) {

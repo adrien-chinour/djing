@@ -1,5 +1,5 @@
 // Web MIDI binding for the Hercules DJControl Inpulse 300 MK2, driven by the tables of mapping.js.
-import { INPUTS, LEDS } from './mapping.js';
+import { INPUTS, LEDS, METERS, METER_MAX } from './mapping.js';
 
 const key = (status, number) => (status << 8) | number;
 
@@ -43,16 +43,17 @@ export function createDecoder(dispatch, inputs = INPUTS) {
 /**
  * Connects to the controller and sends every mapped message to `dispatch(action, deck, value)`.
  * Optional `hooks`: raw(bytes, entry) for every message, connection(found) on plug or unplug.
- * Returns { status, connected(), setLed(name, deck, on) }.
+ * Returns { status, connected(), setLed(name, deck, on), setMeter(name, deck, value 0..1) }.
  */
 export async function connectController(dispatch, hooks = {}) {
   if (!navigator.requestMIDIAccess) {
-    return { status: 'Web MIDI indisponible (utiliser Chrome ou Edge)', connected: () => false, setLed() {} };
+    return { status: 'Web MIDI indisponible (utiliser Chrome ou Edge)', connected: () => false, setLed() {}, setMeter() {} };
   }
   const access = await navigator.requestMIDIAccess({ sysex: false });
   const isInpulse = (port) => /inpulse/i.test(port.name || '');
   const decode = createDecoder(dispatch);
   let output = null;
+  const meterSent = new Map();
 
   const onMessage = (event) => {
     const entry = decode(event.data);
@@ -61,6 +62,7 @@ export async function connectController(dispatch, hooks = {}) {
 
   const bind = () => {
     output = [...access.outputs.values()].find(isInpulse) || null;
+    meterSent.clear();
     for (const input of access.inputs.values()) {
       input.onmidimessage = isInpulse(input) ? onMessage : null;
     }
@@ -83,6 +85,16 @@ export async function connectController(dispatch, hooks = {}) {
       if (!address) return;
       const status = Array.isArray(address.status) ? address.status[deck] : address.status;
       output?.send([status, address.number, on ? 0x7f : 0x00]);
+    },
+    /** Sends a VU meter as 0..METER_MAX, only when the value sent to that address changes. */
+    setMeter(name, deck, value) {
+      const address = METERS[name];
+      if (!address || !output) return;
+      const status = Array.isArray(address.status) ? address.status[deck] : address.status;
+      const scaled = Math.round(Math.min(1, Math.max(0, value)) * METER_MAX);
+      if (meterSent.get(key(status, address.number)) === scaled) return;
+      meterSent.set(key(status, address.number), scaled);
+      output.send([status, address.number, scaled]);
     },
   };
 }
