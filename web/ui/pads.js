@@ -4,12 +4,18 @@ import { PAD_MODES, DEFAULT_PAD_MODE } from '../mapping.js';
 
 const LABELS = { hotcue: 'Hot cue', roll: 'Roll', slicer: 'Slicer', sampler: 'Sampler', toneplay: 'Toneplay', fx: 'FX', slicerloop: 'Slicer loop', beatjump: 'Beatjump' };
 
-/** Adds the mode buttons to every deck panel; ctx.padMode[deck] holds the active mode. */
+/**
+ * Adds the mode buttons to every deck panel; ctx.padMode[deck] holds the active mode. Every press of a
+ * mode button is announced with a `djing:padMode` event ({ deck, mode, old }), even on the active mode.
+ */
 export function createPads(ctx, panels) {
   ctx.padMode = panels.map(() => DEFAULT_PAD_MODE);
   for (const mode of PAD_MODES) {
     register(`padMode.${mode}`, (d, v) => {
-      if (v > 0) ctx.padMode[d] = mode;
+      if (v <= 0) return;
+      const old = ctx.padMode[d];
+      ctx.padMode[d] = mode;
+      document.dispatchEvent(new CustomEvent('djing:padMode', { detail: { deck: d, mode, old } }));
     });
   }
   panels.forEach((ui, d) => {
