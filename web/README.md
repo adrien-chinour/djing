@@ -126,6 +126,16 @@ que ne reçoit rien.
   grille). Boutons à l'écran de 1/2 à 16 temps, qui exigent une grille : début au temps courant si QUANTIZE
   (`0x02`, bouton Q) est actif, sinon à la position. Le worklet recule de la longueur exacte de la boucle, avec le
   fondu de 5 ms d'un saut. Le scénario `test/scenarios/loops.mjs` le vérifie.
+- Sync (`sync.js`) : SYNC (`0x05`) cale le deck sur le maître, LED SYNC allumée tant que la synchro est active ;
+  re-appui : elle s'arrête. Maître : celui choisi par SHIFT + SYNC (re-appui : plus de choix), sinon le seul deck en
+  lecture, sinon l'autre deck ; « MAÎTRE » sous le deck. Tempo : vitesse du suiveur = BPM maître × vitesse maître ÷
+  BPM suiveur, recalculée à chaque changement de tempo du maître. Phase : dans le worklet, le suiveur lit la position
+  du maître au même quantum (les deux lecteurs partagent la portée du worklet) et compare les temps sur les
+  positions entendues (compensées de la latence du keylock) ; au-delà de 20 ms d'écart il saute (fondu de 5 ms),
+  en deçà il rattrape par un écart de vitesse d'au plus 2 %. Le pitch fader du suiveur est ignoré jusqu'à ce qu'il
+  repasse par la valeur synchronisée ; il reprend alors la main et la synchro s'arrête. Sans BPM sur l'un des deux
+  titres : « Sync impossible » sous le deck. SHIFT + Q : plage du pitch 8, 16, 50 % (défaut 8 %), le fader garde sa
+  position. BPM affiché = BPM analysé × vitesse. Le scénario `test/scenarios/sync.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -137,6 +147,7 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
-- Pas de sync ; boucles non sauvegardées, pas de roll. Grille à tempo constant seulement ; précision du BPM sur de la vraie
+- Boucles non sauvegardées, pas de roll. Sync : un saut (boucle, hotcue), un scratch ou un nudge du maître est suivi
+  par le suiveur ; un nudge du suiveur est annulé par la synchro. Grille à tempo constant seulement ; précision du BPM sur de la vraie
   musique non mesurée par le test (clics synthétiques).
 - Pas de pilotage des effets par la platine.

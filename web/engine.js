@@ -7,6 +7,7 @@
 //   scripts/split-outputs.sh exposes the card as two stereo sinks, "Inpulse MAIN" and "Inpulse Casque".
 
 import { FxUnit } from './fx/unit.js';
+import { Sync, RATE_RANGES } from './sync.js';
 import SignalsmithStretch from './vendor/signalsmith-stretch.js';
 
 const EQ_CUT_DB = -26;
@@ -60,6 +61,7 @@ export class Engine {
     // Deck players run in an AudioWorklet (worklets/deck-player.js); decks wait for it in load().
     this.ready = this.ctx.audioWorklet.addModule(new URL('./worklets/deck-player.js', import.meta.url));
     this.decks = [new Deck(this, 0), new Deck(this, 1)];
+    this.sync = new Sync(this);
     this.crossfader = 0.5;
     this.mode = null;
     this.route('split');
@@ -147,8 +149,11 @@ class Deck {
     this.touched = false; // wheel top surface held
     this.scratch = null; // { target, x, v, idle, timer } while the wheel drives playback
     this.cuePoint = 0;
-    this.rateRange = 0.08;
+    this.rateRange = RATE_RANGES[0];
+    this.pitch = 0; // pitch fader, -1..1
     this.bpm = null; // track BPM, null while unknown (effects then assume 120)
+    this.firstBeat = 0; // first beat of the grid (s)
+    this.syncMaster = null; // deck whose phase the player follows (see sync.js)
     this.keylock = false;
     this.transpose = 0; // semitones, -12..12
     this.stretch = null; // Signalsmith Stretch node, pitch shifter after the player
@@ -205,8 +210,12 @@ class Deck {
   async createNodes() {
     const ctx = this.engine.ctx;
     await this.engine.ready;
-    this.player = new AudioWorkletNode(ctx, 'deck-player', { numberOfInputs: 0, outputChannelCount: [2] });
+    this.player = new AudioWorkletNode(ctx, 'deck-player', {
+      numberOfInputs: 0, outputChannelCount: [2], processorOptions: { index: this.index },
+    });
     this.player.port.onmessage = (e) => this.onReport(e.data);
+    this.tell({ type: 'grid', bpm: this.bpm, firstBeat: this.firstBeat });
+    this.updateSync();
     this.player.connect(this.dry);
     const stretch = await SignalsmithStretch(ctx, {
       numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit',
@@ -224,6 +233,11 @@ class Deck {
     if (msg.type === 'speed') this.retune();
   }
 
+  /** Sends a setting to the worklet, without making its reports stale. */
+  tell(msg) {
+    this.player?.port.postMessage(msg);
+  }
+
   /**
    * The player resamples (pitch follows speed); the stretch node then shifts the pitch by the
    * transposition, minus the speed's own shift while keylock holds. Keylock is bypassed in reverse
@@ -238,6 +252,7 @@ class Deck {
     const stretched = !!this.stretch && (this.keylock || this.transpose !== 0);
     if (stretched === this.stretched) return;
     this.stretched = stretched;
+    this.tell({ type: 'latency', seconds: this.delay });
     const now = this.engine.ctx.currentTime;
     this.dry.gain.setTargetAtTime(stretched ? 0 : 1, now, 0.003);
     this.wet.gain.setTargetAtTime(stretched ? 1 : 0, now, 0.003);
@@ -272,6 +287,7 @@ class Deck {
       if (this.scratch) {
         clearInterval(this.scratch.timer);
         this.scratch = null;
+        this.updateSync();
         this.send({ type: 'speed', speed: this.speed });
       }
     } else {
@@ -408,17 +424,40 @@ class Deck {
     this.send({ type: 'speed', speed: this.speed });
   }
 
-  /** Pitch fader -1..1 -> ±rateRange. */
+  /** Pitch fader -1..1 -> ±rateRange; ignored on a sync follower until it takes over (sync.js). */
   setRate(v) {
+    const held = this.engine.sync.holdsFader(this, v);
+    this.pitch = v;
+    if (held) return;
     this.rate = 1 + v * this.rateRange;
     this.applySpeed();
     this.fx.retime();
+    this.engine.sync.tempoChanged(this);
   }
 
-  /** Track BPM (null when unknown); tempo-synced effects follow it, scaled by the pitch. */
-  setBpm(bpm) {
+  /** Next pitch fader range (8, 16, 50 %); the fader keeps its position, so the tempo changes (as in Mixxx). */
+  cycleRateRange() {
+    this.rateRange = RATE_RANGES.find((r) => r > this.rateRange + 1e-6) ?? RATE_RANGES[0];
+    if (this.engine.sync.follower !== this.index) this.setRate(this.pitch);
+  }
+
+  /** Track BPM and first beat (bpm null when unknown); tempo-synced effects and the sync follow it. */
+  setBpm(bpm, firstBeat = 0) {
     this.bpm = bpm;
+    this.firstBeat = firstBeat;
+    this.tell({ type: 'grid', bpm, firstBeat });
     this.fx.retime();
+    this.engine.sync.tempoChanged(this);
+  }
+
+  /** Deck whose phase this one follows (null: none); suspended while the wheel scratches. */
+  setSyncMaster(master) {
+    this.syncMaster = master;
+    this.updateSync();
+  }
+
+  updateSync() {
+    this.tell({ type: 'sync', master: this.scratch ? null : this.syncMaster });
   }
 
   /** Jog wheel: nudge while playing, search while stopped or touched. */
@@ -471,6 +510,7 @@ class Deck {
     }
     this.scratch = { target: 0, x: 0, v: 0, idle: 0, last: performance.now() };
     this.scratch.timer = setInterval(() => this.scratchStep(), TIMER_MS);
+    this.updateSync();
     this.applySpeed();
   }
 
@@ -508,6 +548,7 @@ class Deck {
     this.rebase();
     clearInterval(this.scratch.timer);
     this.scratch = null;
+    this.updateSync();
     if (this.playing) {
       this.applySpeed();
     } else {
