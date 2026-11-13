@@ -43,6 +43,11 @@
   .library th, .library td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); }
   .library tr.selected { background: #263041; }
   .library tr.unreadable { color: var(--dim); opacity: 0.5; }
+  .library tr.compatible td:first-child { box-shadow: inset 3px 0 0 #3fb950; }
+  .library tr.compatible { color: #7ee787; }
+  .library th[data-sort] { cursor: pointer; user-select: none; }
+  .library th[data-order="asc"]::after { content: ' ▲'; }
+  .library th[data-order="desc"]::after { content: ' ▼'; }
   .library td button { padding: 1px 8px; margin-left: 4px; }
   .drop { outline: 2px dashed var(--accent); }
   #playlistDrop { --accent: var(--ok); min-height: 60px; }
@@ -110,9 +115,13 @@
     <span id="libraryStatus" class="time">aucun dossier</span>
     <span id="analysisProgress" class="time"></span>
   </div>
-  <div class="tracks">
+  <div class="row">
+    <input id="librarySearch" type="search" placeholder="Rechercher (artiste, titre, chemin)" aria-label="Rechercher dans la bibliothèque">
+    <label>Titres compatibles avec le deck <select id="libraryDeck"><option value="0">A</option><option value="1">B</option></select></label>
+  </div>
+  <div class="tracks" tabindex="0">
     <table>
-      <thead><tr><th>Artiste</th><th>Titre</th><th>Chemin</th><th>BPM</th><th>Tonalité</th><th></th></tr></thead>
+      <thead><tr><th data-sort="artist">Artiste</th><th data-sort="title">Titre</th><th>Chemin</th><th data-sort="bpm">BPM</th><th data-sort="key">Tonalité</th><th data-sort="duration">Durée</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
   </div>

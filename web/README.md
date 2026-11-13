@@ -100,6 +100,15 @@ que ne reçoit rien.
   rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
   l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse
   est grisé « illisible », et l'état est gardé.
+- Recherche, tri et titres compatibles (`ui/library.js`, fonctions pures dans `library/compat.js`) : le champ de
+  recherche filtre sur artiste, titre et chemin, sans casse ni accents (chaque mot doit apparaître) ; un clic sur
+  Artiste, Titre, BPM, Tonalité (ordre Camelot) ou Durée trie, un second inverse, les titres sans valeur restent
+  en dernier. Les titres compatibles avec le titre chargé sur le deck choisi (« Titres compatibles avec le deck »)
+  sont en vert : BPM de l'analyse à ±6 % (aussi ×2 et ÷2) et tonalité Camelot égale, voisine (±1, même lettre,
+  12 à côté de 1) ou relative (même nombre). Dans la recherche ou la liste, les flèches déplacent la sélection et
+  Entrée la charge sur ce deck ; encodeur et LOAD suivent l'ordre affiché. La durée (`duration` du titre en
+  IndexedDB) vient du décodage de l'analyse ; un titre analysé avant elle est décodé une fois de plus, sans le
+  worker. Le scénario `test/scenarios/library-search.mjs` le vérifie.
 - Scratch (`engine.js`, constantes de `DJCi300._scratchEnable` dans Mixxx) : VINYL active le mode vinyle (actif au
   démarrage, LED allumée). Jog touché en mode vinyle : 248 tics par tour, un tour = 1,8 s de titre (33 ⅓ tr/min),
   vitesse lissée par un filtre alpha-bêta (alpha 1/8, bêta alpha/32, pas de 1 ms) ; au relâchement, retour à la
