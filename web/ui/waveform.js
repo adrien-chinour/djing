@@ -8,8 +8,6 @@ export const ZOOMS = [2, 4, 8, 16, 32]; // beats visible in the scrolling view
 const DEFAULT_ZOOM = 8;
 const FALLBACK_BPM = 120; // beat length of the zoom without a grid
 const BEATS_PER_BAR = 4;
-const RATE = 22050; // analysis sample rate, enough for the highs band
-const HOP = 128; // frames per peak, about 172 peaks per second
 export const COLORS = {
   bands: ['#ff4d5e', '#ffb340', '#59d0ff'], // lows, mids, highs, drawn in this order
   played: 'rgba(12, 14, 17, 0.6)',
@@ -22,47 +20,31 @@ export const COLORS = {
   loopFill: 'rgba(90, 209, 122, 0.22)',
 };
 
+let worker = null;
+let messages = 0;
+const pending = new Map();
+
 /**
- * Peaks of the three bands of `buffer`: { bands: [Float32Array × 3], perSecond }, values in 0..1
- * relative to the loudest band (mono mix, rendered offline through 24 dB/octave filters).
+ * Peaks of the three bands of `buffer`, computed in waveform-worker.js: { bands: [Float32Array × 3],
+ * perSecond }, values in 0..1 relative to the loudest band.
  */
-export async function bandPeaks(buffer) {
-  const length = Math.max(1, Math.ceil(buffer.duration * RATE));
-  const off = new OfflineAudioContext(3, length, RATE);
-  const source = new AudioBufferSourceNode(off, { buffer });
-  const merger = new ChannelMergerNode(off, { numberOfInputs: 3 });
-  const mono = { channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' };
-  const chains = [
-    [['lowpass', 250], ['lowpass', 250]],
-    [['highpass', 250], ['highpass', 250], ['lowpass', 4000], ['lowpass', 4000]],
-    [['highpass', 4000], ['highpass', 4000]],
-  ];
-  chains.forEach((chain, band) => {
-    let node = source;
-    for (const [type, frequency] of chain) node = node.connect(new BiquadFilterNode(off, { type, frequency, Q: Math.SQRT1_2, ...mono }));
-    node.connect(merger, 0, band);
+export function bandPeaks(buffer) {
+  if (!worker) {
+    worker = new Worker(new URL('./waveform-worker.js', import.meta.url), { type: 'module' });
+    worker.onmessage = ({ data }) => {
+      const { resolve, reject } = pending.get(data.id);
+      pending.delete(data.id);
+      if (data.error) reject(new Error(data.error)); else resolve(data);
+    };
+  }
+  const id = ++messages;
+  // Copies, so the AudioBuffer stays whole; sent by transfer.
+  const channels = [];
+  for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c).slice());
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject });
+    worker.postMessage({ id, channels, sampleRate: buffer.sampleRate }, channels.map((ch) => ch.buffer));
   });
-  merger.connect(off.destination);
-  source.start();
-  const rendered = await off.startRendering();
-  const count = Math.ceil(length / HOP);
-  let loudest = 0;
-  const bands = [0, 1, 2].map((band) => {
-    const data = rendered.getChannelData(band);
-    const out = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      let max = 0;
-      for (let j = i * HOP, end = Math.min(j + HOP, length); j < end; j++) {
-        const v = data[j] < 0 ? -data[j] : data[j];
-        if (v > max) max = v;
-      }
-      out[i] = max;
-      if (max > loudest) loudest = max;
-    }
-    return out;
-  });
-  if (loudest > 0) for (const b of bands) for (let i = 0; i < count; i++) b[i] /= loudest;
-  return { bands, perSecond: RATE / HOP };
 }
 
 /** Adds both waveforms and the zoom buttons to every deck panel; start() runs the drawing loop. */
