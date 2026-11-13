@@ -37,6 +37,7 @@ export function createDecks(ctx) {
   register('pitchFader', (d, v) => dispatch('rate', d, ctx.rateInvert ? -v : v));
 
   register('vinyl', onPress((deck) => deck.setVinyl(!deck.vinyl)));
+  register('quantize', onPress((deck) => { deck.quantize = !deck.quantize; }));
   register('wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('shift.wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('jog', (d, ticks) => deckOf(d)?.jog(ticks, false));
@@ -48,6 +49,7 @@ export function createDecks(ctx) {
     if (deck?.buffer) deck.seek(fraction * deck.duration);
   });
   // Resolves to true once `file` plays on deck d, false when the audio is off or the file does not decode.
+  // Announces the new track with a `djing:load` event ({ deck, track }).
   // `track` is the library entry of the file (id, analysis), absent for a file dropped or picked on the deck.
   async function load(d, file, track = null) {
     if (!ctx.engine) {
@@ -71,6 +73,7 @@ export function createDecks(ctx) {
     ui.track = track;
     showBpm(ui);
     ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null); // tempo of the deck effects
+    document.dispatchEvent(new CustomEvent('djing:load', { detail: { deck: d, track } }));
     refreshLeds();
     return true;
   }
@@ -102,6 +105,7 @@ export function createDecks(ctx) {
     led('pfl', d, () => deckOf(d)?.pflOn);
     led('vinyl', d, () => deckOf(d)?.vinyl);
     led('keylock', d, () => deckOf(d)?.keylock);
+    led('quantize', d, () => deckOf(d)?.quantize);
   });
   // Mirrors the LEDs on the screen controls that declare data-led.
   onLed((name, d, on) => {
