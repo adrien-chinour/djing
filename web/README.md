@@ -70,6 +70,14 @@ que ne reçoit rien.
 - `worklets/deck-player.js` : lecteur d'un deck dans un `AudioWorklet` : vitesse signée de −4 à +4, interpolation
   linéaire, saut en lecture avec fondu croisé de 5 ms, arrêt en fin de titre (ou à 0 en marche arrière), position
   remontée environ 120 fois par seconde. Le scénario `test/scenarios/deck-player.mjs` le vérifie.
+- Keylock et transposition (`engine.js`) : le lecteur lit à la vitesse du pitch, puis un nœud
+  [Signalsmith Stretch](https://signalsmith-audio.co.uk/code/stretch/) (`vendor/signalsmith-stretch.js`, version
+  1.3.2 du paquet npm `signalsmith-stretch`, licence MIT dans `vendor/signalsmith-stretch.LICENSE`, WASM embarqué)
+  décale la hauteur : transposition (−12..+12 demi-tons) moins `12·log2(vitesse)` avec KEYLOCK. Boucles, sauts et
+  scratch se font dans le lecteur, en amont. En marche arrière ou au-delà de ±50 % de vitesse, la compensation est
+  retirée (la hauteur suit la vitesse). Sans keylock ni transposition, le son prend le chemin direct ; sinon il
+  prend 120 ms de latence (« latence » sous le deck), que `deck.position` retranche (`deck.playhead` reste la
+  position de lecture). Le scénario `test/scenarios/keylock.mjs` le vérifie.
 - `library/` : base IndexedDB unique `djing` (`db.js`, une migration par version : magasins `tracks`, données par
   titre, et `settings`, dont le dossier de musique) et liste des titres d'un `FileSystemDirectoryHandle` (`scan.js`).
   Identifiant d'un titre : `<chemin relatif>|<taille>|<lastModified>`.
@@ -106,7 +114,6 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 
 ## Limites connues
 
-- Pas de keylock : le pitch change la tonalité (il faudrait un time-stretch en WASM).
 - Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
   scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
