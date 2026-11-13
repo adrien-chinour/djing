@@ -175,6 +175,14 @@ que ne reçoit rien.
   grille, premier temps de chaque mesure (tous les 4 temps depuis `firstBeat`) plus marqué ; repères du point CUE,
   des hotcues, de la boucle active (zone) ou du dernier LOOP IN. Le scénario `test/scenarios/waveform.mjs` le
   vérifie en lisant les pixels des canvas.
+- Toneplay (`ui/toneplay.js`, comme `DJCi300.toneplay` du script Hercules de Mixxx) : pads en mode toneplay
+  (`0x96`/`0x97`, `0x40` à `0x47`) = saut au hotcue 1 et transposition de +0, +1, +2, +3, −4, −3, −2, −1 demi-tons ;
+  SHIFT + pad (`0x48` à `0x4F`), ou Maj + clic sur les boutons Toneplay à l'écran, transpose sans sauter. Sans
+  hotcue 1, le pad le pose à la position entendue (calé sur le temps si Q), puis agit. Le saut ne change ni lecture
+  ni arrêt et ne maintient pas le slip. Keylock forcé (LED KEYLOCK allumée, réglage KEYLOCK inchangé) tant que la
+  transposition posée par toneplay est en place : une autre commande de transposition y met fin. LED : le pad de
+  la transposition courante, bornée à −4..+3 et arrondie, avec et sans SHIFT, quelle qu'en soit l'origine. Le
+  scénario `test/scenarios/toneplay.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module

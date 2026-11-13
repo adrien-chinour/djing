@@ -38,6 +38,17 @@ export function createHotcues(ctx, panels) {
     put('cues', { id: track.id, hotcues: ctx.hotcues[d] }).catch((err) => ctx.log(`Hotcues non sauvegardés : ${err.message}`));
   }
 
+  /** Sets hotcue n of deck d at the position heard (snapped with Q) and returns it. */
+  function place(d, n, deck) {
+    const position = deck.quantize ? snapToBeat(deck.position, panels[d].track?.analysis) : deck.position;
+    ctx.hotcues[d][n] = Math.min(Math.max(0, position), deck.duration);
+    show(d);
+    save(d);
+    return ctx.hotcues[d][n];
+  }
+  /** Hotcue n of deck d, set first at the position heard when empty (toneplay pads). */
+  ctx.hotcueOrPlace = (d, n) => ctx.hotcues[d][n] ?? place(d, n, ctx.engine.decks[d]);
+
   for (let n = 0; n < HOTCUES; n++) {
     register(`hotcue.${n}`, (d, v) => {
       const deck = deckOf(d);
@@ -50,10 +61,7 @@ export function createHotcues(ctx, panels) {
         deck.holdSlip('hotcue');
         return deck.seek(at);
       }
-      const position = deck.quantize ? snapToBeat(deck.position, panels[d].track?.analysis) : deck.position;
-      ctx.hotcues[d][n] = Math.min(Math.max(0, position), deck.duration);
-      show(d);
-      save(d);
+      place(d, n, deck);
     });
     register(`shift.hotcue.${n}`, (d, v) => {
       if (!deckOf(d) || v <= 0 || ctx.hotcues[d][n] === null) return;

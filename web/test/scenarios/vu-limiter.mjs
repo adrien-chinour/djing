@@ -69,7 +69,7 @@ export default async function ({ page, sim }) {
   check('LED VU deck A (0xB1 0x40) allumée', sim.lastLed(0xb1, 0x40) > 60, String(sim.lastLed(0xb1, 0x40)));
   check('LED VU deck B (0xB2 0x40) à 0', sim.lastLed(0xb2, 0x40) === 0, String(sim.lastLed(0xb2, 0x40)));
   check('LED VU master (0xB0 0x40 et 0x41) allumées', sim.lastLed(0xb0, 0x40) > 60 && sim.lastLed(0xb0, 0x41) > 60, `${sim.lastLed(0xb0, 0x40)} ${sim.lastLed(0xb0, 0x41)}`);
-  check('LED VU dans 0..125', sim.leds.filter((m) => m[1] === 0x40 || m[1] === 0x41).every((m) => m[2] <= 125));
+  check('LED VU dans 0..125', sim.leds.filter((m) => [0xb0, 0xb1, 0xb2].includes(m[0]) && (m[1] === 0x40 || m[1] === 0x41)).every((m) => m[2] <= 125));
 
   await sim.send('knob A volume 0', 600);
   v = await levels();

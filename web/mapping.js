@@ -33,6 +33,12 @@ export const ROLL_BEATS = [1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16];
 export const BEATJUMP_BEATS = [-1, 1, -2, 2, -4, 4, -8, 8];
 const ROLL_FIRST = 0x10;
 const BEATJUMP_FIRST = 0x70;
+// Toneplay page (0x40..0x47, +8 with SHIFT): transposition of each pad in semitones, as in
+// DJCi300.toneplay of the Hercules script shipped with Mixxx.
+export const TONEPLAY_SEMITONES = [0, 1, 2, 3, -4, -3, -2, -1];
+const TONEPLAY_FIRST = 0x40;
+const toneplayPads = (shift) => TONEPLAY_SEMITONES.map((_, n) =>
+  ({ status: PAD, number: TONEPLAY_FIRST + n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}toneplay.${n}` }));
 const hotcuePads = (shift) => Array.from({ length: HOTCUES }, (_, n) =>
   ({ status: PAD, number: n + (shift ? 8 : 0), type: 'note', action: `${shift ? 'shift.' : ''}hotcue.${n}` }));
 
@@ -53,6 +59,8 @@ export const INPUTS = [
   ...slicerPads(),
   ...ROLL_BEATS.map((_, n) => ({ status: PAD, number: ROLL_FIRST + n, type: 'note', action: `roll.${n}` })),
   ...BEATJUMP_BEATS.map((_, n) => ({ status: PAD, number: BEATJUMP_FIRST + n, type: 'note', action: `beatjump.${n}` })),
+  ...toneplayPads(false),
+  ...toneplayPads(true),
   { status: NOTE, number: 0x09, type: 'note', action: 'loopIn' },
   { status: NOTE, number: 0x0a, type: 'note', action: 'loopOut' },
   { status: NOTE, number: 0x05, type: 'note', action: 'sync' },
@@ -96,6 +104,10 @@ export const LEDS = {
   ...Object.fromEntries(Object.entries(SLICER_FIRST).flatMap(([mode, first]) =>
     Array.from({ length: SLICES }, (_, n) => [`${mode}.${n}`, { status: PAD, number: first + n }]))),
   ...Object.fromEntries(ROLL_BEATS.map((_, n) => [`roll.${n}`, { status: PAD, number: ROLL_FIRST + n }])), // lit while rolling
+  // toneplay.<n> and shift.toneplay.<n>: the pad of the current transposition, with and without SHIFT.
+  ...Object.fromEntries(TONEPLAY_SEMITONES.flatMap((_, n) => [
+    [`toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + n }],
+    [`shift.toneplay.${n}`, { status: PAD, number: TONEPLAY_FIRST + 8 + n }]])),
   loopIn: { status: NOTE, number: 0x09 }, // lit while a loop is active
   sync: { status: NOTE, number: 0x05 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),

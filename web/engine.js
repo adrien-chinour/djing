@@ -156,6 +156,7 @@ class Deck {
     this.syncMaster = null; // deck whose phase the player follows (see sync.js)
     this.keylock = false;
     this.transpose = 0; // semitones, -12..12
+    this.toneplay = false; // the transposition comes from a toneplay pad: keylock forced (see keylocked)
     this.stretch = null; // Signalsmith Stretch node, pitch shifter after the player
     this.latency = 0; // seconds added by the stretch node
     this.stretched = false; // audio goes through the stretch node (keylock on or transposed)
@@ -252,11 +253,11 @@ class Deck {
    */
   retune() {
     const speed = this.speed;
-    const locked = this.keylock && speed > 0 && Math.abs(speed - 1) <= KEYLOCK_MAX_DEVIATION;
+    const locked = this.keylocked && speed > 0 && Math.abs(speed - 1) <= KEYLOCK_MAX_DEVIATION;
     const semitones = this.transpose - (locked ? 12 * Math.log2(speed) : 0);
     if (this.stretch && semitones !== this.semitones) this.stretch.schedule({ semitones });
     this.semitones = semitones;
-    const stretched = !!this.stretch && (this.keylock || this.transpose !== 0);
+    const stretched = !!this.stretch && (this.keylocked || this.transpose !== 0);
     if (stretched === this.stretched) return;
     this.stretched = stretched;
     this.tell({ type: 'latency', seconds: this.delay });
@@ -270,10 +271,19 @@ class Deck {
     this.retune();
   }
 
-  /** Transposition in semitones, -12..12. */
-  setTranspose(semitones) {
+  /**
+   * Transposition in semitones, -12..12. With `toneplay`, keylock is forced until the transposition
+   * changes by another command; the KEYLOCK setting itself is left as is.
+   */
+  setTranspose(semitones, { toneplay = false } = {}) {
     this.transpose = Math.max(-12, Math.min(12, Math.round(semitones)));
+    this.toneplay = toneplay;
     this.retune();
+  }
+
+  /** Keylock in effect: KEYLOCK on, or forced by a toneplay pad. */
+  get keylocked() {
+    return this.keylock || this.toneplay;
   }
 
   /** Latency of the audio heard: the stretch node's while audio goes through it. */
