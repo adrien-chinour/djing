@@ -73,6 +73,7 @@ export class Sync {
     if (!f.bpm || !m.bpm) return this.release();
     f.rate = (m.bpm * m.rate) / f.bpm;
     f.applySpeed();
+    f.retimeGhost(); // slip: the ghost goes on at the synced tempo
     f.fx.retime();
   }
 

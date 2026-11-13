@@ -163,6 +163,9 @@ class Deck {
     this.grid = null; // { bpm, firstBeat } of the loaded track, null without a beat grid
     this.loop = null; // { start, end } (s) while a loop is active
     this.loopStart = null; // last LOOP IN position
+    this.slip = false; // SLIP: scratch, loops and held hotcues return to where playback would have been
+    this.slipHolds = new Set(); // what holds the ghost position: 'scratch', 'loop', 'hotcue'
+    this.ghost = null; // { position, time, speed } of the worklet's ghost position while held
 
     this.trim = ctx.createGain();
     // Player -> dry -> trim, or player -> stretch -> wet -> trim (see retune()).
@@ -203,6 +206,8 @@ class Deck {
     this.loop = null;
     this.loopStart = null;
     this.grid = null;
+    this.slipHolds.clear(); // the worklet drops its ghost on load
+    this.ghost = null;
     this.send({ type: 'speed', speed: this.speed });
   }
 
@@ -281,6 +286,7 @@ class Deck {
 
   onReport(msg) {
     if (msg.gen !== this.gen || !this.running) return;
+    if (this.ghost && msg.ghost !== null) this.ghost = { ...this.ghost, position: msg.ghost, time: msg.time };
     if (msg.type === 'ended') {
       this.playing = false;
       this.offset = msg.position;
@@ -289,6 +295,7 @@ class Deck {
         this.scratch = null;
         this.updateSync();
         this.send({ type: 'speed', speed: this.speed });
+        this.releaseSlip('scratch');
       }
     } else {
       this.report = { position: msg.position, time: msg.time };
@@ -334,6 +341,7 @@ class Deck {
       this.send({ type: 'play' });
     }
     this.playing = true;
+    this.retimeGhost();
   }
 
   stop() {
@@ -341,6 +349,7 @@ class Deck {
     this.offset = this.playhead;
     this.playing = false;
     if (!this.scratch) this.send({ type: 'stop', position: this.offset });
+    this.retimeGhost();
   }
 
   toggle() {
@@ -376,8 +385,59 @@ class Deck {
   }
 
   setLoop(loop) {
+    const was = this.loop;
     this.loop = loop;
     this.send(loop ? { type: 'loop', start: loop.start, end: loop.end } : { type: 'loop', start: null });
+    if (loop && !was) this.holdSlip('loop');
+    else if (!loop && was) this.releaseSlip('loop');
+  }
+
+  /** SLIP on or off; switched off, a held ghost position is dropped where playback is. */
+  setSlip(on) {
+    this.slip = on;
+    if (on || !this.slipHolds.size) return;
+    this.slipHolds.clear();
+    this.ghost = null;
+    this.send({ type: 'ghost', speed: null });
+  }
+
+  /** Speed of the ghost position: the pitch fader's while the deck plays, still otherwise. */
+  get ghostSpeed() {
+    return this.playing ? this.rate : 0;
+  }
+
+  /** Ghost position (s) while slip holds one, extrapolated from the last worklet report; else null. */
+  get slipPosition() {
+    const g = this.ghost;
+    if (!g) return null;
+    return Math.min(Math.max(0, g.position + (this.engine.ctx.currentTime - g.time) * g.speed), this.duration);
+  }
+
+  /** With SLIP on, `reason` (scratch, loop, hotcue) starts holding the ghost position at the playhead. */
+  holdSlip(reason) {
+    if (!this.slip || !this.buffer || this.slipHolds.has(reason)) return;
+    if (!this.slipHolds.size) {
+      this.ghost = { position: this.playhead, time: this.engine.ctx.currentTime, speed: this.ghostSpeed };
+      this.send({ type: 'ghost', speed: this.ghostSpeed });
+    }
+    this.slipHolds.add(reason);
+  }
+
+  /** `reason` lets go; the last one sends playback back to the ghost position. */
+  releaseSlip(reason) {
+    if (!this.slipHolds.delete(reason) || this.slipHolds.size) return;
+    const position = this.slipPosition;
+    this.ghost = null;
+    if (this.running) this.report = { position, time: this.engine.ctx.currentTime };
+    else this.offset = position;
+    this.send({ type: 'ghost', speed: null, jump: true });
+  }
+
+  /** The deck started, stopped or changed pitch: the ghost goes on at the new speed. */
+  retimeGhost() {
+    if (!this.ghost) return;
+    this.ghost = { position: this.slipPosition, time: this.engine.ctx.currentTime, speed: this.ghostSpeed };
+    this.send({ type: 'ghost', speed: this.ghostSpeed });
   }
 
   /** LOOP IN: sets the loop start (moves it when a loop is active). */
@@ -431,6 +491,7 @@ class Deck {
     if (held) return;
     this.rate = 1 + v * this.rateRange;
     this.applySpeed();
+    this.retimeGhost();
     this.fx.retime();
     this.engine.sync.tempoChanged(this);
   }
@@ -491,7 +552,7 @@ class Deck {
 
   /** SHIFT + wheel: fast search, a scratch SEEK_MULTIPLIER times faster, ending when the wheel stops. */
   seekJog(ticks) {
-    this.startScratch();
+    this.startScratch({ slip: false });
     this.scratchTicks(ticks * SEEK_MULTIPLIER);
   }
 
@@ -501,7 +562,7 @@ class Deck {
   }
 
   /** The wheel drives playback: an alpha-beta filter (as in Mixxx) turns ticks into a speed. */
-  startScratch() {
+  startScratch({ slip = true } = {}) {
     if (!this.buffer || this.scratch) return;
     this.rebase();
     if (!this.playing) {
@@ -512,6 +573,7 @@ class Deck {
     this.scratch.timer = setInterval(() => this.scratchStep(), TIMER_MS);
     this.updateSync();
     this.applySpeed();
+    if (slip) this.holdSlip('scratch'); // a SHIFT search moves on, it does not slip
   }
 
   scratchTicks(ticks) {
@@ -556,6 +618,7 @@ class Deck {
       this.send({ type: 'stop', position: this.offset });
       this.send({ type: 'speed', speed: this.speed });
     }
+    this.releaseSlip('scratch');
   }
 
   setEq(band, v) {

@@ -6,8 +6,11 @@
 //   { type: 'grid', bpm, firstBeat }   beat grid of the track (bpm null: none)
 //   { type: 'latency', seconds }       delay of what follows the player (heard = read - seconds × speed)
 //   { type: 'sync', master }           index of the deck to stay in phase with, or null
+//   { type: 'ghost', speed }                      slip: starts (or keeps) a ghost position at the read
+//                                                 position, moving `speed` frames per frame from now on
+//   { type: 'ghost', speed: null, jump }          drops the ghost; jump: playback goes back to it first
 // Messages out:
-//   { type: 'position', position, time, playing, gen }   at least 60 times per second
+//   { type: 'position', position, time, playing, ghost, gen }   at least 60 times per second (ghost: s or null)
 //   { type: 'ended', position, gen }                      end of track (or 0 in reverse)
 // Positions are in seconds, `time` is the context time of the reported position.
 
@@ -37,6 +40,8 @@ class DeckPlayer extends AudioWorkletProcessor {
     this.fadeLeft = 0; // frames left in the crossfade after a seek
     this.fadePos = 0; // read position of the outgoing audio during the crossfade
     this.loop = null; // { start, end } in frames while a loop is active
+    this.ghost = null; // slip ghost position in frames, moving at ghostSpeed whatever the playback does
+    this.ghostSpeed = 0;
     this.reportEvery = Math.max(1, Math.floor(sampleRate / REPORTS_PER_SECOND / 128));
     this.blocks = 0;
     this.index = options?.processorOptions?.index ?? null;
@@ -60,6 +65,7 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.playing = false;
         this.fadeLeft = 0;
         this.loop = null;
+        this.ghost = null;
         break;
       case 'play':
         if (this.length) this.playing = true;
@@ -69,15 +75,9 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.fadeLeft = 0;
         this.pos = this.clampFrames(msg.position * sampleRate);
         break;
-      case 'seek': {
-        const target = this.clampFrames(msg.position * sampleRate);
-        if (this.playing) {
-          this.fadePos = this.pos;
-          this.fadeLeft = this.fadeFrames;
-        }
-        this.pos = target;
+      case 'seek':
+        this.jump(this.clampFrames(msg.position * sampleRate));
         break;
-      }
       case 'speed':
         this.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, msg.speed));
         break;
@@ -94,8 +94,26 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.master = msg.master;
         this.correction = 0;
         break;
+      case 'ghost':
+        if (msg.speed === null) {
+          if (msg.jump && this.ghost !== null) this.jump(this.ghost);
+          this.ghost = null;
+        } else {
+          this.ghost ??= this.pos;
+          this.ghostSpeed = msg.speed;
+        }
+        break;
     }
     this.report();
+  }
+
+  /** Moves the read position to `target` (frames), with the crossfade while playing. */
+  jump(target) {
+    if (this.playing) {
+      this.fadePos = this.pos;
+      this.fadeLeft = this.fadeFrames;
+    }
+    this.pos = target;
   }
 
   clampFrames(frames) {
@@ -190,7 +208,11 @@ class DeckPlayer extends AudioWorkletProcessor {
   }
 
   report(type = 'position') {
-    this.port.postMessage({ type, position: this.pos / sampleRate, time: currentTime, playing: this.playing, gen: this.gen });
+    this.port.postMessage({ type, position: this.pos / sampleRate, time: currentTime, playing: this.playing, ghost: this.ghostSeconds(), gen: this.gen });
+  }
+
+  ghostSeconds() {
+    return this.ghost === null ? null : this.ghost / sampleRate;
   }
 
   process(_inputs, outputs) {
@@ -198,6 +220,8 @@ class DeckPlayer extends AudioWorkletProcessor {
     if (this.playing) this.followMaster();
     this.blockFrame = currentFrame;
     this.blockPos = this.pos;
+    const ghost = this.ghostSeconds();
+    if (this.ghost !== null) this.ghost = this.clampFrames(this.ghost + this.ghostSpeed * out[0].length);
     if (!this.playing) {
       for (const ch of out) ch.fill(0);
     } else {
@@ -209,7 +233,7 @@ class DeckPlayer extends AudioWorkletProcessor {
         return true;
       }
       if (++this.blocks % this.reportEvery === 0) {
-        this.port.postMessage({ type: 'position', position: reportAt.position / sampleRate, time: reportAt.time, playing: true, gen: this.gen });
+        this.port.postMessage({ type: 'position', position: reportAt.position / sampleRate, time: reportAt.time, playing: true, ghost, gen: this.gen });
       }
     }
     return true;
