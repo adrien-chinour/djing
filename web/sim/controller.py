@@ -5,12 +5,14 @@ real controller. Reads one command per line on stdin, prints one JSON object per
 {"ready": ...} at start, {"led": [status, number, value]} for every message the page sends back.
 
 Commands (deck is A or B, values in 0..1 unless stated):
-  press A play|cue|pfl        button down then up
-  hold A play|cue|pfl on|off  button down or up only
+  press A play|cue|pfl|vinyl  button down then up
+  hold A play|cue|pfl|vinyl on|off  button down or up only
   touch A on|off              jog wheel touch
   knob A volume|filter|low|mid|high|gain 0.8
   rate A -1..1                pitch fader, sent as 14-bit MSB + LSB
-  jog A <ticks> [touched]     ticks signed, one message per tick
+  jog A <ticks> [touched|shift] [ms]
+                              ticks signed, one message per tick, spread over ms (2 ms apart by
+                              default); touched: top surface (0x0A), shift: SHIFT channel
   xfader 0.2                  crossfader
   note 91 07 7f               note message: hex status, number, value
   cc b1 00 40                 control change: hex status, number, value
@@ -33,7 +35,8 @@ PORT_NAME = "DJControl Inpulse 300 Mk2 (simulation)"
 
 NOTE_STATUS = {"A": 0x91, "B": 0x92}
 CC_STATUS = {"A": 0xB1, "B": 0xB2}
-NOTES = {"play": 0x07, "cue": 0x06, "pfl": 0x0C, "touch": 0x08}
+SHIFT_CC_STATUS = {"A": 0xB4, "B": 0xB5}
+NOTES = {"play": 0x07, "cue": 0x06, "pfl": 0x0C, "touch": 0x08, "vinyl": 0x03}
 KNOBS = {"volume": 0x00, "filter": 0x01, "low": 0x02, "mid": 0x03, "high": 0x04, "gain": 0x05}
 # Performance pads (mixxx/controllers/Hercules_DJControl_Inpulse_300_MK2.midi.xml): one status per
 # deck, a base number per pad mode, pads 1..8 from there, +8 with SHIFT.
@@ -96,11 +99,17 @@ class SimController:
         self.send(CC_STATUS[deck], 0x08, raw14 >> 7)
         self.send(CC_STATUS[deck], 0x28, raw14 & 0x7F)
 
-    def jog(self, deck: str, ticks: int, touched: bool = False) -> None:
-        number = 0x0A if touched else 0x09
-        for _ in range(abs(ticks)):
-            self.send(CC_STATUS[deck], number, 0x01 if ticks > 0 else 0x7F)
-            time.sleep(0.002)
+    def jog(self, deck: str, ticks: int, mode: str = "", ms: float = 0) -> None:
+        status = SHIFT_CC_STATUS[deck] if mode == "shift" else CC_STATUS[deck]
+        number = 0x0A if mode in ("touched", "shift") else 0x09
+        n = abs(ticks)
+        start = time.monotonic()
+        for i in range(n):
+            self.send(status, number, 0x01 if ticks > 0 else 0x7F)
+            # Ticks evenly spread over `ms`, on an absolute clock so sleep overruns do not add up.
+            delay = start + (i + 1) * ms / 1000 / n - time.monotonic() if ms else 0.002
+            if delay > 0:
+                time.sleep(delay)
 
     def xfader(self, value: float) -> None:
         self.send(0xB0, 0x00, to7(value))
@@ -123,7 +132,9 @@ class SimController:
         elif cmd == "rate":
             self.rate(args[0], float(args[1]))
         elif cmd == "jog":
-            self.jog(args[0], int(args[1]), len(args) > 2 and args[2] == "touched")
+            mode = next((a for a in args[2:] if a in ("touched", "shift")), "")
+            ms = next((float(a) for a in args[2:] if a not in ("touched", "shift")), 0)
+            self.jog(args[0], int(args[1]), mode, ms)
         elif cmd == "xfader":
             self.xfader(float(args[0]))
         elif cmd in ("note", "cc"):

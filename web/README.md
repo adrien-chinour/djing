@@ -37,7 +37,7 @@ carte son, sans Mixxx.
   scénario exporte par défaut `async ({ page, sim, url }) => …` et vérifie avec `check()` ; les outils (sink,
   découpage, platine simulée, Chrome, mesure RMS par canal) sont dans `test/lib.mjs`.
 - `make web-sim` : la platine simulée seule, pour jouer à la main avec la page. Une commande par ligne :
-  `press A play`, `knob A volume 0.5`, `xfader 0`, `rate B 0.3`, `jog A 20 touched`, `pad A hotcue 1 shift`,
+  `press A play`, `knob A volume 0.5`, `xfader 0`, `rate B 0.3`, `jog A 20 touched`, `jog A 100 touched 500` (tics étalés sur 500 ms), `jog A 25 shift`, `press A vinyl`, `pad A hotcue 1 shift`,
   `note 91 07 7f`, `cc b1 00 40`, `leds`… (liste en tête de
   `sim/controller.py`). Les LED que la page allume s'affichent en JSON.
 
@@ -69,6 +69,11 @@ que ne reçoit rien.
   rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
   l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse
   est grisé « illisible », et l'état est gardé.
+- Scratch (`engine.js`, constantes de `DJCi300._scratchEnable` dans Mixxx) : VINYL active le mode vinyle (actif au
+  démarrage, LED allumée). Jog touché en mode vinyle : 248 tics par tour, un tour = 1,8 s de titre (33 ⅓ tr/min),
+  vitesse lissée par un filtre alpha-bêta (alpha 1/8, bêta alpha/32, pas de 1 ms) ; au relâchement, retour à la
+  vitesse du pitch fader si le deck jouait. Tranche du jog ou mode vinyle coupé : nudge du POC. SHIFT + jog :
+  recherche 4 fois plus rapide qu'un scratch. Le scénario `test/scenarios/scratch.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
@@ -78,6 +83,7 @@ apparaît dans le journal (`MIDI 94 07 7f → shift.play`).
 ## Limites connues
 
 - Pas de keylock : le pitch change la tonalité (il faudrait un time-stretch en WASM).
-- Pas de vrai scratch : le jog fait du nudge en lecture et du déplacement à l'arrêt ou touché.
+- Scratch limité à la vitesse maximale du lecteur (±4) ; pas d'inertie au relâchement (pas de backspin) ; un
+  scratch arrière jusqu'à 0 arrête la session de scratch.
 - Sens du pitch fader non vérifié sur le matériel : case « pitch inversé » dans le mixer.
 - Pas de BPM, de sync, de hotcues ni de boucles.
