@@ -32,9 +32,12 @@ export function createDecks(ctx) {
   // The pitch fader of the controller, whose direction depends on the "pitch inversé" box.
   register('pitchFader', (d, v) => dispatch('rate', d, ctx.rateInvert ? -v : v));
 
+  register('vinyl', onPress((deck) => deck.setVinyl(!deck.vinyl)));
+  register('wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
+  register('shift.wheelTouch', (d, v) => deckOf(d)?.touch(v > 0));
   register('jog', (d, ticks) => deckOf(d)?.jog(ticks, false));
-  register('jogTouched', (d, ticks) => deckOf(d)?.jog(ticks, true));
-  register('shift.jog', (d, ticks) => deckOf(d)?.jog(ticks * 4, true));
+  register('jogTouched', (d, ticks) => deckOf(d)?.touchedJog(ticks));
+  register('shift.jog', (d, ticks) => deckOf(d)?.seekJog(ticks));
 
   register('seek', (d, fraction) => {
     const deck = deckOf(d);
@@ -67,6 +70,7 @@ export function createDecks(ctx) {
     led('play', d, () => deckOf(d)?.playing);
     led('cue', d, () => deckOf(d)?.buffer && !deckOf(d).playing);
     led('pfl', d, () => deckOf(d)?.pflOn);
+    led('vinyl', d, () => deckOf(d)?.vinyl);
   });
   // Mirrors the LEDs on the screen controls that declare data-led.
   onLed((name, d, on) => {

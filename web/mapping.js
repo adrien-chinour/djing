@@ -29,6 +29,7 @@ export const INPUTS = [
   { status: NOTE, number: 0x0c, type: 'note', action: 'pfl' },
   { status: NOTE, number: 0x08, type: 'note', action: 'wheelTouch' },
   { status: NOTE, number: 0x0d, type: 'note', action: 'loadSelected' },
+  { status: NOTE, number: 0x03, type: 'note', action: 'vinyl' },
   ...PAD_MODES.map((mode, i) => ({ status: NOTE, number: PAD_MODE_FIRST + i, type: 'note', action: `padMode.${mode}` })),
 
   { status: CC, number: 0x00, type: 'cc', action: 'volume' },
@@ -61,5 +62,6 @@ export const LEDS = {
   play: { status: NOTE, number: 0x07 },
   cue: { status: NOTE, number: 0x06 },
   pfl: { status: NOTE, number: 0x0c },
+  vinyl: { status: NOTE, number: 0x03 },
   ...Object.fromEntries(PAD_MODES.map((mode, i) => [`padMode.${mode}`, { status: NOTE, number: PAD_MODE_FIRST + i }])),
 };
