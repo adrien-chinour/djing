@@ -7,6 +7,7 @@ import { createDecks } from './ui/decks.js';
 import { createPads } from './ui/pads.js';
 import { createLibrary } from './ui/library.js';
 import { createMeters } from './ui/meters.js';
+import { createFx } from './ui/fx.js';
 
 const ctx = {
   engine: null, // created by the "Démarrer l'audio" button
@@ -16,6 +17,7 @@ const ctx = {
 
 const decks = createDecks(ctx);
 createPads(ctx, decks.panels);
+createFx(ctx, decks.panels);
 createMixer(ctx);
 createLibrary(ctx, decks.load);
 const meters = createMeters(ctx);
