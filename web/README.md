@@ -103,8 +103,11 @@ que ne reçoit rien.
 - Scratch (`engine.js`, constantes de `DJCi300._scratchEnable` dans Mixxx) : VINYL active le mode vinyle (actif au
   démarrage, LED allumée). Jog touché en mode vinyle : 248 tics par tour, un tour = 1,8 s de titre (33 ⅓ tr/min),
   vitesse lissée par un filtre alpha-bêta (alpha 1/8, bêta alpha/32, pas de 1 ms) ; au relâchement, retour à la
-  vitesse du pitch fader si le deck jouait. Tranche du jog ou mode vinyle coupé : nudge du POC. SHIFT + jog :
-  recherche 4 fois plus rapide qu'un scratch. Le scénario `test/scenarios/scratch.mjs` le vérifie.
+  vitesse du pitch fader si le deck jouait. Le filtre tourne dans le worklet (`worklets/deck-player.js`), sur
+  l'horloge audio : le déplacement ne dépend pas de la régularité du fil principal, et la roue arrêtée, le lecteur se
+  pose exactement à la distance parcourue par la roue. Tranche du jog ou mode vinyle coupé : nudge du POC. SHIFT +
+  jog : recherche 4 fois plus rapide qu'un scratch. Le scénario `test/scenarios/scratch.mjs` le vérifie sous une
+  charge CPU artificielle (`cpuLoad()` de `test/lib.mjs`).
 - `fx/` : une unité d'effets par deck (`fx/unit.js`), entre le filtre (après l'EQ) et le fader, entendue aussi en
   PFL et sur le VU-mètre du deck : 3 emplacements en série (effet, activation, paramètre principal 0..1) et un
   dosage dry/wet. Un emplacement coupé laisse passer le signal tel quel. Effets (`fx/effects.js`, nœuds Web Audio

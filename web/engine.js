@@ -14,16 +14,12 @@ const EQ_CUT_DB = -26;
 const EQ_BOOST_DB = 6;
 
 // Scratch, values of DJCi300._scratchEnable and DJCi300.scratchShiftMultiplier in
-// /usr/share/mixxx/controllers/Hercules-DJControl-Inpulse-300-script.js.
+// /usr/share/mixxx/controllers/Hercules-DJControl-Inpulse-300-script.js. The alpha-beta filter of
+// the scratch runs in the player worklet (worklets/deck-player.js).
 export const TICKS_PER_REV = 248;
 const RPM = 33 + 1 / 3;
 export const TICK_SECONDS = 60 / RPM / TICKS_PER_REV; // track seconds per tick
 export const SEEK_MULTIPLIER = 4;
-const ALPHA = 1 / 8;
-const BETA = ALPHA / 32;
-const STEP_S = 0.001; // alpha-beta filter step, as in Mixxx
-const TIMER_MS = 5;
-const IDLE_S = 0.05; // no tick for this long and a slow filter: the wheel has stopped
 const KEYLOCK_MAX_DEVIATION = 0.5; // keylock is bypassed beyond ±50 % of speed, and in reverse
 
 // Loops: length bounds in beats with a beat grid, shortest loop in seconds without one.
@@ -147,7 +143,7 @@ class Deck {
     this.vinyl = true; // vinyl mode: touching the wheel scratches
     this.quantize = false; // Q: new cue points snap to the nearest beat, auto loops start on the current beat
     this.touched = false; // wheel top surface held
-    this.scratch = null; // { target, x, v, idle, timer } while the wheel drives playback
+    this.scratch = null; // { v } while the wheel drives playback, v the speed last reported by the worklet
     this.cuePoint = 0;
     this.rateRange = RATE_RANGES[0];
     this.pitch = 0; // pitch fader, -1..1
@@ -297,13 +293,22 @@ class Deck {
   }
 
   onReport(msg) {
+    if (msg.type === 'wheel-stopped') {
+      // Sent once, so even when a command made it stale: the playback stands still, and a SHIFT
+      // search ends once the wheel is released.
+      if (!this.scratch) return;
+      this.scratch.v = 0;
+      if (msg.gen === this.gen) this.report = { position: msg.position, time: msg.time };
+      else this.rebase();
+      if (!this.touched) this.stopScratch();
+      return;
+    }
     if (msg.gen !== this.gen || !this.running) return;
     if (this.ghost && msg.ghost !== null) this.ghost = { ...this.ghost, position: msg.ghost, time: msg.time };
     if (msg.type === 'ended') {
       this.playing = false;
       this.offset = msg.position;
       if (this.scratch) {
-        clearInterval(this.scratch.timer);
         this.scratch = null;
         this.updateSync();
         this.send({ type: 'speed', speed: this.speed });
@@ -311,6 +316,10 @@ class Deck {
       }
     } else {
       this.report = { position: msg.position, time: msg.time };
+      if (this.scratch && msg.speed !== this.scratch.v) {
+        this.scratch.v = msg.speed;
+        this.retune(); // keylock follows the speed of the wheel
+      }
     }
   }
 
@@ -605,7 +614,10 @@ class Deck {
     if (!on && this.scratch) this.stopScratch();
   }
 
-  /** The wheel drives playback: an alpha-beta filter (as in Mixxx) turns ticks into a speed. */
+  /**
+   * The wheel drives playback: the worklet turns ticks into a speed with the alpha-beta filter of
+   * Mixxx, on the audio clock (#73), and reports that speed back.
+   */
   startScratch({ slip = true } = {}) {
     if (!this.buffer || this.scratch) return;
     this.rebase();
@@ -613,46 +625,22 @@ class Deck {
       this.report = { position: this.offset, time: this.engine.ctx.currentTime };
       this.send({ type: 'play' });
     }
-    this.scratch = { target: 0, x: 0, v: 0, idle: 0, last: performance.now() };
-    this.scratch.timer = setInterval(() => this.scratchStep(), TIMER_MS);
+    this.scratch = { v: 0 };
+    this.send({ type: 'scratch', on: true });
     this.updateSync();
-    this.applySpeed();
+    this.retune();
     if (slip) this.holdSlip('scratch'); // a SHIFT search moves on, it does not slip
   }
 
   scratchTicks(ticks) {
-    if (!this.scratch) return;
-    this.scratch.target += ticks * TICK_SECONDS;
-    this.scratch.idle = 0;
-  }
-
-  /** Runs the filter in 1 ms steps up to now, then sends the filtered speed to the worklet. */
-  scratchStep() {
-    const s = this.scratch;
-    const now = performance.now();
-    const steps = Math.min(100, Math.round((now - s.last) / (STEP_S * 1000)));
-    s.last += steps * STEP_S * 1000;
-    for (let i = 0; i < steps; i++) {
-      const residual = s.target - (s.x + s.v * STEP_S);
-      s.x += s.v * STEP_S + ALPHA * residual;
-      s.v += (BETA / STEP_S) * residual;
-    }
-    s.idle += steps * STEP_S;
-    if (s.idle > IDLE_S && Math.abs(s.v) < 0.05) {
-      // The wheel has stopped: stand still, and end a SHIFT search once the wheel is released.
-      s.v = 0;
-      s.x = s.target;
-      if (!this.touched) return this.stopScratch();
-    }
-    this.rebase();
-    this.send({ type: 'speed', speed: this.speed });
+    if (this.scratch) this.tell({ type: 'ticks', seconds: ticks * TICK_SECONDS });
   }
 
   /** Back to the pitch fader speed if the deck was playing, else stop where the wheel left it. */
   stopScratch() {
     if (!this.scratch) return;
     this.rebase();
-    clearInterval(this.scratch.timer);
+    this.send({ type: 'scratch', on: false });
     this.scratch = null;
     this.updateSync();
     if (this.playing) {
