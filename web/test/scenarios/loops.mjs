@@ -255,8 +255,14 @@ async function checkExit(page, sim, { state, press, click, near }) {
   after = await timed();
   check('platine : LOOP OUT sur une boucle automatique la quitte, sans saut', !after.loop && after.playing && Math.abs(drift(after, before)) <= TOLERANCE,
     `écart ${fmt(drift(after, before))} s`);
-  await sleep(100); // LED and SORTIR refreshed on the next frame
-  check('platine : LED LOOP IN éteinte et SORTIR désactivé', sim.lastLed(0x91, 0x09) === 0x00 && !(await reloopEnabled()));
+  // LED and SORTIR are refreshed on the next frame: wait up to 2 s (loaded machine).
+  let refreshed = false;
+  for (let i = 0; i < 20 && !refreshed; i++) {
+    await sleep(100);
+    refreshed = sim.lastLed(0x91, 0x09) === 0x00 && !(await reloopEnabled());
+  }
+  check('platine : LED LOOP IN éteinte et SORTIR désactivé', refreshed,
+    `LED ${sim.lastLed(0x91, 0x09)}, SORTIR ${(await reloopEnabled()) ? 'actif' : 'désactivé'}, boucle ${JSON.stringify((await state()).loop)}`);
 
   // Slip: SORTIR and the toggle send playback back to where it would have been.
   await page.eval(`${deck}.setSlip(true)`);
