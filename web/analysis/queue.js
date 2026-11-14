@@ -1,7 +1,8 @@
 // Page side of the track analysis: decodes each track (off the main thread, at SAMPLE_RATE, mono)
 // and hands it to the analysis worker, one track at a time. Results are saved in the "tracks"
 // store under `analysis` ({ bpm, firstBeat, key }); a complete one is never computed again, and
-// one saved before the key analysis only gets its key (the tempo and grid are kept). The decoded
+// one saved before the key analysis only gets its key (the tempo and grid are kept), as does one whose
+// key was not found by an older key analysis (`keyVersion` below KEY_VERSION, #86). The decoded
 // length is saved beside it as the track's `duration` (seconds), for the library's Duration column.
 import { patch } from '../library/db.js';
 
@@ -40,8 +41,13 @@ async function decodeMono(file) {
 
 let run = 0;
 
-/** True when `analysis` lacks a result: tempo and grid, or key (undefined: never analysed). */
-const incomplete = (analysis) => !analysis || analysis.key === undefined;
+// Version of the key analysis saved as `analysis.keyVersion`: a track without key ("?") found by an
+// older version is analysed again, once, for its key only.
+const KEY_VERSION = 2;
+
+/** True when `analysis` lacks a result: tempo and grid, or key (undefined: never analysed; null: older version). */
+const incomplete = (analysis) =>
+  !analysis || analysis.key === undefined || (analysis.key === null && analysis.keyVersion !== KEY_VERSION);
 
 /**
  * Analyses, in order, the `tracks` ({ id, file, analysis?, duration? }) whose analysis is missing or
@@ -57,7 +63,7 @@ export async function analyzeTracks(tracks, { onProgress, onResult, onError }) {
   for (const [i, track] of todo.entries()) {
     try {
       const { mono, duration } = await decodeMono(track.file);
-      const result = incomplete(track.analysis) ? await analyzeSamples(mono, !track.analysis) : {};
+      const result = incomplete(track.analysis) ? { ...(await analyzeSamples(mono, !track.analysis)), keyVersion: KEY_VERSION } : {};
       if (mine !== run) return;
       // Merged into the current analysis: a grid edited meanwhile on a deck is kept.
       const analysis = { ...track.analysis, ...result };
