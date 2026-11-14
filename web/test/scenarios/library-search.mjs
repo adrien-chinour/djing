@@ -17,7 +17,7 @@ const RECORDS = {
   'beta - Double.mp3': { analysis: { bpm: 247, firstBeat: 0, key: '7A' }, duration: 100 },
   'Charlie - Far.mp3': { analysis: { bpm: 132, firstBeat: 0, key: '9B' }, duration: 250 },
   'Delta - Clash.mp3': { analysis: { bpm: 125, firstBeat: 0, key: '3A' }, duration: 180 },
-  'Only title.mp3': { analysis: { bpm: null, firstBeat: null, key: null }, duration: 50 },
+  'Only title.mp3': { analysis: { bpm: null, firstBeat: null, key: null, keyVersion: 2 }, duration: 50 },
   'Echo - Unknown.mp3': null,
 };
 const MISSING_LAST = ['', 'Echo'].sort().join();

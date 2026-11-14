@@ -13,9 +13,9 @@ import { check, sleep, tmp } from '../lib.mjs';
 const LOW = 'Low - 100 Hz.wav';
 const MID = 'Mid - 1 kHz.wav';
 const HIGH = 'High - 8 kHz.wav';
-const NO_GRID = { bpm: null, firstBeat: null, key: null };
+const NO_GRID = { bpm: null, firstBeat: null, key: null, keyVersion: 2 };
 const TRACKS = {
-  [LOW]: { freq: 100, analysis: { bpm: 120, firstBeat: 0.1, key: null } },
+  [LOW]: { freq: 100, analysis: { bpm: 120, firstBeat: 0.1, key: null, keyVersion: 2 } },
   [MID]: { freq: 1000, analysis: NO_GRID },
   [HIGH]: { freq: 8000, analysis: NO_GRID },
 };

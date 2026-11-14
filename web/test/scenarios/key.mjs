@@ -1,9 +1,10 @@
 // Scenario of the key analysis (#34): chord progressions generated here (i-iv-V-i in A minor and
 // F# minor, I-IV-V-I in C major) and white noise, in a directory of the origin private file system
 // opened as the library, plus a C major progression whose tempo analysis (#33) is saved beforehand
-// without a key. Checks 8A, 8B, 11A and "?" saved and shown in the library and on the decks, that the
-// old track gets its key with its tempo and grid kept and without a tempo analysis, and that nothing
-// is analysed again after a reload.
+// without a key, and an A minor progression saved with a key not found ("?") by an older version of the
+// key analysis (#86). Checks 8A, 8B, 11A and "?" saved and shown in the library and on the decks, that
+// both old tracks get their key with their tempo and grid kept and without a tempo analysis, and that
+// nothing is analysed again after a reload.
 
 import { check, sleep } from '../lib.mjs';
 
@@ -12,6 +13,9 @@ const CHORD_S = 2;
 const REPEATS = 3;
 const OLD = 'Old - C major.wav';
 const OLD_ANALYSIS = { bpm: 128.5, firstBeat: 0.25 };
+const NO_KEY = 'Old - A minor without key.wav';
+const NO_KEY_ANALYSIS = { bpm: 121.5, firstBeat: 0.5, key: null }; // no keyVersion: older key analysis
+const KEY_VERSION = 2;
 const freq = (midi) => 440 * 2 ** ((midi - 69) / 12);
 // Root in the bass, then the triad; MIDI note numbers.
 const triad = (root, minor) => [root - 12, root, root + (minor ? 3 : 4), root + 7];
@@ -59,6 +63,7 @@ export default async function ({ page }) {
     ...Object.fromEntries(Object.entries(PROGRESSIONS).map(([name, p]) => [name, progression(p.chords)])),
     [NOISE]: noise(),
     [OLD]: progression(PROGRESSIONS['Prog - C major.wav'].chords),
+    [NO_KEY]: progression(PROGRESSIONS['Prog - A minor.wav'].chords),
   };
   const cells = () => page.eval(`Object.fromEntries([...document.querySelectorAll('#library tbody tr')]
     .map((tr) => [tr.cells[2].textContent, tr.querySelector('.key').textContent]))`);
@@ -92,18 +97,21 @@ export default async function ({ page }) {
   await page.eval(`(async () => {
     const root = await navigator.storage.getDirectory();
     const dir = await root.getDirectoryHandle('key');
-    const f = await (await dir.getFileHandle(${JSON.stringify(OLD)})).getFile();
-    const record = { id: ${JSON.stringify(OLD)} + '|' + f.size + '|' + f.lastModified, path: ${JSON.stringify(OLD)}, analysis: ${JSON.stringify(OLD_ANALYSIS)} };
-    await new Promise((resolve, reject) => {
-      const open = indexedDB.open('djing');
-      open.onsuccess = () => {
-        const tx = open.result.transaction('tracks', 'readwrite');
-        tx.objectStore('tracks').put(record);
-        tx.oncomplete = () => { open.result.close(); resolve(); };
-        tx.onerror = () => reject(tx.error);
-      };
-      open.onerror = () => reject(open.error);
-    });
+    const saved = { ${JSON.stringify(OLD)}: ${JSON.stringify(OLD_ANALYSIS)}, ${JSON.stringify(NO_KEY)}: ${JSON.stringify(NO_KEY_ANALYSIS)} };
+    for (const [path, analysis] of Object.entries(saved)) {
+      const f = await (await dir.getFileHandle(path)).getFile();
+      const record = { id: path + '|' + f.size + '|' + f.lastModified, path, analysis };
+      await new Promise((resolve, reject) => {
+        const open = indexedDB.open('djing');
+        open.onsuccess = () => {
+          const tx = open.result.transaction('tracks', 'readwrite');
+          tx.objectStore('tracks').put(record);
+          tx.oncomplete = () => { open.result.close(); resolve(); };
+          tx.onerror = () => reject(tx.error);
+        };
+        open.onerror = () => reject(open.error);
+      });
+    }
     window.showDirectoryPicker = () => root.getDirectoryHandle('key');
     // Tempo flag of every track sent to the analysis worker.
     window.beatRequests = [];
@@ -126,10 +134,12 @@ export default async function ({ page }) {
   }
   check('bruit blanc : pas de tonalité, « ? » dans la bibliothèque', results[NOISE]?.key === null && shown[NOISE] === '?', `${JSON.stringify(results[NOISE])} / ${shown[NOISE]}`);
   check('titre déjà analysé : tonalité ajoutée (8B), BPM et grille gardés',
-    JSON.stringify(results[OLD]) === JSON.stringify({ ...OLD_ANALYSIS, key: '8B' }) && shown[OLD] === '8B', `${JSON.stringify(results[OLD])} / ${shown[OLD]}`);
+    JSON.stringify(results[OLD]) === JSON.stringify({ ...OLD_ANALYSIS, key: '8B', keyVersion: KEY_VERSION }) && shown[OLD] === '8B', `${JSON.stringify(results[OLD])} / ${shown[OLD]}`);
+  check('titre « ? » d\'une ancienne analyse : tonalité réanalysée (8A), BPM et grille gardés',
+    JSON.stringify(results[NO_KEY]) === JSON.stringify({ ...NO_KEY_ANALYSIS, key: '8A', keyVersion: KEY_VERSION }) && shown[NO_KEY] === '8A', `${JSON.stringify(results[NO_KEY])} / ${shown[NO_KEY]}`);
   const beats = await page.eval('beatRequests');
-  check('titre déjà analysé : BPM non recalculé (un seul envoi sans tempo)',
-    beats.length === total && beats.filter((b) => b === false).length === 1, JSON.stringify(beats));
+  check('titres déjà analysés : BPM non recalculé (deux envois sans tempo)',
+    beats.length === total && beats.filter((b) => b === false).length === 2, JSON.stringify(beats));
 
   // Decks.
   await page.eval(`${q('#start')}.click()`);
