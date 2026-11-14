@@ -1,11 +1,22 @@
 // Scenario of scratch and vinyl mode (#40): VINYL button and LED, scratch with the touched wheel
 // (speed follows the wheel, stops with it, back to the pitch fader on release), POC nudge outside
 // vinyl mode or on the wheel edge, SHIFT + wheel as a search 4 times faster than a scratch.
+// The whole scenario runs under an artificial CPU load (#73): the distance moved by the wheel must
+// not depend on how regularly the page's main thread runs.
 
 import { join } from 'node:path';
-import { check, sleep, tmp, writeTone } from '../lib.mjs';
+import { check, cpuLoad, sleep, tmp, writeTone } from '../lib.mjs';
 
 export default async function ({ page, sim }) {
+  const load = cpuLoad();
+  try {
+    await scenario({ page, sim });
+  } finally {
+    load.stop();
+  }
+}
+
+async function scenario({ page, sim }) {
   const wav = join(tmp, 'tone.wav');
   writeTone(wav);
   const q = (sel) => `document.querySelector(${JSON.stringify(sel)})`;
@@ -49,7 +60,8 @@ export default async function ({ page, sim }) {
   check('100 tics en 0,5 s jog touché : déplacement de 100/248 tour à 5 % près', Math.abs(moved - expected) <= 0.05 * expected,
     `${moved.toFixed(4)} s pour ${expected.toFixed(4)} s attendues`);
   const peak = Math.max(...speeds);
-  check('la vitesse suit la roue (environ 200 tics/s → ×1,45)', peak > 1.2 && peak < 2, `vitesse max ${peak.toFixed(2)}`);
+  // Under the CPU load the ticks reach the worklet in bursts, which raises the peak (up to ~2).
+  check('la vitesse suit la roue (environ 200 tics/s → ×1,45)', peak > 1.2 && peak < 2.5, `vitesse max ${peak.toFixed(2)}`);
   check('roue arrêtée sous la main : lecture arrêtée', Math.abs(p2 - p1) < 0.002 && (await get('d.speed')) === 0, `${p1.toFixed(4)} -> ${p2.toFixed(4)}`);
   await sim.send('jog A -50 touched 250', 600);
   const p3 = await position();

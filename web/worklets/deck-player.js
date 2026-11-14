@@ -9,9 +9,12 @@
 //   { type: 'ghost', speed }                      slip: starts (or keeps) a ghost position at the read
 //                                                 position, moving `speed` frames per frame from now on
 //   { type: 'ghost', speed: null, jump }          drops the ghost; jump: playback goes back to it first
+//   { type: 'scratch', on }            the wheel drives the speed (on) or gives it back to `speed` (off)
+//   { type: 'ticks', seconds }         wheel moved by `seconds` of track while scratching
 // Messages out:
-//   { type: 'position', position, time, playing, ghost, gen }   at least 60 times per second (ghost: s or null)
+//   { type: 'position', position, time, playing, ghost, speed, gen }   at least 60 times per second (ghost: s or null)
 //   { type: 'ended', position, gen }                      end of track (or 0 in reverse)
+//   { type: 'wheel-stopped', position, time, gen }        scratch: the wheel stopped and playback stands still
 // Positions are in seconds, `time` is the context time of the reported position.
 
 const MAX_SPEED = 4;
@@ -22,6 +25,12 @@ const REPORTS_PER_SECOND = 120;
 const SNAP_SECONDS = 0.02;
 const CATCH_UP_SECONDS = 0.5;
 const MAX_CORRECTION = 0.02;
+// Scratch (#40, #73): the alpha-beta filter of Mixxx turns wheel ticks into a speed, run here on the
+// audio clock in 1 ms steps, so that the distance moved does not depend on the main thread.
+const ALPHA = 1 / 8;
+const BETA = ALPHA / 32;
+const STEP_S = 0.001;
+const IDLE_S = 0.05; // no tick for this long and a slow filter: the wheel has stopped
 
 // Every player of the context, by deck index: all processors of a context share this scope, so a
 // follower reads its master's position in the same render quantum.
@@ -52,6 +61,7 @@ class DeckPlayer extends AudioWorkletProcessor {
     this.correction = 0; // speed offset of the phase sync, frames per frame
     this.blockFrame = -1; // currentFrame of the last processed quantum, and the position at its start
     this.blockPos = 0;
+    this.scratch = null; // filter state while the wheel drives the speed (see startScratch())
     this.port.onmessage = (e) => this.onMessage(e.data);
   }
 
@@ -66,6 +76,7 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.fadeLeft = 0;
         this.loop = null;
         this.ghost = null;
+        this.scratch = null;
         break;
       case 'play':
         if (this.length) this.playing = true;
@@ -79,7 +90,18 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.jump(this.clampFrames(msg.position * sampleRate));
         break;
       case 'speed':
-        this.speed = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, msg.speed));
+        if (!this.scratch) this.speed = this.capSpeed(msg.speed);
+        break;
+      case 'scratch':
+        if (msg.on) this.startScratch();
+        else this.scratch = null;
+        break;
+      case 'ticks':
+        if (this.scratch) {
+          this.scratch.target += msg.seconds;
+          this.scratch.idle = 0;
+          this.scratch.still = false;
+        }
         break;
       case 'loop':
         this.loop = msg.start === null ? null : { start: msg.start * sampleRate, end: msg.end * sampleRate };
@@ -105,6 +127,39 @@ class DeckPlayer extends AudioWorkletProcessor {
         break;
     }
     this.report();
+  }
+
+  capSpeed(speed) {
+    return Math.max(-MAX_SPEED, Math.min(MAX_SPEED, speed));
+  }
+
+  /**
+   * Wheel distance (target), filtered position (x) and speed (v) in track seconds, `moved` the
+   * frames actually read since the start, `clock` the frames since the last filter step.
+   */
+  startScratch() {
+    this.scratch = { target: 0, x: 0, v: 0, idle: 0, moved: 0, clock: 0, still: false };
+    this.speed = 0;
+  }
+
+  /** One 1 ms step of the filter; once the wheel has stopped, stands still where it leads. */
+  scratchStep() {
+    const s = this.scratch;
+    const residual = s.target - (s.x + s.v * STEP_S);
+    s.x += s.v * STEP_S + ALPHA * residual;
+    s.v += (BETA / STEP_S) * residual;
+    s.idle += STEP_S;
+    if (!s.still && s.idle > IDLE_S && Math.abs(s.v) < 0.05) {
+      // Stand still, and land exactly where the wheel took the track: the frames read add up to
+      // the wheel distance, whatever the tick timing or the speed cap.
+      s.still = true;
+      s.v = 0;
+      s.x = s.target;
+      this.pos = this.clampFrames(this.pos + s.target * sampleRate - s.moved);
+      s.moved = s.target * sampleRate;
+      this.port.postMessage({ type: 'wheel-stopped', position: this.pos / sampleRate, time: currentTime, gen: this.gen });
+    }
+    this.speed = s.still ? 0 : this.capSpeed(s.v);
   }
 
   /** Moves the read position to `target` (frames), with the crossfade while playing. */
@@ -153,7 +208,13 @@ class DeckPlayer extends AudioWorkletProcessor {
    */
   render(out) {
     const n = out[0].length;
+    const s = this.scratch;
+    const stepFrames = STEP_S * sampleRate;
     for (let f = 0; f < n; f++) {
+      if (s && ++s.clock >= stepFrames) {
+        s.clock -= stepFrames;
+        this.scratchStep();
+      }
       if (this.loop) this.wrapLoop();
       if (this.speed > 0 ? this.pos >= this.length : this.speed < 0 && this.pos <= 0) {
         this.pos = this.speed > 0 ? this.length : 0;
@@ -172,6 +233,7 @@ class DeckPlayer extends AudioWorkletProcessor {
         this.fadePos += this.speed + this.correction;
       }
       this.pos += this.speed + this.correction;
+      if (s) s.moved += this.speed;
     }
     return true;
   }
@@ -208,7 +270,7 @@ class DeckPlayer extends AudioWorkletProcessor {
   }
 
   report(type = 'position') {
-    this.port.postMessage({ type, position: this.pos / sampleRate, time: currentTime, playing: this.playing, ghost: this.ghostSeconds(), gen: this.gen });
+    this.port.postMessage({ type, position: this.pos / sampleRate, time: currentTime, playing: this.playing, ghost: this.ghostSeconds(), speed: this.speed, gen: this.gen });
   }
 
   ghostSeconds() {
@@ -225,15 +287,16 @@ class DeckPlayer extends AudioWorkletProcessor {
     if (!this.playing) {
       for (const ch of out) ch.fill(0);
     } else {
-      const reportAt = { position: this.pos, time: currentTime };
+      const reportAt = { position: this.pos, time: currentTime, speed: this.speed };
       if (!this.render(out)) {
         this.playing = false;
         this.fadeLeft = 0;
+        this.scratch = null;
         this.report('ended');
         return true;
       }
       if (++this.blocks % this.reportEvery === 0) {
-        this.port.postMessage({ type: 'position', position: reportAt.position / sampleRate, time: reportAt.time, playing: true, ghost, gen: this.gen });
+        this.port.postMessage({ type: 'position', position: reportAt.position / sampleRate, time: reportAt.time, playing: true, ghost, speed: reportAt.speed, gen: this.gen });
       }
     }
     return true;
