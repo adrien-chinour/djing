@@ -1,15 +1,16 @@
-// Effect units on screen: in each deck panel, a dry/wet slider and three slots (effect, on/off,
-// main parameter). Every control goes through the action registry (fx.mix, fx.<slot>.effect,
+// Effect units on screen: in each deck panel, on the FX pad page, a dry/wet slider and three slots (effect,
+// on/off, main parameter). Every control goes through the action registry (fx.mix, fx.<slot>.effect,
 // fx.<slot>.on, fx.<slot>.param, fx.<slot>.next, fx.unit), also mapped on the controller (mapping.js):
 // FX button, FX knobs and the FX pad page, with their LEDs.
 import { register, dispatch, led } from '../actions.js';
+import { padPages } from './pads.js';
 import { EFFECTS } from '../fx/effects.js';
 import { DEFAULT_EFFECTS, SLOTS } from '../fx/unit.js';
 
 /** Adds the FX block to every deck panel and registers its actions. */
 export function createFx(ctx, panels) {
   const unitOf = (d) => ctx.engine?.decks[d].fx;
-  const blocks = panels.map((ui, d) => buildBlock(ui.section, d));
+  const blocks = panels.map((ui, d) => buildBlock(ui, d));
 
   register('fx.mix', (d, v) => {
     const unit = unitOf(d);
@@ -55,8 +56,10 @@ export function createFx(ctx, panels) {
   }
 }
 
-function buildBlock(section, d) {
+function buildBlock(ui, d) {
   const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+  const section = el('div', { className: 'fx-block' });
+  padPages(ui).append(section);
   const range = (value) => el('input', { type: 'range', min: 0, max: 1, step: 0.01, value });
   const head = el('div', { className: 'row fx' });
   const mix = range(1);

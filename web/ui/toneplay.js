@@ -4,6 +4,7 @@
 // holds (engine.js, setTranspose). LEDs: the pad of the current transposition, clamped to -4..+3 and
 // rounded, whatever set it. Also on screen: eight buttons, Maj + click only transposes.
 import { register, dispatch, led } from '../actions.js';
+import { padPages } from './pads.js';
 import { TONEPLAY_SEMITONES } from '../mapping.js';
 
 const label = (s) => `${s < 0 ? '−' : '+'}${Math.abs(s)}`;
@@ -41,7 +42,6 @@ export function createToneplay(ctx, panels) {
   panels.forEach((ui, d) => {
     const row = document.createElement('div');
     row.className = 'row pads toneplay';
-    row.append('Toneplay');
     TONEPLAY_SEMITONES.forEach((semitones, n) => {
       const btn = document.createElement('button');
       btn.textContent = label(semitones);
@@ -56,6 +56,6 @@ export function createToneplay(ctx, panels) {
       led(`toneplay.${n}`, d, lit);
       led(`shift.toneplay.${n}`, d, lit);
     });
-    ui.section.append(row);
+    padPages(ui).append(row);
   });
 }

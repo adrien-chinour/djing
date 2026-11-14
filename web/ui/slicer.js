@@ -10,6 +10,7 @@
 // - loading a track, or a loop set by another control (LOOP IN / OUT, auto loops), turns it off;
 // - without a beat grid, nothing turns on and the deck says so.
 import { register, dispatch, led, refreshLeds } from '../actions.js';
+import { padPages } from './pads.js';
 import { SLICES } from '../mapping.js';
 import { snapToBeat } from './hotcues.js';
 
@@ -137,7 +138,7 @@ export function createSlicer(ctx, panels) {
       buttons.push(btn);
     }
     row.append(label);
-    ui.section.append(row);
+    padPages(ui).append(row);
     return { label, buttons };
   });
 

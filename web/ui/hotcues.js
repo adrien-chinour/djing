@@ -4,6 +4,7 @@
 // have been. With Q on and a beat grid, a new cue point snaps to the nearest beat. Saved per track id in the
 // IndexedDB store `cues` and read back when the track is loaded from the library.
 import { register, dispatch, led, refreshLeds } from '../actions.js';
+import { padPages } from './pads.js';
 import { HOTCUES } from '../mapping.js';
 import { get, put } from '../library/db.js';
 
@@ -120,7 +121,7 @@ export function createHotcues(ctx, panels) {
       buttons[d].push(btn);
       led(`hotcue.${n}`, d, () => ctx.hotcues[d][n] !== null);
     }
-    ui.section.append(row);
+    padPages(ui).append(row);
     show(d);
   });
 }

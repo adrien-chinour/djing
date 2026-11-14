@@ -8,17 +8,23 @@ export const ZOOMS = [2, 4, 8, 16, 32]; // beats visible in the scrolling view
 const DEFAULT_ZOOM = 8;
 const FALLBACK_BPM = 120; // beat length of the zoom without a grid
 const BEATS_PER_BAR = 4;
-export const COLORS = {
-  bands: ['#ff4d5e', '#ffb340', '#59d0ff'], // lows, mids, highs, drawn in this order
-  played: 'rgba(12, 14, 17, 0.6)',
-  beat: '#5c636e',
-  bar: '#d9dde3',
-  playhead: '#ffffff',
-  cue: '#ffcc4d',
-  hotcue: '#c47bff',
-  loop: '#5ad17a',
-  loopFill: 'rgba(90, 209, 122, 0.22)',
-};
+// Colours: the --wave-* tokens of style.css, read once the page is styled (createWaveforms).
+export const COLORS = {};
+function readColors() {
+  const style = getComputedStyle(document.documentElement);
+  const token = (name) => style.getPropertyValue(`--wave-${name}`).trim();
+  Object.assign(COLORS, {
+    bands: [token('low'), token('mid'), token('high')], // drawn in this order
+    played: token('played'),
+    beat: token('beat'),
+    bar: token('bar'),
+    playhead: token('playhead'),
+    cue: token('cue'),
+    hotcue: token('hotcue'),
+    loop: token('loop'),
+    loopFill: token('loop-fill'),
+  });
+}
 
 let worker = null;
 let messages = 0;
@@ -49,6 +55,7 @@ export function bandPeaks(buffer) {
 
 /** Adds both waveforms and the zoom buttons to every deck panel; start() runs the drawing loop. */
 export function createWaveforms(ctx, panels) {
+  readColors();
   const views = panels.map((ui, d) => createView(ui, d));
   const deckOf = (d) => (ctx.engine?.decks[d]?.buffer ? ctx.engine.decks[d] : null);
 
