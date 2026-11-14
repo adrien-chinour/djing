@@ -2,7 +2,8 @@
 // the one showDirectoryPicker would return. Checks create / rename / delete (confirmed on screen,
 // never with confirm()), drag and drop from the library (duplicates allowed), reordering and removal,
 // persistence by track id across a reload, the "introuvable" state of a track gone from the
-// directory, and the M3U8 export (relative paths, UTF-8).
+// directory, and the M3U8 export (relative paths, UTF-8). Visibility is the rendered one (#87): a
+// `hidden` element must not be displayed whatever its class.
 
 import { check, sleep } from '../lib.mjs';
 
@@ -17,7 +18,11 @@ export default async function ({ page }) {
   }))`);
   const ids = async () => (await items()).map((r) => r.id);
   const names = () => page.eval(`[...${q('#playlistSelect')}.options].map((o) => o.textContent)`);
-  const shown = (sel) => page.eval(`!${q(sel)}.hidden`);
+  // Rendered visibility, not the attribute: a class setting `display` must not defeat `hidden` (#87).
+  const shown = (sel) => page.eval(`(() => { const el = ${q(sel)}; return el.offsetParent !== null && getComputedStyle(el).display !== 'none'; })()`);
+  // Every element of the page carrying `hidden` is really not displayed.
+  const hiddenDisplayed = () => page.eval(`[...document.querySelectorAll('[hidden]')]
+    .filter((el) => getComputedStyle(el).display !== 'none').map((el) => el.id || el.className || el.tagName)`);
   // Drags `source` (a CSS selector) and drops it on the playlist row `row` (before its middle, or after
   // it when `after`), or on the empty area of the playlist when row is null.
   const drag = (source, row, after = false) => page.eval(`(() => {
@@ -61,6 +66,8 @@ export default async function ({ page }) {
   const libPaths = await page.eval(`[...document.querySelectorAll('#library tbody tr')].map((tr) => tr.cells[2].textContent)`);
   check('bibliothèque listée', libIds.length === 3, libPaths.join(', '));
   check('lignes de la bibliothèque glissables', await page.eval(`[...document.querySelectorAll('#library tbody tr')].every((tr) => tr.draggable)`));
+  check('au chargement : renommage et confirmation non affichés', !(await shown('#playlistEdit')) && !(await shown('#playlistConfirm')));
+  check('aucun élément hidden affiché', (await hiddenDisplayed()).length === 0, JSON.stringify(await hiddenDisplayed()));
   check('aucune playlist : boutons Renommer, Supprimer, Exporter désactivés',
     await page.eval(`['#playlistRename', '#playlistDelete', '#playlistExport'].every((s) => document.querySelector(s).disabled)`));
 
@@ -102,9 +109,13 @@ export default async function ({ page }) {
 
   // Rename (Enter validates).
   await click('#playlistRename');
+  check('« Renommer » : champ du nom affiché', await shown('#playlistEdit'));
+  await click('#playlistNameCancel');
+  check('« Annuler » : champ du nom masqué', !(await shown('#playlistEdit')));
+  await click('#playlistRename');
   await page.eval(`(() => { const i = ${q('#playlistName')}; i.value = 'Soirée « été »'; i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); })()`);
   await sleep(200);
-  check('renommer', JSON.stringify(await names()) === '["Soirée « été »"]', JSON.stringify(await names()));
+  check('renommer, champ du nom masqué', JSON.stringify(await names()) === '["Soirée « été »"]' && !(await shown('#playlistEdit')), JSON.stringify(await names()));
 
   // A second playlist, then its deletion, confirmed on screen.
   await click('#playlistNew');
@@ -122,7 +133,8 @@ export default async function ({ page }) {
   await click('#playlistConfirmYes');
   await sleep(200);
   check('« Supprimer » confirmé : playlist supprimée, la précédente affichée',
-    JSON.stringify(await names()) === '["Soirée « été »"]' && JSON.stringify(await ids()) === JSON.stringify(expected), JSON.stringify(await names()));
+    JSON.stringify(await names()) === '["Soirée « été »"]' && JSON.stringify(await ids()) === JSON.stringify(expected) && !(await shown('#playlistConfirm')), JSON.stringify(await names()));
+  check('aucun élément hidden affiché après les manipulations', (await hiddenDisplayed()).length === 0, JSON.stringify(await hiddenDisplayed()));
   check('aucun confirm() natif', !(await page.eval('window.nativeConfirms')));
 
   // Export.
