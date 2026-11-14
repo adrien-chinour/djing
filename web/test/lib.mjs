@@ -194,6 +194,9 @@ export async function startChrome(url) {
   return page;
 }
 
+/** Longest wait for a DevTools answer: a page that never answers fails its scenario instead of hanging the run. */
+const CDP_TIMEOUT_MS = 180000;
+
 /** Minimal DevTools protocol client over the WebSocket at `wsUrl`. */
 export async function cdp(wsUrl) {
   const ws = new WebSocket(wsUrl);
@@ -202,8 +205,18 @@ export async function cdp(wsUrl) {
   let id = 0;
   const conn = {
     send: (method, params = {}) => new Promise((resolve, reject) => {
-      pending.set(++id, (d) => (d.error ? reject(new Error(`${method}: ${d.error.message}`)) : resolve(d.result)));
-      ws.send(JSON.stringify({ id, method, params }));
+      const n = ++id;
+      const timer = setTimeout(() => {
+        pending.delete(n);
+        reject(new Error(`${method}: no answer after ${CDP_TIMEOUT_MS / 1000} s`));
+      }, CDP_TIMEOUT_MS);
+      pending.set(n, (d) => {
+        clearTimeout(timer);
+        pending.delete(n);
+        if (d.error) reject(new Error(`${method}: ${d.error.message}`));
+        else resolve(d.result);
+      });
+      ws.send(JSON.stringify({ id: n, method, params }));
     }),
   };
   ws.onmessage = (m) => {

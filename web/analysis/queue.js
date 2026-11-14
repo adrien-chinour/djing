@@ -1,7 +1,8 @@
 // Page side of the track analysis: decodes each track (off the main thread, at SAMPLE_RATE, mono)
 // and hands it to the analysis worker, one track at a time. Results are saved in the "tracks"
 // store under `analysis` ({ bpm, firstBeat, key }); a complete one is never computed again, and
-// one saved before the key analysis only gets its key (the tempo and grid are kept).
+// one saved before the key analysis only gets its key (the tempo and grid are kept). The decoded
+// length is saved beside it as the track's `duration` (seconds), for the library's Duration column.
 import { patch } from '../library/db.js';
 
 const SAMPLE_RATE = 22050;
@@ -34,7 +35,7 @@ async function decodeMono(file) {
     const data = buffer.getChannelData(c);
     for (let i = 0; i < mono.length; i++) mono[i] += data[i] / buffer.numberOfChannels;
   }
-  return mono;
+  return { mono, duration: buffer.duration };
 }
 
 let run = 0;
@@ -43,23 +44,26 @@ let run = 0;
 const incomplete = (analysis) => !analysis || analysis.key === undefined;
 
 /**
- * Analyses, in order, the `tracks` ({ id, file, analysis? }) whose analysis is missing or incomplete. Calls
+ * Analyses, in order, the `tracks` ({ id, file, analysis?, duration? }) whose analysis is missing or
+ * incomplete, or whose duration is unknown (decoded again, without the worker, when only it lacks). Calls
  * onProgress(done, total) before the first and after each track, and onResult(track) once
  * track.analysis is set and saved. A new call cancels the previous one (after its current track).
  * Tracks that do not decode are skipped and left for a later run.
  */
 export async function analyzeTracks(tracks, { onProgress, onResult, onError }) {
   const mine = ++run;
-  const todo = tracks.filter((t) => incomplete(t.analysis));
+  const todo = tracks.filter((t) => incomplete(t.analysis) || t.duration === undefined);
   onProgress(0, todo.length);
   for (const [i, track] of todo.entries()) {
     try {
-      const result = await analyzeSamples(await decodeMono(track.file), !track.analysis);
+      const { mono, duration } = await decodeMono(track.file);
+      const result = incomplete(track.analysis) ? await analyzeSamples(mono, !track.analysis) : {};
       if (mine !== run) return;
       // Merged into the current analysis: a grid edited meanwhile on a deck is kept.
       const analysis = { ...track.analysis, ...result };
       track.analysis = analysis;
-      await patch('tracks', track.id, { path: track.path, analysis });
+      track.duration = duration;
+      await patch('tracks', track.id, { path: track.path, analysis, duration });
       onResult(track);
     } catch (err) {
       if (mine !== run) return;
