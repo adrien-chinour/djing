@@ -62,7 +62,9 @@ export function createDecks(ctx) {
   register('loopOut', onPress((deck) => deck.loopOut()));
   register('shift.loopIn', onPress((deck) => deck.scaleLoop(0.5)));
   register('shift.loopOut', onPress((deck) => deck.scaleLoop(2)));
-  for (const beats of AUTO_LOOPS) register(`autoLoop.${beats}`, onPress((deck) => deck.autoLoop(beats)));
+  // Auto loop buttons toggle (Mixxx beatloop_X_toggle); SORTIR leaves the active loop (Mixxx reloop_toggle).
+  for (const beats of AUTO_LOOPS) register(`autoLoop.${beats}`, onPress((deck) => deck.toggleAutoLoop(beats)));
+  register('reloop', onPress((deck) => deck.exitLoop()));
 
   register('seek', (d, fraction) => {
     const deck = deckOf(d);
@@ -155,7 +157,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, name: $('.name', section), time: $('.time', section), remain: $('.remain', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
+  const ui = { section, name: $('.name', section), time: $('.time', section), remain: $('.remain', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), reloop: $('[data-act="reloop"]', section), syncError: null };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -198,6 +200,7 @@ function drawDeck(deck, ui, sync) {
   ui.transpose.textContent = `${deck.transpose > 0 ? '+' : deck.transpose < 0 ? '−' : '±'}${Math.abs(deck.transpose)} dt`;
   ui.latency.textContent = `latence ${Math.round(deck.delay * 1000)} ms`;
   ui.range.textContent = `±${Math.round(deck.rateRange * 100)} %`;
+  ui.reloop.disabled = !deck.loop;
   // Tempo heard: analysed BPM × pitch.
   if (deck.bpm) setBpm(ui.bpm, (deck.bpm * deck.rate).toFixed(2), deck.firstBeat);
   if (ui.syncError && performance.now() > ui.syncError.until) ui.syncError = null;

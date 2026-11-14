@@ -3,7 +3,8 @@
 //   beyond the 5 ms seek fade of #31 on a sine;
 // - the deck of the page from the simulated controller and the screen: LOOP IN / LOOP OUT, the LOOP IN
 //   LED, leaving a loop, SHIFT halve / double and their bounds, auto loops with and without quantize,
-//   and manual loops only without a beat grid.
+//   manual loops only without a beat grid, and leaving a loop (#85): auto loop buttons toggle, SORTIR
+//   enabled only while looping, LOOP OUT on an auto loop, no jump on exit, back to the ghost position with slip.
 
 import { join } from 'node:path';
 import { check, sleep, tmp, writeTone } from '../lib.mjs';
@@ -175,6 +176,9 @@ async function checkDeck(page, sim) {
   s = await state();
   check('quantize : la boucle démarre au temps courant (2,1 s)', near(s.loop.start, 2.1) && near(length(s), 2), JSON.stringify(s.loop));
   await click('loopOut');
+  await press('91', '02'); // quantize off: auto loops start at the position
+
+  await checkExit(page, sim, { state, press, click, near });
 
   // No beat grid: manual loops only, halve / double in seconds.
   await page.eval(`${deck}.grid = null; ${deck}.seek(3);`);
@@ -194,4 +198,86 @@ async function checkDeck(page, sim) {
   check('sans grille : moitié et double en secondes', near(half, manual / 2) && near(twice, manual * 2), `${manual.toFixed(3)} → ${half.toFixed(3)} → ${twice.toFixed(3)} s`);
   await click('loopOut');
   await page.eval(`${deck}.stop()`);
+}
+
+/** Leaving a loop from the screen and the controller (#85), 120 BPM grid (a beat is 0.5 s), deck playing. */
+async function checkExit(page, sim, { state, press, click, near }) {
+  const deck = 'window.djing.engine.decks[0]';
+  const timed = () => page.eval(`(() => { const d = ${deck}; return { p: d.position, t: d.engine.ctx.currentTime, loop: d.loop, playing: d.playing }; })()`);
+  const reloopEnabled = () => page.eval(`!document.querySelector('.deck[data-deck="0"] [data-act="reloop"]').disabled`);
+  /** Position now minus where an uninterrupted playback from `ref` would be. */
+  const drift = (s, ref) => s.p - (ref.p + (s.t - ref.t));
+  const fmt = (x) => x.toFixed(3);
+  const TOLERANCE = 0.03; // s
+
+  await page.eval(`${deck}.seek(1); ${deck}.play();`);
+  await sleep(200);
+  check('SORTIR désactivé hors boucle', !(await reloopEnabled()));
+  await click('reloop');
+  check('SORTIR hors boucle : rien ne se passe', !(await state()).loop && (await state()).playing);
+
+  // Toggle: the same length leaves, another length replaces.
+  await click('autoLoop.4');
+  let s = await state();
+  check('« 4 » pose une boucle de 4 temps', near(s.loop?.end - s.loop?.start, 2), JSON.stringify(s.loop));
+  check('SORTIR actif pendant la boucle', await reloopEnabled());
+  await click('autoLoop.2');
+  s = await state();
+  check('« 2 » pendant une boucle de 4 temps la remplace', near(s.loop?.end - s.loop?.start, 1), JSON.stringify(s.loop));
+  await click('autoLoop.4');
+  await sleep(200);
+  let before = await timed();
+  await click('autoLoop.4');
+  let after = await timed();
+  check('recliquer « 4 » sur la boucle de 4 temps la quitte, sans saut', !after.loop && after.playing && Math.abs(drift(after, before)) <= TOLERANCE,
+    `écart ${fmt(drift(after, before))} s`);
+  check('SORTIR désactivé après la sortie', !(await reloopEnabled()));
+  await sleep(1500);
+  after = await timed();
+  check('la lecture continue au-delà de l\'ancienne boucle', !after.loop && after.p > before.p + 1.2, `${fmt(before.p)} → ${fmt(after.p)} s`);
+
+  // SORTIR.
+  await page.eval(`${deck}.seek(1);`);
+  await click('autoLoop.4');
+  await sleep(200);
+  before = await timed();
+  await click('reloop');
+  after = await timed();
+  check('SORTIR quitte la boucle, la lecture continue sans saut', !after.loop && after.playing && Math.abs(drift(after, before)) <= TOLERANCE,
+    `écart ${fmt(drift(after, before))} s`);
+
+  // Controller: LOOP OUT on an auto loop (Mixxx DJCi300.loopOutButton: reloop_toggle when loop_enabled).
+  await page.eval(`${deck}.seek(1);`);
+  await click('autoLoop.4');
+  await sleep(200);
+  before = await timed();
+  await press('91', '0a');
+  after = await timed();
+  check('platine : LOOP OUT sur une boucle automatique la quitte, sans saut', !after.loop && after.playing && Math.abs(drift(after, before)) <= TOLERANCE,
+    `écart ${fmt(drift(after, before))} s`);
+  // LED and SORTIR are refreshed on the next frame: wait up to 2 s (loaded machine).
+  let refreshed = false;
+  for (let i = 0; i < 20 && !refreshed; i++) {
+    await sleep(100);
+    refreshed = sim.lastLed(0x91, 0x09) === 0x00 && !(await reloopEnabled());
+  }
+  check('platine : LED LOOP IN éteinte et SORTIR désactivé', refreshed,
+    `LED ${sim.lastLed(0x91, 0x09)}, SORTIR ${(await reloopEnabled()) ? 'actif' : 'désactivé'}, boucle ${JSON.stringify((await state()).loop)}`);
+
+  // Slip: SORTIR and the toggle send playback back to where it would have been.
+  await page.eval(`${deck}.setSlip(true)`);
+  for (const [name, exit] of [['SORTIR', () => click('reloop')], ['recliquer « 1 »', () => click('autoLoop.1')]]) {
+    await page.eval(`${deck}.seek(1);`);
+    await sleep(100);
+    await click('autoLoop.1');
+    const ref = await timed();
+    await sleep(1500);
+    const looped = await timed();
+    await exit();
+    after = await timed();
+    check(`slip : ${name} reprend à la position fantôme (±${TOLERANCE * 1000} ms)`,
+      looped.p < ref.loop.end + 0.01 && !after.loop && after.playing && Math.abs(drift(after, ref)) <= TOLERANCE,
+      `dans la boucle ${fmt(looped.p)} s, écart ${fmt(drift(after, ref))} s`);
+  }
+  await page.eval(`${deck}.setSlip(false)`);
 }
