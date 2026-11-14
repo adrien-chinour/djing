@@ -43,6 +43,15 @@ async function main() {
   return failed;
 }
 
+// Stopped from outside (timeout, Ctrl-C): remove the sink, Chrome and the simulator before leaving.
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, () => {
+    console.error(`\ninterrompu (${signal})`);
+    cleanup();
+    process.exit(124);
+  });
+}
+
 let exitCode = 0;
 try {
   const failed = await main();
