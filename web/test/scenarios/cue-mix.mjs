@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { check, RATE, SINK, sleep, tmp } from '../lib.mjs';
+import { check, pickFile, RATE, SINK, sleep, tmp } from '../lib.mjs';
 
 /** 60 s stereo 16-bit WAV, 220 Hz sine at -12 dBFS (writeTone() of lib.mjs lasts 10 s, too short here). */
 function writeLongTone(path) {
@@ -59,17 +59,16 @@ export default async function ({ page, sim }) {
 
   await page.eval(`${q('#start')}.click()`);
   await sleep(2000);
-  const doc = await page.send('DOM.getDocument');
-  for (const d of [0, 1]) {
-    const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: `.deck[data-deck="${d}"] input[type=file]` });
-    await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wav] });
-  }
-  await sleep(1500);
+  // Wait for each load and its background analysis (#84): under CPU load a fixed pause was too short.
+  for (const d of [0, 1]) await pickFile(page, d, wav);
+  const playing = (d) => page.eval(`window.djing.engine.decks[${d}].playing`);
+  const untilPlaying = async (d) => { for (let i = 0; i < 50 && !(await playing(d)); i++) await sleep(100); };
   check('potentiomètre cue/master à 0 par défaut', (await page.eval(`${q('#cueMix')}.value`)) === '0');
   check('mode split du casque coupé par défaut', !(await page.eval(`${q('#splitCue')}.checked`)));
 
   await sim.send('xfader 0');
   await sim.send('press A play', 500);
+  await untilPlaying(0);
   let rms = await measure();
   check('cue/master à 0, sans PFL : casque (canaux 3-4) muet', rms[0] > 0.05 && rms[2] < 0.005 && rms[3] < 0.005, show(rms));
 
@@ -88,6 +87,7 @@ export default async function ({ page, sim }) {
   await sim.send('knob B gain 0.2');
   await sim.send('xfader 1');
   await sim.send('press B play', 500);
+  await untilPlaying(1);
   rms = await measure();
   const cueRef = rms[2];
   check('cue/master à 0 avec PFL A : casque = deck A, MAIN = deck B', cueRef > 0.05 && rms[0] > 0.01 && !near(rms[0], cueRef, 0.2), show(rms));
