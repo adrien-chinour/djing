@@ -45,6 +45,8 @@ export default async function ({ page }) {
   // Fresh database and directory, picker returning the directory.
   await page.eval(`new Promise((r) => { const q = indexedDB.deleteDatabase('djing'); q.onsuccess = q.onerror = q.onblocked = r; })`);
   await page.reload();
+  // The drops below measure the playlist rows: show every block (the default preset, Mix, hides the playlists).
+  await page.eval(`document.querySelector('.display [data-preset=complet]').click()`);
   await page.eval(`(async () => {
     ${trap}
     const root = await navigator.storage.getDirectory();
