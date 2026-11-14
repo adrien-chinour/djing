@@ -1,0 +1,246 @@
+/* style.css — the mixing screen of web/. Tokens copied from visuals/public/style.css (night-violet room,
+   warm ink, one amber spotlight for actions and active states, cyan for live sound); every colour of the
+   page, canvases included (ui/waveform.js reads the --wave-* tokens), is one of the variables below. */
+
+:root {
+  --bg: #15132b;        /* room */
+  --bg-2: #1c1a36;      /* card */
+  --bg-3: #100e22;      /* wells: waveforms, meters, inputs */
+  --line: #2d2a52;      /* borders, idle buttons */
+  --line-2: #38346a;    /* hover */
+  --ink: #f2ede4;       /* warm text */
+  --ink-2: #a7a1c6;     /* secondary text */
+  --mute: #6f6a8f;      /* hints, idle status */
+  --amber: #ffb454;     /* the spotlight: actions, active states */
+  --amber-2: #ffd28a;
+  --amber-ink: #1b1500; /* text on amber */
+  --signal: #7fd8ea;    /* live sound */
+  --alert: #ff7a7a;
+  --alert-ink: #2b0707; /* text on alert */
+  --radius: 10px;
+
+  /* Deck colours: blue for A, orchid for B, both away from amber, cyan and red. */
+  --deck-a: #6cb2ff;
+  --deck-b: #e08cff;
+
+  /* Waveforms (ui/waveform.js): three bands, beat grid, markers. */
+  --wave-low: #ff4d5e;
+  --wave-mid: #ffb340;
+  --wave-high: #59d0ff;
+  --wave-played: rgba(16, 14, 34, 0.6);
+  --wave-beat: #5c636e;
+  --wave-bar: #d9dde3;
+  --wave-playhead: #ffffff;
+  --wave-cue: #ffcc4d;
+  --wave-hotcue: #c47bff;
+  --wave-loop: #5ad17a;
+  --wave-loop-fill: rgba(90, 209, 122, 0.22);
+
+  --sans: "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); color: var(--ink); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--sans); }
+a { color: var(--amber); }
+::selection { background: var(--amber); color: var(--amber-ink); }
+[hidden] { display: none !important; }
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+button, select, input[type=text], input[type=search] {
+  font: inherit; color: var(--ink); background: var(--line); border: 1px solid transparent;
+  border-radius: 8px; padding: 5px 10px;
+}
+button { font-weight: 600; cursor: pointer; white-space: nowrap; }
+button:hover { background: var(--line-2); }
+button:disabled, button:disabled:hover { opacity: .45; cursor: default; background: var(--line); }
+select, input[type=text], input[type=search] { background: var(--bg-3); border-color: var(--line); }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, .tracks:focus-visible {
+  outline: 2px solid var(--amber); outline-offset: 2px;
+}
+/* Active: lit LED, running audio, selected tab, as the active scenes of the visuals. */
+button.on, button.primary { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+button.on:hover, button.primary:hover { background: var(--amber-2); }
+button.quiet { background: transparent; border-color: var(--line); color: var(--ink-2); font-weight: 500; }
+button.quiet:hover { background: var(--bg-2); color: var(--ink); }
+label { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12px; }
+input[type=range] { accent-color: var(--accent, var(--amber)); min-width: 0; }
+input[type=checkbox] { accent-color: var(--amber); }
+summary { cursor: pointer; color: var(--ink-2); font-size: 12px; font-weight: 600; letter-spacing: .04em; user-select: none; }
+summary:hover { color: var(--ink); }
+
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.hint, .time { color: var(--mute); font-size: 12px; font-variant-numeric: tabular-nums; }
+.pill { padding: 3px 10px; border-radius: 99px; background: var(--bg-2); border: 1px solid var(--line); color: var(--mute);
+        font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill.ok { color: var(--signal); }
+.pill.warn { color: var(--amber); }
+
+/* ── Top bar: brand, audio, outputs, MIDI, recorder ──────────────────────── */
+.topbar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--line); height: 48px; }
+.topbar .mark { font-size: 18px; font-weight: 700; letter-spacing: .01em; margin-right: 6px; white-space: nowrap; }
+.topbar .mark b { color: var(--amber); }
+.topbar .mark small { color: var(--mute); font-size: 13px; font-weight: 500; margin-left: 4px; }
+.topbar #out { max-width: 34ch; }
+.topbar .spacer { flex: 1; }
+.topbar .setup { position: relative; }
+.topbar .setup summary { padding: 5px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.topbar .setup[open] summary { color: var(--amber); border-color: var(--amber); }
+.topbar .setup .popover { position: absolute; z-index: 10; top: calc(100% + 6px); left: 0; display: grid; gap: 8px; width: 320px;
+  padding: 12px; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.topbar .setup select { width: 100%; }
+.topbar .setup label { display: grid; grid-template-columns: 4.5em 1fr; }
+#rec.rec { background: var(--alert); border-color: var(--alert); color: var(--alert-ink); }
+#recTime { font-family: var(--mono); }
+
+/* ── Mixing area: deck A, mixer, deck B ──────────────────────────────────── */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 196px minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
+.deck, .mixer, .library { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
+.deck { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; border-top: 3px solid var(--accent); }
+.deck[data-deck="0"] { --accent: var(--deck-a); }
+.deck[data-deck="1"] { --accent: var(--deck-b); }
+.deck.drop, .drop { outline: 2px dashed var(--accent, var(--amber)); }
+
+/* Header band, read from 2 m: deck letter, title, clock, tempo. */
+.deck-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px 14px; align-items: center; }
+.deck-head h2 { margin: 0; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px;
+  background: var(--accent); color: var(--bg); font-size: 0; }
+.deck-head h2::after { font: 700 24px/1 var(--sans); }
+.deck[data-deck="0"] .deck-head h2::after { content: 'A'; }
+.deck[data-deck="1"] .deck-head h2::after { content: 'B'; }
+.deck-head .title { min-width: 0; }
+.deck-head .name { font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.4em; }
+.deck-head .sub { display: flex; gap: 10px; align-items: baseline; font-size: 12px; color: var(--ink-2); min-height: 1.4em; }
+.deck-head .key { font: 700 14px var(--mono); color: var(--ink); }
+.deck-head .master { font-weight: 700; letter-spacing: .04em; color: var(--amber); }
+.deck-head .clock, .deck-head .tempo { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.deck-head .time { display: block; font-size: 13px; color: var(--ink-2); }
+.deck-head .remain { display: block; font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+.deck-head .bpm { display: block; color: var(--ink-2); font-size: 12px; }
+.deck-head .bpm b { display: block; font-size: 34px; line-height: 1; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+.deck-head .bpm small { font-size: 11px; }
+.deck-head .bpm .beat { display: block; font-size: 10px; color: var(--mute); }
+.deck-head .rate { display: block; font-size: 12px; color: var(--ink-2); }
+
+/* Waveforms, full width; zoom buttons over the scrolling view. */
+.waveform { position: relative; }
+.waveform canvas { display: block; width: 100%; background: var(--bg-3); border: 1px solid var(--line); border-radius: 6px; }
+.waveform .overview { height: 30px; cursor: pointer; margin-bottom: 4px; }
+.waveform .scroll { height: 120px; }
+.waveform .zoom { position: absolute; right: 6px; bottom: 6px; gap: 4px; }
+.waveform .zoom button { padding: 0 8px; font-size: 12px; background: var(--bg-2); opacity: .8; }
+.waveform .zoom-label { font: 11px var(--mono); color: var(--ink-2); }
+
+/* Transport: CUE, PLAY, SYNC large; switches beside them. */
+.transport { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 6px; align-items: stretch; }
+.transport > button { padding: 10px 0; font-size: 17px; letter-spacing: .04em; }
+.transport [data-act=cue] { border-color: var(--line-2); }
+.transport [data-act=play]:not(.on) { color: var(--amber); border-color: var(--amber); background: transparent; }
+.switches { display: grid; grid-template-columns: repeat(3, auto); gap: 4px; }
+.switches button { padding: 2px 8px; font-size: 11px; }
+
+.loops { gap: 4px; flex-wrap: nowrap; }
+.loops button { flex: 1; padding: 4px 0; font-size: 12px; }
+.loops .label { font-size: 11px; color: var(--mute); margin-right: 2px; }
+
+/* Pads: a row of mode tabs (the pad mode LEDs), then only the page of the current mode. */
+.pad-area { display: flex; flex-direction: column; gap: 6px; }
+.pad-modes { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+.pad-modes button { padding: 3px 0; font-size: 11px; font-weight: 500; background: transparent; border-color: var(--line); color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; }
+.pad-modes button.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 700; }
+.pad-pages { min-height: 44px; }
+.pad-pages > * { display: none; }
+.deck[data-pad-mode=hotcue] .pad-pages > .hotcues,
+.deck[data-pad-mode=roll] .pad-pages > .rolls,
+.deck[data-pad-mode=beatjump] .pad-pages > .beatjumps,
+.deck[data-pad-mode=slicer] .pad-pages > .slicer,
+.deck[data-pad-mode=slicerloop] .pad-pages > .slicer,
+.deck[data-pad-mode=toneplay] .pad-pages > .toneplay,
+.deck[data-pad-mode=sampler] .pad-pages > .sampler-page,
+.deck[data-pad-mode=fx] .pad-pages > .fx-block { display: grid; }
+.pads { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.pads button { padding: 10px 0; font: 600 13px var(--mono); }
+.slicer { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.slicer .slicer-status { grid-column: 1 / -1; }
+.slicer-status, .notice { font-size: 11px; color: var(--mute); min-height: 1.2em; }
+.notice { color: var(--alert); }
+.sampler-page { color: var(--mute); font-size: 12px; align-content: center; min-height: 40px; }
+
+/* FX, as a pad page: dry/wet and unit on one line, three slots below. */
+.fx-block { gap: 4px; }
+.fx-block .fx { flex-wrap: nowrap; }
+.fx-block .fx label { flex: 1; }
+.fx-block .fx label input { flex: 1; }
+.fx-block .fx-slot { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr); gap: 6px; }
+.fx-block select { padding: 2px 4px; font-size: 12px; }
+.fx-block button { padding: 2px 8px; font-size: 12px; }
+.fx-block .fx-slot label input { flex: 1; }
+
+/* Channel strip of the deck: gain, EQ, filter, volume, pitch. */
+.knobs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.3fr) minmax(0, 1.6fr); gap: 6px; }
+.knobs label { flex-direction: column; align-items: stretch; gap: 0; font-size: 11px; text-align: center; }
+.knobs input { width: 100%; }
+
+/* Rare controls, folded. */
+.more summary { padding: 2px 0; }
+.more[open] summary { color: var(--amber); }
+.more .row { margin-top: 6px; }
+.more button { padding: 3px 8px; font-size: 12px; }
+.more input[type=file] { font-size: 12px; color: var(--ink-2); }
+.more input[type=file]::file-selector-button { font: inherit; color: var(--ink); background: var(--line); border: 0; border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+
+/* ── Mixer column ─────────────────────────────────────────────────────────── */
+.mixer { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.mixer h2 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.mixer label { display: grid; grid-template-columns: 1fr; gap: 0; }
+.mixer label.check { display: flex; }
+.mixer input[type=range] { width: 100%; }
+.mixer .xfader { padding: 6px 0 2px; border-top: 1px solid var(--line); }
+.mixer .xfader .ends { display: flex; justify-content: space-between; font: 700 12px var(--sans); }
+.mixer .xfader .ends span:first-child { color: var(--deck-a); }
+.mixer .xfader .ends span:last-child { color: var(--deck-b); }
+#xfader { height: 22px; }
+
+/* VU meters: LED ladders as .vmeter of the visuals; --level (0..1) is set by ui/meters.js. */
+.meters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; height: 168px; margin-top: auto; }
+.vu { display: flex; flex-direction: column; align-items: stretch; gap: 4px; font-size: 11px; color: var(--ink-2); text-align: center; min-width: 0; }
+.vu i { position: relative; flex: 1; background: var(--bg-3); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.vu i::before { content: ''; position: absolute; inset: auto 0 0; height: calc(var(--level, 0) * 100%);
+  background: linear-gradient(to top, var(--signal) 0 60%, var(--amber) 85%, var(--alert)); background-size: 100% 150px; background-position: bottom; }
+.vu i::after { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(to top, transparent 0 7px, var(--bg-3) 7px 9px); }
+.vu[data-deck="0"] { color: var(--deck-a); }
+.vu[data-deck="1"] { color: var(--deck-b); }
+#limit { text-align: center; padding: 3px 0; border: 1px solid var(--line); border-radius: 6px; font: 700 11px var(--sans); letter-spacing: .08em; color: var(--mute); }
+#limit.on { background: var(--alert); border-color: var(--alert); color: var(--alert-ink); }
+
+/* ── Below the fold: sampler, library, playlists, log ────────────────────── */
+.library { margin: 0 12px 12px; padding: 12px; }
+.library > .row + .row, .library > .row + .tracks, .library > .row + .slots { margin-top: 8px; }
+.library strong { font-size: 13px; letter-spacing: .04em; }
+.library .tracks { max-height: 320px; overflow: auto; }
+.library table { width: 100%; border-collapse: collapse; }
+.library th, .library td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); }
+.library th { color: var(--mute); font-size: 12px; font-weight: 600; }
+.library td.bpm, .library td.key, .library td.duration { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.library tr.selected { background: var(--line-2); }
+.library tr.unreadable { color: var(--mute); opacity: .5; }
+.library tr.compatible td:first-child { box-shadow: inset 3px 0 0 var(--signal); }
+.library tr.compatible { color: var(--signal); }
+.library th[data-sort] { cursor: pointer; user-select: none; }
+.library th[data-order="asc"]::after { content: ' ▲'; }
+.library th[data-order="desc"]::after { content: ' ▼'; }
+.library td button { padding: 1px 8px; margin-left: 4px; }
+#librarySearch { flex: 1; max-width: 28rem; }
+#playlistDrop { --accent: var(--signal); min-height: 60px; }
+.slots { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.slots button { --accent: var(--signal); padding: 4px 6px; font-size: 11px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.slots button.empty { color: var(--mute); background: transparent; border-color: var(--line); }
+#log { margin: 0 12px 12px; padding: 8px 12px; background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--radius);
+       height: 120px; overflow: auto; font: 12px/1.4 var(--mono); color: var(--mute); white-space: pre; }
+
+@media (prefers-reduced-motion: no-preference) {
+  button { transition: background-color 120ms ease; }
+}

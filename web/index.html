@@ -4,97 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>djing web</title>
-<style>
-  :root { --bg: #111317; --panel: #1b1e24; --line: #2c313a; --text: #e6e8eb; --dim: #8a929e; --a: #4fb3ff; --b: #ff8a4f; --ok: #5ad17a; --warn: #ffcc4d; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
-  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 16px; margin: 0 12px 0 0; }
-  .pill { padding: 3px 10px; border-radius: 99px; background: var(--panel); color: var(--dim); }
-  .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
-  button, select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
-  button.on { border-color: var(--ok); color: var(--ok); }
-  #rec.rec { background: #ff4d4d; border-color: #ff4d4d; color: #fff; }
-  #recTime { font-variant-numeric: tabular-nums; }
-  main { display: grid; grid-template-columns: 1fr 180px 1fr; gap: 12px; padding: 16px; }
-  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
-  .deck, .mixer { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-  .deck[data-deck="0"] { --accent: var(--a); } .deck[data-deck="1"] { --accent: var(--b); }
-  .deck h2 { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
-  .name { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.4em; }
-  .waveform canvas { width: 100%; display: block; background: #0c0e11; border-radius: 6px; margin: 6px 0; }
-  .waveform .overview { height: 28px; cursor: pointer; }
-  .waveform .scroll { height: 96px; }
-  .waveform .zoom-label { color: var(--dim); }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-  .time { font-variant-numeric: tabular-nums; color: var(--dim); }
-  label { display: flex; align-items: center; gap: 6px; color: var(--dim); }
-  input[type=range] { accent-color: var(--accent, var(--text)); }
-  .knobs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
-  .knobs label { flex-direction: column; font-size: 11px; }
-  .knobs input { width: 100%; }
-  .mixer { display: flex; flex-direction: column; gap: 10px; }
-  .mixer h2 { margin: 0; font-size: 14px; }
-  #log { margin: 0 16px 16px; padding: 8px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; height: 120px; overflow: auto; font: 12px/1.4 ui-monospace, monospace; color: var(--dim); white-space: pre; }
-  .pads button { padding: 3px 6px; font-size: 11px; }
-  .library { margin: 0 16px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-  .library .tracks { max-height: 320px; overflow: auto; }
-  .library table { width: 100%; border-collapse: collapse; }
-  .library th, .library td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); }
-  .library tr.selected { background: #263041; }
-  .library tr.unreadable { color: var(--dim); opacity: 0.5; }
-  .library tr.compatible td:first-child { box-shadow: inset 3px 0 0 #3fb950; }
-  .library tr.compatible { color: #7ee787; }
-  .library th[data-sort] { cursor: pointer; user-select: none; }
-  .library th[data-order="asc"]::after { content: ' ▲'; }
-  .library th[data-order="desc"]::after { content: ' ▼'; }
-  .library td button { padding: 1px 8px; margin-left: 4px; }
-  .drop { outline: 2px dashed var(--accent); }
-  #playlistDrop { --accent: var(--ok); min-height: 60px; }
-  .slots { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-  .slots button { --accent: var(--ok); padding: 4px 6px; font-size: 11px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .slots button.empty { color: var(--dim); }
-  @media (max-width: 800px) { .slots { grid-template-columns: repeat(4, 1fr); } }
-  .meters { display: flex; gap: 6px; align-items: flex-end; }
-  .vu { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--dim); }
-  .vu i { position: relative; width: 12px; height: 80px; background: #0c0e11; border-radius: 3px; overflow: hidden; }
-  .vu i::after { content: ''; position: absolute; inset: auto 0 0; height: calc(var(--level, 0) * 100%); background: linear-gradient(to top, var(--ok) 70%, var(--warn) 90%, #ff4d4d); background-size: 100% 80px; background-position: bottom; }
-  #limit { align-self: center; padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 11px; color: var(--dim); }
-  #limit.on { background: #ff4d4d; border-color: #ff4d4d; color: #fff; }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>djing web · POC</h1>
-  <button id="start">Démarrer l'audio</button>
-  <label>MAIN <select id="mainDevice" disabled><option>défaut</option></select></label>
-  <label>Casque <select id="cueDevice" disabled><option>défaut</option></select></label>
-  <button id="labels" title="Chrome ne donne le nom des sorties qu'après une autorisation micro">Noms des sorties</button>
+<header class="topbar">
+  <span class="mark"><b>dj</b>ing<small>web</small></span>
+  <button id="start" class="primary">Démarrer l'audio</button>
+  <details class="setup">
+    <summary>Sorties audio</summary>
+    <div class="popover">
+      <label>MAIN <select id="mainDevice" disabled><option>défaut</option></select></label>
+      <label>Casque <select id="cueDevice" disabled><option>défaut</option></select></label>
+      <div class="row">
+        <button id="labels" class="quiet" title="Chrome ne donne le nom des sorties qu'après une autorisation micro">Noms des sorties</button>
+        <button id="toneMain" class="quiet">Bip MAIN (1-2)</button>
+        <button id="toneCue" class="quiet">Bip casque (3-4)</button>
+      </div>
+    </div>
+  </details>
   <span id="out" class="pill">sortie : —</span>
   <span id="midi" class="pill">MIDI : —</span>
-  <button id="toneMain">Bip MAIN (1-2)</button>
-  <button id="toneCue">Bip casque (3-4)</button>
-  <button id="rec" title="Enregistre le MAIN en WebM Opus ; un second appui arrête">REC</button>
+  <span class="spacer"></span>
   <span id="recTime" class="pill" hidden>0:00</span>
   <a id="recFile" hidden></a>
+  <button id="rec" title="Enregistre le MAIN en WebM Opus ; un second appui arrête">REC</button>
 </header>
 
-<main>
+<main class="stage">
   <section class="deck" data-deck="0"></section>
   <section class="mixer">
     <h2>Mixer</h2>
-    <label>Crossfader <input id="xfader" type="range" min="0" max="1" step="0.001" value="0.5"></label>
-    <label>Casque <input id="cueVol" type="range" min="0" max="1" step="0.01" value="1"></label>
-    <label title="Casque : 0 = cue seul, 1 = master seul">Cue/Master <input id="cueMix" type="range" min="0" max="1" step="0.01" value="0"></label>
-    <label title="Casque : cue en mono à gauche, master en mono à droite"><input id="splitCue" type="checkbox"> split casque</label>
     <label>Master <input id="mainVol" type="range" min="0" max="1" step="0.01" value="1"></label>
-    <label><input id="rateInvert" type="checkbox" checked> pitch inversé</label>
+    <label>Casque <input id="cueVol" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label title="Casque : 0 = cue seul, 1 = master seul">Cue / Master <input id="cueMix" type="range" min="0" max="1" step="0.01" value="0"></label>
+    <label class="check" title="Casque : cue en mono à gauche, master en mono à droite"><input id="splitCue" type="checkbox"> split casque</label>
+    <label class="check"><input id="rateInvert" type="checkbox" checked> pitch inversé</label>
     <div class="meters" title="Niveaux crête, −48 à 0 dBFS">
       <span class="vu" data-meter="vu" data-deck="0"><i></i>A</span>
       <span class="vu" data-meter="vu" data-deck="1"><i></i>B</span>
       <span class="vu" data-meter="vu.mainLeft"><i></i>L</span>
       <span class="vu" data-meter="vu.mainRight"><i></i>R</span>
-      <span id="limit">LIMIT</span>
+    </div>
+    <span id="limit">LIMIT</span>
+    <div class="xfader">
+      <input id="xfader" type="range" min="0" max="1" step="0.001" value="0.5" aria-label="Crossfader">
+      <div class="ends"><span>A</span><span class="hint">crossfader</span><span>B</span></div>
     </div>
   </section>
   <section class="deck" data-deck="1"></section>
@@ -105,7 +59,7 @@
     <strong>Sampler</strong>
     <label>Volume <input id="samplerVolume" type="range" min="0" max="1" step="0.01" value="1"></label>
     <button id="samplerPfl" title="Sampler dans le casque">🎧 PFL</button>
-    <span class="time">1 à 8 : pads du deck A, 9 à 16 : deck B (mode sampler) ; glisser un titre de la bibliothèque sur un emplacement</span>
+    <span class="hint">1 à 8 : pads du deck A, 9 à 16 : deck B (mode sampler) ; glisser un titre de la bibliothèque sur un emplacement</span>
   </div>
   <div id="samplerSlots" class="slots"></div>
 </section>
@@ -114,8 +68,8 @@
   <div class="row">
     <button id="libraryPick">Choisir le dossier</button>
     <button id="libraryReopen" hidden>Rouvrir</button>
-    <span id="libraryStatus" class="time">aucun dossier</span>
-    <span id="analysisProgress" class="time"></span>
+    <span id="libraryStatus" class="hint">aucun dossier</span>
+    <span id="analysisProgress" class="hint"></span>
   </div>
   <div class="row">
     <input id="librarySearch" type="search" placeholder="Rechercher (artiste, titre, chemin)" aria-label="Rechercher dans la bibliothèque">
@@ -138,7 +92,7 @@
     <button id="playlistDelete" disabled>Supprimer</button>
     <button id="playlistExport" disabled title="Chemins relatifs au dossier de la bibliothèque, UTF-8">Exporter M3U8</button>
     <button id="autoDj" title="Enchaîner la playlist affichée (AUTODJ sur la platine)">AutoDJ</button>
-    <span id="autoDjStatus" class="time"></span>
+    <span id="autoDjStatus" class="hint"></span>
   </div>
   <div id="playlistEdit" class="row" hidden>
     <input id="playlistName" type="text" maxlength="100" aria-label="Nom de la playlist">
@@ -155,47 +109,52 @@
       <thead><tr><th>#</th><th>Titre</th><th>Chemin</th><th></th></tr></thead>
       <tbody></tbody>
     </table>
-    <p id="playlistHint" class="time"></p>
+    <p id="playlistHint" class="hint"></p>
   </div>
 </section>
 
 <div id="log"></div>
 
 <template id="deckTpl">
-  <h2></h2>
-  <div class="name">Glisser un fichier ici ou</div>
-  <input type="file" accept="audio/*">
+  <div class="deck-head">
+    <h2></h2>
+    <div class="title">
+      <div class="name">Glisser un fichier ici</div>
+      <div class="sub"><span class="key" title="Tonalité (Camelot)">—</span><span class="master"></span></div>
+    </div>
+    <div class="clock" title="Temps écoulé / durée, puis temps restant">
+      <span class="time">0:00.0 / 0:00</span>
+      <span class="remain">−0:00.0</span>
+    </div>
+    <div class="tempo" title="Tempo entendu (BPM analysé × pitch) et pitch">
+      <span class="bpm">BPM —</span>
+      <span class="rate">±0.00 %</span>
+    </div>
+  </div>
   <div class="waveform">
     <canvas class="overview" width="1000" height="36" title="Vue d'ensemble : cliquer pour sauter"></canvas>
     <canvas class="scroll" width="1000" height="120"></canvas>
     <div class="row zoom">
+      <span class="zoom-label">8 temps</span>
       <button data-act="waveform.zoomOut" title="Zoom arrière : plus de temps visibles">−</button>
       <button data-act="waveform.zoomIn" title="Zoom avant : moins de temps visibles">+</button>
-      <span class="zoom-label">8 temps</span>
     </div>
   </div>
-  <div class="row">
+  <div class="transport">
     <button data-act="cue">CUE</button>
     <button data-act="play" data-led="play">PLAY</button>
-    <button data-act="pfl" data-led="pfl">🎧 PFL</button>
-    <button data-act="vinyl" data-led="vinyl">VINYL</button>
-    <button data-act="slip" data-led="slip" title="Slip : scratch, boucle et hotcue maintenu reprennent là où la lecture serait">SLIP</button>
-    <span class="time">0:00.0 / 0:00</span>
-    <span class="time rate">±0.00 %</span>
-  </div>
-  <div class="row grid">
-    <span class="time bpm">BPM —</span>
-    <span class="time key" title="Tonalité (Camelot)">—</span>
-    <button data-act="grid.half" title="BPM ÷ 2">÷2</button>
-    <button data-act="grid.double" title="BPM × 2">×2</button>
-    <button data-act="grid.earlier" title="Grille 10 ms plus tôt">−10 ms</button>
-    <button data-act="grid.later" title="Grille 10 ms plus tard">+10 ms</button>
-    <button data-act="quantize" data-led="quantize" title="Calage des repères sur le temps le plus proche">Q</button>
     <button data-act="sync" data-led="sync" title="Caler tempo et phase sur le deck maître">SYNC</button>
-    <button data-act="shift.sync" title="Choisir ce deck comme maître (SHIFT + SYNC)">MAÎTRE</button>
-    <span class="time master"></span>
+    <div class="switches">
+      <button data-act="pfl" data-led="pfl" title="Pré-écoute au casque">🎧 PFL</button>
+      <button data-act="keylock" data-led="keylock">KEYLOCK</button>
+      <button data-act="slip" data-led="slip" title="Slip : scratch, boucle et hotcue maintenu reprennent là où la lecture serait">SLIP</button>
+      <button data-act="quantize" data-led="quantize" title="Calage des repères sur le temps le plus proche">Q</button>
+      <button data-act="shift.sync" title="Choisir ce deck comme maître (SHIFT + SYNC)">MAÎTRE</button>
+      <button data-act="vinyl" data-led="vinyl" title="Jog en mode vinyle (scratch)">VINYL</button>
+    </div>
   </div>
   <div class="row loops">
+    <span class="label">LOOP</span>
     <button data-act="loopIn" data-led="loopIn" title="Début de boucle (allumé : boucle active)">IN</button>
     <button data-act="loopOut" title="Fin de boucle et activation, ou sortie de boucle">OUT</button>
     <button data-act="shift.loopIn" title="Boucle deux fois plus courte">½</button>
@@ -207,25 +166,38 @@
     <button data-act="autoLoop.8" title="Boucle de 8 temps">8</button>
     <button data-act="autoLoop.16" title="Boucle de 16 temps">16</button>
   </div>
+  <div class="pad-area">
+    <div class="pad-pages"></div>
+  </div>
   <div class="knobs">
     <label>Gain<input data-knob="gain" type="range" min="0" max="1" step="0.01" value="0.5"></label>
     <label>High<input data-knob="high" type="range" min="0" max="1" step="0.01" value="0.5"></label>
     <label>Mid<input data-knob="mid" type="range" min="0" max="1" step="0.01" value="0.5"></label>
     <label>Low<input data-knob="low" type="range" min="0" max="1" step="0.01" value="0.5"></label>
     <label>Filtre<input data-knob="filter" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+    <label>Volume<input data-knob="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label>Pitch<input data-knob="rate" type="range" min="-1" max="1" step="0.001" value="0"></label>
   </div>
-  <div class="row">
-    <label>Volume <input data-knob="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
-    <label>Pitch <input data-knob="rate" type="range" min="-1" max="1" step="0.001" value="0"></label>
-    <button data-act="shift.quantize" title="Plage du pitch : 8, 16, 50 % (SHIFT + Q)">plage</button>
-    <span class="time range">±8 %</span>
-  </div>
-  <div class="row">
-    <button data-act="keylock" data-led="keylock">KEYLOCK</button>
-    <label>Transposition <input data-knob="transpose" type="range" min="-12" max="12" step="1" value="0"></label>
-    <span class="time transpose">±0 dt</span>
-    <span class="time latency">latence 0 ms</span>
-  </div>
+  <details class="more">
+    <summary>Plus : fichier, grille, plage du pitch, transposition</summary>
+    <div class="row">
+      <input type="file" accept="audio/*">
+    </div>
+    <div class="row grid">
+      <span class="hint">Grille</span>
+      <button data-act="grid.half" title="BPM ÷ 2">÷2</button>
+      <button data-act="grid.double" title="BPM × 2">×2</button>
+      <button data-act="grid.earlier" title="Grille 10 ms plus tôt">−10 ms</button>
+      <button data-act="grid.later" title="Grille 10 ms plus tard">+10 ms</button>
+      <button data-act="shift.quantize" title="Plage du pitch : 8, 16, 50 % (SHIFT + Q)">plage</button>
+      <span class="hint range">±8 %</span>
+    </div>
+    <div class="row">
+      <label>Transposition <input data-knob="transpose" type="range" min="-12" max="12" step="1" value="0"></label>
+      <span class="hint transpose">±0 dt</span>
+      <span class="hint latency">latence 0 ms</span>
+    </div>
+  </details>
 </template>
 
 <script type="module" src="app.js"></script>

@@ -3,6 +3,7 @@
 // Beatjump: jumps of ±1, 2, 4, 8 beats. Both need a beat grid; without one they do nothing and say so
 // under the pads. Also on screen: roll buttons held like pads, beatjump buttons.
 import { register, dispatch, led } from '../actions.js';
+import { padPages } from './pads.js';
 import { ROLL_BEATS, BEATJUMP_BEATS } from '../mapping.js';
 
 const NOTICE_MS = 4000;
@@ -47,7 +48,6 @@ export function createRolls(ctx, panels) {
   panels.forEach((ui, d) => {
     const rolls = document.createElement('div');
     rolls.className = 'row pads rolls';
-    rolls.append('Roll');
     ROLL_BEATS.forEach((beats, n) => {
       const btn = document.createElement('button');
       btn.textContent = beatLabel(beats);
@@ -73,7 +73,6 @@ export function createRolls(ctx, panels) {
 
     const jumps = document.createElement('div');
     jumps.className = 'row pads beatjumps';
-    jumps.append('Beatjump');
     BEATJUMP_BEATS.forEach((beats, n) => {
       const btn = document.createElement('button');
       btn.textContent = `${beats < 0 ? '−' : '+'}${Math.abs(beats)}`;
@@ -83,7 +82,7 @@ export function createRolls(ctx, panels) {
     });
     notices[d] = document.createElement('span');
     notices[d].className = 'notice';
-    jumps.append(notices[d]);
-    ui.section.append(rolls, jumps);
+    padPages(ui).append(rolls, jumps);
+    padPages(ui).after(notices[d]); // under the pages: a roll refused is told on the roll page too
   });
 }

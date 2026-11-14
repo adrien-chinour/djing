@@ -225,6 +225,13 @@ que ne reçoit rien.
   appui arrête et propose le fichier `mix-AAAA-MM-JJ-HHMM.webm` (heure locale du début) au téléchargement, lien
   laissé dans l'en-tête. L'enregistrement continue onglet caché. Le scénario `test/scenarios/recorder.mjs` le vérifie.
 - `ui/*.js` (en-tête, mixer, decks, modes de pads, journal), assemblés par `app.js`, et `index.html` : interface ; chaque commande existe aussi à l'écran, la page marche sans platine.
+- `style.css` : feuille unique de la page, jetons copiés de `visuals/public/style.css` (fond violet nuit, encre chaude,
+  ambre pour l'action et les états actifs, cyan pour le son) ; aucune couleur hors de ses variables, celles des
+  waveforms comprises (`--wave-*`, lues par `ui/waveform.js`). À 1366×768, les deux decks et le mixer tiennent sans
+  défilement : par deck, une bande d'en-tête (titre, temps écoulé et restant, BPM entendu en grand, tonalité, pitch,
+  SYNC/MAÎTRE), les waveforms, le transport, les boucles, les pads du seul mode courant (onglets des modes, page FX
+  comprise) et la tranche ; les commandes rares (fichier, grille, plage du pitch, transposition) sont repliées sous
+  « Plus ». Sampler, bibliothèque, playlists et journal sont en dessous.
 
 Ajouter une commande de la platine : une ligne dans `INPUTS` de `mapping.js` et un `register()` dans le module
 `ui/` concerné ; une LED : une ligne dans `LEDS` et un `led()`. Une action non enregistrée ne fait rien mais

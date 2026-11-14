@@ -155,7 +155,7 @@ function createPanel(section) {
   const index = Number(section.dataset.deck);
   section.append($('#deckTpl', document).content.cloneNode(true));
   $('h2', section).textContent = index === 0 ? 'Deck A' : 'Deck B';
-  const ui = { section, name: $('.name', section), time: $('.time', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
+  const ui = { section, name: $('.name', section), time: $('.time', section), remain: $('.remain', section), rate: $('.rate', section), bpm: $('.bpm', section), key: $('.key', section), track: null, transpose: $('.transpose', section), latency: $('.latency', section), master: $('.master', section), range: $('.range', section), syncError: null };
 
   $('input[type=file]', section).addEventListener('change', (e) => e.target.files[0] && dispatch('load', index, e.target.files[0]));
   section.addEventListener('dragover', (e) => { e.preventDefault(); section.classList.add('drop'); });
@@ -178,19 +178,28 @@ function createPanel(section) {
 
 function showBpm(ui) {
   const analysis = ui.track?.analysis;
-  ui.bpm.textContent = !ui.track ? 'BPM —'
-    : analysis?.bpm ? `${formatBpm(analysis)} BPM · 1er temps ${analysis.firstBeat.toFixed(3)} s` : formatBpm(analysis);
+  if (analysis?.bpm) setBpm(ui.bpm, formatBpm(analysis), analysis.firstBeat);
+  else ui.bpm.textContent = ui.track ? formatBpm(analysis) : 'BPM —';
   ui.key.textContent = ui.track ? formatKey(analysis) : '—';
+}
+
+/** Tempo in large figures, then the unit and the first beat in small type ("124.00 BPM · 1er temps 0.120 s"). */
+function setBpm(el, figure, firstBeat) {
+  const beat = ` · 1er temps ${firstBeat.toFixed(3)} s`;
+  if (el.textContent === `${figure} BPM${beat}`) return;
+  const tag = (name, text, className = '') => Object.assign(document.createElement(name), { textContent: text, className });
+  el.replaceChildren(tag('b', figure), tag('small', ' BPM'), tag('small', beat, 'beat'));
 }
 
 function drawDeck(deck, ui, sync) {
   ui.time.textContent = `${fmt(deck.position)} / ${fmt(deck.duration)}`;
+  ui.remain.textContent = `−${fmt(Math.max(0, deck.duration - deck.position))}`;
   ui.rate.textContent = `${deck.rate >= 1 ? '+' : '−'}${(Math.abs(deck.rate - 1) * 100).toFixed(2)} %`;
   ui.transpose.textContent = `${deck.transpose > 0 ? '+' : deck.transpose < 0 ? '−' : '±'}${Math.abs(deck.transpose)} dt`;
   ui.latency.textContent = `latence ${Math.round(deck.delay * 1000)} ms`;
   ui.range.textContent = `±${Math.round(deck.rateRange * 100)} %`;
   // Tempo heard: analysed BPM × pitch.
-  if (deck.bpm) ui.bpm.textContent = `${(deck.bpm * deck.rate).toFixed(2)} BPM · 1er temps ${deck.firstBeat.toFixed(3)} s`;
+  if (deck.bpm) setBpm(ui.bpm, (deck.bpm * deck.rate).toFixed(2), deck.firstBeat);
   if (ui.syncError && performance.now() > ui.syncError.until) ui.syncError = null;
   ui.master.textContent = ui.syncError?.text
     ?? (sync.shownMaster === deck.index ? 'MAÎTRE' : sync.follower === deck.index ? `SYNC → ${'AB'[sync.master]}` : '');
