@@ -96,11 +96,15 @@ async function scenario({ page, sim }) {
   // Vinyl off: touched wheel does the POC jog (search by 0.02 s per tick), no scratch.
   await sim.send('press A vinyl');
   await sim.send('touch A on', 50);
-  const v0 = await position();
+  // Position and audio clock read together: the jump is what remains once normal playback is removed,
+  // so the check does not depend on how long the round trip takes under CPU load.
+  const posAt = () => get('[d.position, d.engine.ctx.currentTime, d.speed]');
+  const [v0, t0] = await posAt();
   await sim.send('jog A 10 touched', 100);
-  const v1 = await position();
-  check('hors mode vinyle, jog touché : comportement du POC, pas de scratch', !(await get('d.scratch')) && v1 - v0 > 0.2 && v1 - v0 < 0.4 && (await get('d.playing')),
-    `${(v1 - v0).toFixed(3)} s`);
+  const [v1, t1, sp] = await posAt();
+  const jump = v1 - v0 - (t1 - t0) * sp;
+  check('hors mode vinyle, jog touché : comportement du POC, pas de scratch', !(await get('d.scratch')) && jump > 0.15 && jump < 0.25 && (await get('d.playing')),
+    `saut ${jump.toFixed(3)} s (${(v1 - v0).toFixed(3)} s en ${(t1 - t0).toFixed(3)} s)`);
   await sim.send('touch A off', 50);
   await sim.send('press A vinyl');
   await sim.send('press A play', 200);
