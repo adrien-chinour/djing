@@ -1,11 +1,22 @@
 // Scenario of scratch and vinyl mode (#40): VINYL button and LED, scratch with the touched wheel
 // (speed follows the wheel, stops with it, back to the pitch fader on release), POC nudge outside
 // vinyl mode or on the wheel edge, SHIFT + wheel as a search 4 times faster than a scratch.
+// The whole scenario runs under an artificial CPU load (#73): the distance moved by the wheel must
+// not depend on how regularly the page's main thread runs.
 
 import { join } from 'node:path';
-import { check, sleep, tmp, writeTone } from '../lib.mjs';
+import { check, cpuLoad, sleep, tmp, writeTone } from '../lib.mjs';
 
 export default async function ({ page, sim }) {
+  const load = cpuLoad();
+  try {
+    await scenario({ page, sim });
+  } finally {
+    load.stop();
+  }
+}
+
+async function scenario({ page, sim }) {
   const wav = join(tmp, 'tone.wav');
   writeTone(wav);
   const q = (sel) => `document.querySelector(${JSON.stringify(sel)})`;

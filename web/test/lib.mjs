@@ -8,7 +8,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { availableParallelism, tmpdir } from 'node:os';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -134,6 +134,24 @@ export async function startSim() {
       await exited;
     },
   };
+}
+
+// --- CPU load ----------------------------------------------------------------
+
+/**
+ * Busy-loops `threads` worker threads (default: twice the cores, a load of about 2 per core) in a
+ * child node process, until stop() or the end of the run. The child also exits when the test
+ * process dies (its stdin closes) and after 10 minutes at most.
+ */
+export function cpuLoad(threads = availableParallelism() * 2) {
+  const code = `const { Worker } = require('node:worker_threads');
+for (let i = 0; i < ${threads}; i++) new Worker('for (;;) {}', { eval: true });
+process.stdin.on('close', () => process.exit()).resume();
+setTimeout(() => process.exit(), 600000);`;
+  const proc = spawn(process.execPath, ['-e', code], { stdio: ['pipe', 'ignore', 'inherit'] });
+  const stop = () => { if (proc.exitCode === null && proc.signalCode === null) proc.kill('SIGKILL'); };
+  cleanups.push(stop);
+  return { stop };
 }
 
 // --- Chrome ------------------------------------------------------------------
