@@ -42,7 +42,8 @@
 
 * { box-sizing: border-box; }
 html { background: var(--bg); color: var(--ink); }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--sans); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 var(--sans);
+  min-height: 100vh; display: flex; flex-direction: column; }
 a { color: var(--amber); }
 ::selection { background: var(--amber); color: var(--amber-ink); }
 [hidden] { display: none !important; }
@@ -92,11 +93,15 @@ summary:hover { color: var(--ink); }
   padding: 12px; background: var(--bg-2); border: 1px solid var(--line-2); border-radius: var(--radius); }
 .topbar .setup select { width: 100%; }
 .topbar .setup label { display: grid; grid-template-columns: 4.5em 1fr; }
+.topbar .display .popover { width: 300px; }
+.topbar .display .presets button { flex: 1; }
+.topbar .display .blocks { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.topbar .display label.check { display: flex; font-size: 13px; color: var(--ink); }
 #rec.rec { background: var(--alert); border-color: var(--alert); color: var(--alert-ink); }
 #recTime { font-family: var(--mono); }
 
 /* ── Mixing area: deck A, mixer, deck B ──────────────────────────────────── */
-.stage { display: grid; grid-template-columns: minmax(0, 1fr) 196px minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
+.stage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 196px minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
 .deck, .mixer, .library { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); }
 .deck { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; border-top: 3px solid var(--accent); }
 .deck[data-deck="0"] { --accent: var(--deck-a); }
@@ -125,10 +130,10 @@ summary:hover { color: var(--ink); }
 .deck-head .rate { display: block; font-size: 12px; color: var(--ink-2); }
 
 /* Waveforms, full width; zoom buttons over the scrolling view. */
-.waveform { position: relative; }
+.waveform { position: relative; flex: 1; display: flex; flex-direction: column; }
 .waveform canvas { display: block; width: 100%; background: var(--bg-3); border: 1px solid var(--line); border-radius: 6px; }
 .waveform .overview { height: 30px; cursor: pointer; margin-bottom: 4px; }
-.waveform .scroll { height: 120px; }
+.waveform .scroll { flex: 1 1 120px; min-height: 120px; }
 .waveform .zoom { position: absolute; right: 6px; bottom: 6px; gap: 4px; }
 .waveform .zoom button { padding: 0 8px; font-size: 12px; background: var(--bg-2); opacity: .8; }
 .waveform .zoom-label { font: 11px var(--mono); color: var(--ink-2); }
@@ -147,7 +152,7 @@ summary:hover { color: var(--ink); }
 
 /* Pads: a row of mode tabs (the pad mode LEDs), then only the page of the current mode. */
 .pad-area { display: flex; flex-direction: column; gap: 6px; }
-.pad-modes { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
+.pad-modes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; }
 .pad-modes button { padding: 3px 0; font-size: 11px; font-weight: 500; background: transparent; border-color: var(--line); color: var(--ink-2);
   overflow: hidden; text-overflow: ellipsis; }
 .pad-modes button.on { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); font-weight: 700; }
@@ -180,8 +185,10 @@ summary:hover { color: var(--ink); }
 .fx-block .fx-slot label input { flex: 1; }
 
 /* Channel strip of the deck: gain, EQ, filter, volume, pitch. */
-.knobs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.3fr) minmax(0, 1.6fr); gap: 6px; }
-.knobs label { flex-direction: column; align-items: stretch; gap: 0; font-size: 11px; text-align: center; }
+.knobs { display: flex; gap: 6px; }
+.knobs label { flex: 1 1 0; min-width: 0; flex-direction: column; align-items: stretch; gap: 0; font-size: 11px; text-align: center; }
+.knobs label:has([data-knob=volume]) { flex-grow: 1.3; }
+.knobs label:has([data-knob=rate]) { flex-grow: 1.6; }
 .knobs input { width: 100%; }
 
 /* Rare controls, folded. */
@@ -240,6 +247,21 @@ summary:hover { color: var(--ink); }
 .slots button.empty { color: var(--mute); background: transparent; border-color: var(--line); }
 #log { margin: 0 12px 12px; padding: 8px 12px; background: var(--bg-3); border: 1px solid var(--line); border-radius: var(--radius);
        height: 120px; overflow: auto; font: 12px/1.4 var(--mono); color: var(--mute); white-space: pre; }
+
+/* ── Display settings (ui/display.js): a hide-<block> class on <body> takes the block out of the layout ── */
+.hide-overview .waveform .overview,
+.hide-scroll .waveform .scroll, .hide-scroll .waveform .zoom,
+.hide-overview.hide-scroll .waveform,
+.hide-eq .knobs label:has([data-knob=gain], [data-knob=high], [data-knob=mid], [data-knob=low]),
+.hide-filter .knobs label:has([data-knob=filter]),
+.hide-transpose [data-act=keylock], .hide-transpose .more .row:has([data-knob=transpose]),
+.hide-pads .pad-area,
+.hide-fx [data-act="padMode.fx"], .hide-fx .pad-pages > .fx-block,
+.hide-sampler #sampler, .hide-sampler [data-act="padMode.sampler"], .hide-sampler .pad-pages > .sampler-page,
+.hide-headphones .mixer label:has(#cueVol, #cueMix, #splitCue),
+.hide-library #library,
+.hide-playlists #playlists,
+.hide-log #log { display: none !important; }
 
 @media (prefers-reduced-motion: no-preference) {
   button { transition: background-color 120ms ease; }
