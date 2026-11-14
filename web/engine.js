@@ -514,7 +514,7 @@ class Deck {
   /** LOOP OUT: sets the loop end and activates the loop; on an active loop, leaves it (playback goes on). */
   loopOut() {
     if (!this.buffer) return;
-    if (this.loop) return this.setLoop(null);
+    if (this.loop) return this.exitLoop();
     const position = this.position;
     if (this.loopStart === null || position - this.loopStart < LOOP_MIN_SECONDS) return;
     this.setLoop({ start: this.loopStart, end: position });
@@ -540,6 +540,21 @@ class Deck {
     const end = Math.min(this.duration, start + beats * beat);
     this.loopStart = start;
     this.setLoop({ start, end });
+  }
+
+  /**
+   * Auto loop button (Mixxx beatloop_X_toggle): leaves the active loop when it is `beats` beats long,
+   * else sets an auto loop of `beats` beats.
+   */
+  toggleAutoLoop(beats) {
+    const beat = this.beatLength;
+    if (this.loop && beat && Math.abs(this.loop.end - this.loop.start - beats * beat) < 1e-6) return this.exitLoop();
+    this.autoLoop(beats);
+  }
+
+  /** RELOOP while looping: leaves the loop, playback goes on from where it is (or the ghost position with slip). */
+  exitLoop() {
+    if (this.loop) this.setLoop(null);
   }
 
   /**

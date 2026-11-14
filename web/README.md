@@ -143,11 +143,14 @@ que ne reçoit rien.
   et relus au chargement depuis la bibliothèque ; un fichier glissé sur le deck n'est pas sauvegardé. Le scénario
   `test/scenarios/hotcues.mjs` le vérifie.
 - Boucles (`engine.js`, bornes dans le worklet) : LOOP IN (`0x09`) pose le début, LOOP OUT (`0x0A`) la fin et active
-  la boucle, ou la quitte si elle est active (la lecture continue) ; LED LOOP IN allumée tant qu'une boucle est
-  active. SHIFT + LOOP IN / OUT : longueur ÷2 / ×2 depuis le début, entre 1/32 et 64 temps (en secondes sans
-  grille). Boutons à l'écran de 1/2 à 16 temps, qui exigent une grille : début au temps courant si QUANTIZE
-  (`0x02`, bouton Q) est actif, sinon à la position. Le worklet recule de la longueur exacte de la boucle, avec le
-  fondu de 5 ms d'un saut. Le scénario `test/scenarios/loops.mjs` le vérifie.
+  la boucle, ou la quitte si elle est active (la lecture continue, comme `DJCi300.loopOutButton` du script Mixxx,
+  `reloop_toggle`) ; LED LOOP IN allumée tant qu'une boucle est active. SHIFT + LOOP IN / OUT : longueur ÷2 / ×2
+  depuis le début, entre 1/32 et 64 temps (en secondes sans grille). Boutons à l'écran de 1/2 à 16 temps, qui exigent
+  une grille : début au temps courant si QUANTIZE (`0x02`, bouton Q) est actif, sinon à la position ; recliquer la
+  longueur de la boucle active la quitte (`beatloop_X_toggle` de Mixxx), une autre longueur la remplace. Bouton
+  SORTIR, actif seulement pendant une boucle : la quitte sans saut. Avec le slip, toute sortie reprend à la position
+  fantôme. Le worklet recule de la longueur exacte de la boucle, avec le fondu de 5 ms d'un saut. Le scénario
+  `test/scenarios/loops.mjs` le vérifie.
 - Slicer (`ui/slicer.js`, comme `DJCi300.deck[n].slicerPad` du script Hercules de Mixxx) : modes SLICER
   (`0x91`/`0x92` `0x11`, pads `0x96`/`0x97` `0x20` à `0x27`) et SLICER LOOP (`0x15`, pads `0x60` à `0x67`). Appui sur
   le mode : fenêtre de 8 temps depuis le temps le plus proche de la position entendue, 8 tranches d'un temps ;
