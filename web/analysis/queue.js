@@ -73,6 +73,17 @@ export async function analyzeTracks(tracks, { onProgress, onResult, onError }) {
   }
 }
 
+/**
+ * Analyses a file loaded outside the library (dropped or picked on a deck): sets `track.analysis`
+ * ({ bpm, firstBeat, key }) and `track.duration`, then announces it ("djing:analysis"). Nothing is saved.
+ */
+export async function analyzeFile(track) {
+  const { mono, duration } = await decodeMono(track.file);
+  track.analysis = await analyzeSamples(mono, true);
+  track.duration = duration;
+  announce(track);
+}
+
 /** Text of a BPM: "124.00", "BPM inconnu" (no pulse), "…" (not analysed yet). */
 export const formatBpm = (analysis) => (!analysis ? '…' : analysis.bpm === null ? 'BPM inconnu' : analysis.bpm.toFixed(2));
 

@@ -1,5 +1,5 @@
 // Scenario of the sync (#38): click tracks at 120 BPM on deck A and 126 BPM on deck B, beat grids
-// given to the decks. Checks the BPM shown (analysed BPM × pitch), SYNC refused without a BPM, the
+// given to the decks once analysed (#84). Checks the BPM shown (analysed BPM × pitch), SYNC refused without a BPM, the
 // master (only deck playing, SHIFT + SYNC, else the other deck), the SYNC LED, the click phase of
 // both decks recorded together in the page 10 s after SYNC (also after a tempo change of the master
 // and with keylock on the follower, whose audio is then 120 ms late), the pickup of the follower's
@@ -51,6 +51,14 @@ export default async function ({ page, sim }) {
 
   await page.eval(`document.querySelector('#start').click()`);
   await sleep(2000);
+
+  // No BPM yet (empty decks): SYNC is refused, with a message, and nothing changes.
+  await press(1);
+  await sleep(200);
+  const refused = await text(1, '.master');
+  check('sync sans BPM : message à l\'écran', refused.startsWith('Sync impossible'), refused);
+  check('sync sans BPM : état inchangé', (await page.eval(`${sync}.follower === null && ${deck(1)}.rate === 1`)) && syncLed(1) !== 0x7f);
+
   const doc = await page.send('DOM.getDocument');
   for (const d of [0, 1]) {
     const file = join(tmp, `clicks-${TRACKS[d].bpm}.wav`);
@@ -60,13 +68,8 @@ export default async function ({ page, sim }) {
   }
   await sleep(2500);
   check('pistes de clics chargées sur A et B', await page.eval(`!!(${deck(0)}.buffer && ${deck(1)}.buffer)`));
-
-  // No BPM yet: SYNC is refused, with a message, and nothing changes.
-  await press(1);
-  await sleep(200);
-  const refused = await text(1, '.master');
-  check('sync sans BPM : message à l\'écran', refused.startsWith('Sync impossible'), refused);
-  check('sync sans BPM : état inchangé', (await page.eval(`${sync}.follower === null && ${deck(1)}.rate === 1`)) && syncLed(1) !== 0x7f);
+  // Files picked on the decks are analysed in the background: wait for it, so it does not replace the grids below.
+  for (let i = 0; i < 100 && !(await page.eval(`!!(${deck(0)}.bpm && ${deck(1)}.bpm)`)); i++) await sleep(200);
 
   // Recorder of both deck signals (after the stretch node, before the fader), sample-aligned.
   await page.eval(`(() => {

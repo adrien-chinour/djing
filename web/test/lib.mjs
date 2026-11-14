@@ -9,7 +9,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
-import { join, extname, dirname } from 'node:path';
+import { join, extname, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 
@@ -53,6 +53,29 @@ export function writeTone(path) {
     buf.writeInt16LE(s, 44 + i * 4); buf.writeInt16LE(s, 46 + i * 4);
   }
   writeFileSync(path, buf);
+}
+
+// --- Decks ---------------------------------------------------------------------
+
+/**
+ * Picks `path` with the file input of deck d, then waits (30 s at most) for its background analysis
+ * (#84), so that it does not replace a grid set by the scenario afterwards. Resolves to false on timeout.
+ */
+export async function pickFile(page, d, path) {
+  const name = JSON.stringify(basename(path));
+  await page.eval(`(window.__analysed ??= {})[${name}] = new Promise((resolve) => {
+    const on = ({ detail }) => {
+      if (detail.file?.name !== ${name}) return;
+      document.removeEventListener('djing:analysis', on);
+      resolve(true);
+    };
+    document.addEventListener('djing:analysis', on);
+    setTimeout(() => resolve(false), 30000);
+  }), true`);
+  const doc = await page.send('DOM.getDocument');
+  const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: `.deck[data-deck="${d}"] input[type=file]` });
+  await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [path] });
+  return page.eval(`window.__analysed[${name}]`);
 }
 
 // --- Static server -----------------------------------------------------------

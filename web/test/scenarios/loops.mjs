@@ -7,17 +7,14 @@
 //   enabled only while looping, LOOP OUT on an auto loop, no jump on exit, back to the ghost position with slip.
 
 import { join } from 'node:path';
-import { check, sleep, tmp, writeTone } from '../lib.mjs';
+import { check, pickFile, sleep, tmp, writeTone } from '../lib.mjs';
 
 export default async function ({ page, sim }) {
   await page.eval(`document.querySelector('#start').click()`);
   await sleep(2000);
   const wav = join(tmp, 'tone.wav');
   writeTone(wav);
-  const doc = await page.send('DOM.getDocument');
-  const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.deck[data-deck="0"] input[type=file]' });
-  await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wav] });
-  await sleep(1000);
+  await pickFile(page, 0, wav); // waits for the analysis, which would replace the grids set below
   check('titre chargé sur le deck A', await page.eval('!!window.djing.engine.decks[0].buffer'));
 
   await checkWorklet(page);

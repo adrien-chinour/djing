@@ -4,7 +4,7 @@
 // - the units of the running page, driven by the on-screen controls of deck A, measured on MAIN.
 
 import { join } from 'node:path';
-import { check, recordRms, sleep, tmp, writeTone } from '../lib.mjs';
+import { check, pickFile, recordRms, sleep, tmp, writeTone } from '../lib.mjs';
 
 export default async function ({ page }) {
   await checkUnitOffline(page);
@@ -99,10 +99,7 @@ async function checkUnitLive(page) {
   await sleep(2000);
   const wav = join(tmp, 'tone.wav');
   writeTone(wav);
-  const doc = await page.send('DOM.getDocument');
-  const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.deck[data-deck="0"] input[type=file]' });
-  await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wav] });
-  await sleep(1000);
+  await pickFile(page, 0, wav); // waits for the analysis, which would replace the BPM set below
   await page.eval(`window.djing.engine.setCrossfader(0)`);
   await page.eval(`${deckA('[data-act=play]')}.click()`);
   await sleep(300);
