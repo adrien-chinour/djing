@@ -5,7 +5,7 @@
 //   scratch and a held hotcue all resume where playback would have been; without slip, unchanged.
 
 import { join } from 'node:path';
-import { check, sleep, tmp, writeTone } from '../lib.mjs';
+import { check, pickFile, sleep, tmp, writeTone } from '../lib.mjs';
 
 const TOLERANCE = 0.02; // s, criterion of the issue
 
@@ -14,10 +14,7 @@ export default async function ({ page, sim }) {
   await sleep(2000);
   const wav = join(tmp, 'slip-tone.wav');
   writeTone(wav);
-  const doc = await page.send('DOM.getDocument');
-  const input = await page.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: '.deck[data-deck="0"] input[type=file]' });
-  await page.send('DOM.setFileInputFiles', { nodeId: input.nodeId, files: [wav] });
-  await sleep(1000);
+  await pickFile(page, 0, wav); // waits for the analysis, which would replace the grids set below
   check('titre chargé sur le deck A', await page.eval('!!window.djing.engine.decks[0].buffer'));
 
   await checkWorklet(page);

@@ -2,7 +2,7 @@
 // the action registry, so the controller and the screen share the same code.
 import { register, dispatch, led, onLed, refreshLeds } from '../actions.js';
 import { patch } from '../library/db.js';
-import { announce, formatBpm, formatKey } from '../analysis/queue.js';
+import { analyzeFile, announce, formatBpm, formatKey } from '../analysis/queue.js';
 
 const AUTO_LOOPS = [0.5, 1, 2, 4, 8, 16]; // beats, buttons of index.html
 
@@ -72,7 +72,8 @@ export function createDecks(ctx) {
   });
   // Resolves to true once `file` plays on deck d, false when the audio is off or the file does not decode.
   // Announces the new track with a `djing:load` event ({ deck, track }).
-  // `track` is the library entry of the file (id, analysis), absent for a file dropped or picked on the deck.
+  // `track` is the library entry of the file (id, analysis), absent for a file dropped or picked on the deck:
+  // such a file is analysed in the background (not saved) and gets its grid and BPM through "djing:analysis".
   async function load(d, file, track = null) {
     if (!ctx.engine) {
       ctx.log('Démarrer l\'audio avant de charger un titre');
@@ -91,12 +92,13 @@ export function createDecks(ctx) {
       return false;
     }
     ui.name.textContent = file.name;
-    ui.track = track;
+    ui.track = track ?? { file };
     setGrid(d);
     showBpm(ui);
     ctx.engine.decks[d].setBpm(track?.analysis?.bpm ?? null, track?.analysis?.firstBeat); // effects and sync
     document.dispatchEvent(new CustomEvent('djing:load', { detail: { deck: d, track } }));
     refreshLeds();
+    if (!track) analyzeFile(ui.track).catch((err) => ctx.log(`${file.name} : analyse impossible (${err.message})`));
     return true;
   }
   register('load', load);
@@ -106,7 +108,7 @@ export function createDecks(ctx) {
     const track = panels[d].track;
     if (v <= 0 || !track?.analysis?.bpm) return;
     track.analysis = edit(track.analysis);
-    patch('tracks', track.id, { analysis: track.analysis }).catch((err) => ctx.log(`Grille non sauvegardée : ${err.message}`));
+    if (track.id) patch('tracks', track.id, { analysis: track.analysis }).catch((err) => ctx.log(`Grille non sauvegardée : ${err.message}`));
     announce(track);
   });
   editGrid('grid.double', (a) => ({ ...a, bpm: a.bpm * 2 }));
