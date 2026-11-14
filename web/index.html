@@ -85,6 +85,8 @@
     <h2>Mixer</h2>
     <label>Crossfader <input id="xfader" type="range" min="0" max="1" step="0.001" value="0.5"></label>
     <label>Casque <input id="cueVol" type="range" min="0" max="1" step="0.01" value="1"></label>
+    <label title="Casque : 0 = cue seul, 1 = master seul">Cue/Master <input id="cueMix" type="range" min="0" max="1" step="0.01" value="0"></label>
+    <label title="Casque : cue en mono à gauche, master en mono à droite"><input id="splitCue" type="checkbox"> split casque</label>
     <label>Master <input id="mainVol" type="range" min="0" max="1" step="0.01" value="1"></label>
     <label><input id="rateInvert" type="checkbox" checked> pitch inversé</label>
     <div class="meters" title="Niveaux crête, −48 à 0 dBFS">
