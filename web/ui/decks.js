@@ -188,7 +188,7 @@ function setBpm(el, figure, firstBeat) {
   const beat = ` · 1er temps ${firstBeat.toFixed(3)} s`;
   if (el.textContent === `${figure} BPM${beat}`) return;
   const tag = (name, text, className = '') => Object.assign(document.createElement(name), { textContent: text, className });
-  el.replaceChildren(tag('b', figure), tag('small', 'BPM'), tag('small', beat, 'beat'));
+  el.replaceChildren(tag('b', figure), tag('small', ' BPM'), tag('small', beat, 'beat'));
 }
 
 function drawDeck(deck, ui, sync) {
