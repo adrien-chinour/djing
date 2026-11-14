@@ -92,13 +92,20 @@ que ne reçoit rien.
   « BPM inconnu », pas de grille) ; un titre qui l'a n'est plus analysé. Le deck affiche BPM et premier temps,
   corrigés par ÷2, ×2, −10 ms, +10 ms (actions `grid.*`). Le scénario `test/scenarios/beatgrid.mjs` le vérifie
   sur des pistes de clics et du bruit blanc.
-- Tonalité (`analysis/key.js`, dans le même worker que le BPM) : chromagramme (trames de 8192 échantillons,
-  fenêtre de Hann, 55 à 1760 Hz, magnitude moyenne par classe de hauteur), corrélé aux 24 profils de
+- Tonalité (`analysis/key.js`, dans le même worker que le BPM) : chromagramme (trames d'environ 0,37 s, soit
+  8192 échantillons à 22050 Hz, fenêtre de Hann ; seuls les pics du spectre comptent, rapportés au demi-ton le
+  plus proche ; chaque demi-ton divisé par la moyenne des six demi-tons de part et d'autre pour effacer la pente
+  du spectre ; quatre octaves de la2 à sol#6, sous lesquelles la grosse caisse et la sub-basse brouillent les
+  classes de hauteur ; chaque trame ramenée à 1 sur sa classe la plus forte), corrélé aux 24 profils de
   Krumhansl-Schmuckler (majeur et mineur), converti en notation Camelot (`8A` = la mineur, `8B` = do majeur).
-  Sauvegardée sous `analysis.key` (`null` : chromagramme trop plat ou corrélation trop faible, affiché « ? ») ; un
-  titre analysé avant la tonalité ne reçoit que sa tonalité, BPM et grille gardés. Une seule tonalité par titre.
-  Affichée dans la colonne « Tonalité » de la bibliothèque et sous le deck. Le scénario `test/scenarios/key.mjs`
-  le vérifie sur des suites d'accords synthétiques (la mineur, do majeur, fa dièse mineur) et du bruit blanc.
+  Sauvegardée sous `analysis.key` (`null` : chromagramme trop plat, seuil d'autant plus haut que le titre est
+  court, ou corrélation trop faible ; affiché « ? ») avec `analysis.keyVersion` ; un titre analysé avant la
+  tonalité, ou resté « ? » avec une version plus ancienne de l'analyse (#86), ne reçoit que sa tonalité, BPM et
+  grille gardés. Une seule tonalité par titre. Affichée dans la colonne « Tonalité » de la bibliothèque et sous le
+  deck. Le scénario `test/scenarios/key.mjs` le vérifie sur des suites d'accords synthétiques (la mineur, do
+  majeur, fa dièse mineur) et du bruit blanc ; `test/scenarios/key-reference.mjs` sur un jeu de référence de dix
+  titres générés (batterie, basse, nappe et arpège dans une tonalité connue) : au moins 7 justes ou à une case
+  Camelot près, bruit blanc « ? ».
 - `ui/library.js` : « Choisir le dossier » (`showDirectoryPicker`, handle gardé en IndexedDB, « Rouvrir » au
   rechargement pour redemander la permission), tableau Artiste / Titre / Chemin, chargement par les boutons A/B, par
   l'encodeur (`0xB0 0x01`, sélection) et par LOAD (`0x91`/`0x92` `0x0D`). Un fichier que `decodeAudioData` refuse

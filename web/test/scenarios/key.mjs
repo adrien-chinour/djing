@@ -22,8 +22,8 @@ const PROGRESSIONS = {
 };
 const NOISE = 'Noise - White.wav';
 
-/** 16-bit mono WAV of `samples` (Float32Array, −1..1). */
-function wav(samples) {
+/** 16-bit mono WAV of `samples` (Float32Array, −1..1) at 22050 Hz; also used by key-reference.mjs. */
+export function wav(samples) {
   const buf = Buffer.alloc(44 + samples.length * 2);
   buf.write('RIFF', 0); buf.writeUInt32LE(36 + samples.length * 2, 4); buf.write('WAVEfmt ', 8);
   buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(1, 22);
